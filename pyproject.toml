@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cognite-databricks"
+version = "0.1.0"
+description = "Helper SDK for Databricks UDTF registration and Unity Catalog integration"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Cognite", email = "support@cognite.com"}
+]
+keywords = ["cognite", "cdf", "databricks", "udtf", "unity-catalog", "secret-manager"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "cognite-pygen-spark>=0.1.0",
+    "cognite-sdk>=7.90.1",
+    "databricks-sdk>=0.20.0",
+    # PySpark is provided by Databricks runtime - do not include as dependency
+    # For local development, install with: pip install cognite-databricks[local]
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+local = [
+    "pyspark>=3.0.0",  # Only for local development/testing outside Databricks
+]
+
+[project.urls]
+Homepage = "https://github.com/cognitedata/cognite-databricks"
+Documentation = "https://cognite-databricks.readthedocs.io"
+Repository = "https://github.com/cognitedata/cognite-databricks"
+Issues = "https://github.com/cognitedata/cognite-databricks/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cognite*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
