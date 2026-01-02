@@ -35,7 +35,7 @@ client = load_cognite_client_from_toml("config.toml")
 
 # Test data model query
 from cognite.client.data_classes.data_modeling.ids import DataModelId
-data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="1")
+data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 views = client.data_modeling.views.list(data_model_id)
 print(f"Found {len(views)} views")
 ```

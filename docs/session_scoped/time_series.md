@@ -7,17 +7,24 @@ Time Series UDTFs are **template-generated** using the same template-based gener
 Time series UDTFs are automatically generated along with data model UDTFs when using `generate_udtf_notebook()`. They use the same template-based generation for consistency:
 
 ```python
+from databricks.sdk import WorkspaceClient
 from cognite.databricks import generate_udtf_notebook
 from cognite.pygen import load_cognite_client_from_toml
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 
+# Create WorkspaceClient (auto-detects credentials in Databricks)
+workspace_client = WorkspaceClient()
+
 # Load client and generate UDTFs (includes time series UDTFs)
 client = load_cognite_client_from_toml("config.toml")
-data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="1")
+data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 generator = generate_udtf_notebook(
     data_model_id,
     client,
+    workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
+    catalog="main",  # Optional but recommended
+    schema="sailboat_sailboat_v1",  # Optional but recommended
 )
 
 # Register all UDTFs (data model + time series) for session-scoped use

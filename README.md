@@ -108,37 +108,44 @@ For development, testing, or DBR < 18.1 environments, you can register UDTFs for
 ### Register All UDTFs (Recommended)
 
 ```python
+from databricks.sdk import WorkspaceClient
 from cognite.databricks import generate_udtf_notebook
 from cognite.pygen import load_cognite_client_from_toml
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 
+# Create WorkspaceClient (auto-detects credentials in Databricks)
+workspace_client = WorkspaceClient()
+
 # Load client and generate UDTFs
 client = load_cognite_client_from_toml("config.toml")
-data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="1")
+data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 generator = generate_udtf_notebook(
     data_model_id,
     client,
+    workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
+    catalog="main",  # Optional but recommended
+    schema="sailboat_sailboat_v1",  # Optional but recommended
 )
 
 # Install dependencies (run in separate cell first)
 # %pip install cognite-sdk
 # (Restart kernel after installation)
 
-# Register all UDTFs for session-scoped use
+# Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
 registered = generator.register_session_scoped_udtfs()
-# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf"}
+# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf", 
+#           "time_series_datapoints": "time_series_datapoints_udtf", ...}
 
-# Use in SQL
+# Use in SQL (always use SECRET() for credentials)
 # SELECT * FROM smallboat_udtf(
-#     SECRET('cdf_sailboat_sailboat', 'client_id'),
-#     SECRET('cdf_sailboat_sailboat', 'client_secret'),
-#     SECRET('cdf_sailboat_sailboat', 'tenant_id'),
-#     SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
-#     SECRET('cdf_sailboat_sailboat', 'project'),
-#     NULL, -- name
-#     NULL, -- description
-#     ...
+#     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+#     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+#     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+#     cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+#     project => SECRET('cdf_sailboat_sailboat', 'project'),
+#     name => 'MyBoat',
+#     description => NULL
 # ) LIMIT 10;
 ```
 
