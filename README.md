@@ -124,8 +124,8 @@ generator = generate_udtf_notebook(
     client,
     workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
-    catalog="main",  # Optional but recommended
-    schema="sailboat_sailboat_v1",  # Optional but recommended
+    # Note: catalog and schema parameters are only used for Unity Catalog registration,
+    # not for session-scoped UDTFs. They can be omitted for session-scoped use.
 )
 
 # Install dependencies (run in separate cell first)

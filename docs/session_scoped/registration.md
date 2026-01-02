@@ -19,14 +19,14 @@ client = load_cognite_client_from_toml("config.toml")
 # Define data model
 data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 
-# Generate UDTFs with all parameters
+# Generate UDTFs
 generator = generate_udtf_notebook(
     data_model_id,
     client,
     workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
-    catalog="main",  # Optional but recommended
-    schema="sailboat_sailboat_v1",  # Optional but recommended
+    # Note: catalog and schema parameters are only used for Unity Catalog registration,
+    # not for session-scoped UDTFs. They can be omitted for session-scoped use.
 )
 
 # Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
