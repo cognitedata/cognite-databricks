@@ -353,7 +353,11 @@ generator.register_udtfs_and_views(
 ## Documentation
 
 For detailed documentation, see:
-- [Technical Plan - CDF Databricks Integration (UDTF-Based)](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md)
+
+- **[Documentation Index](docs/index.md)**: Complete guide covering both session-scoped and catalog-based UDTF registration
+- **[Session-Scoped UDTF Registration](docs/session_scoped/index.md)**: Development and testing workflow
+- **[Catalog-Based UDTF Registration](docs/catalog_based/index.md)**: Production deployment with Unity Catalog
+- **[Technical Plan - CDF Databricks Integration (UDTF-Based)](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md)**: Architecture and design details
 
 ## License
 
