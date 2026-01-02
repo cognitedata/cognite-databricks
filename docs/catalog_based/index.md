@@ -23,7 +23,7 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 5. **[Querying](./querying.md)**: Query Views and UDTFs directly
 6. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
 7. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
-8. **[Time Series](./time_series.md)**: Work with time series UDTFs in Unity Catalog
+8. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
 9. **[Governance](./governance.md)**: Set up Unity Catalog permissions
 10. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
@@ -40,4 +40,5 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 
 - [Session-Scoped UDTF Registration](../session_scoped/index.md): For development and testing
 - Technical Plan: CDF Databricks Integration (UDTF-Based)
+
 

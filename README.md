@@ -21,6 +21,7 @@ A helper SDK for Databricks that provides UDTF registration utilities, Secret Ma
 - **Unity Catalog Integration**: Native support for Unity Catalog function and view registration
 - **DBR 18.1+ Support**: Custom dependency support for UDTFs
 - **Type Safety**: Full type hints and IDE support
+- **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 
 ## Installation
 
@@ -48,11 +49,13 @@ generator = generate_udtf_notebook(
 )
 
 # Register UDTFs and Views in Unity Catalog
+# Includes both data model UDTFs and time series UDTFs (all template-generated)
 # Scope name auto-generated from data model: cdf_{space}_{external_id}
-generator.register_udtfs_and_views(
+result = generator.register_udtfs_and_views(
     secret_scope=None,  # Auto-generated if None
     dependencies=["cognite-sdk>=6.0.0"],
 )
+print(f"Registered {result.total_count} UDTF(s) including time series UDTFs")
 ```
 
 ### Low-Level API
@@ -346,9 +349,23 @@ generator.register_udtfs_and_views(
 
 ## Related Packages
 
-- **[cognite-pygen-spark](https://github.com/cognitedata/pygen-spark)** (PyPI: `cognite-pygen-spark`): Code generation library for UDTFs
-- **[cognite-pygen](https://github.com/cognitedata/pygen)** (PyPI: `cognite-pygen`): Base code generation library
+- **[cognite-pygen-spark](https://github.com/cognitedata/pygen-spark)** (PyPI: `cognite-pygen-spark`): Generic Spark UDTF code generation library that works with any Spark cluster. Provides template-based UDTF generation, type conversion utilities (`TypeConverter`), connection configuration (`CDFConnectionConfig`), and utility functions. `cognite-databricks` uses `pygen-spark` for all code generation.
+- **[cognite-pygen](https://github.com/cognitedata/pygen)** (PyPI: `cognite-pygen`): Base code generation library for CDF Data Models
 - **[cognite-sdk-python](https://github.com/cognitedata/cognite-sdk-python)**: Python SDK for CDF APIs
+
+### Import Paths for Generic Components
+
+Generic components (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) are provided by `pygen-spark` and re-exported from `cognite-databricks` for backward compatibility:
+
+```python
+# Preferred: Import directly from pygen-spark (source)
+from cognite.pygen_spark import TypeConverter, CDFConnectionConfig, to_udtf_function_name
+
+# Backward compatible: Still works (re-exported from pygen-spark)
+from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_function_name
+```
+
+**Note**: These components are generic Spark utilities and work with any Spark cluster, not just Databricks. They were moved from `cognite-databricks` to `pygen-spark` to make them available for standalone Spark clusters.
 
 ## Documentation
 

@@ -123,3 +123,4 @@ SELECT * FROM time_series_latest_datapoints_udtf(
 - Explore [Joining](./joining.md) UDTFs together
 - See [Time Series UDTFs](./time_series.md) for more details
 
+

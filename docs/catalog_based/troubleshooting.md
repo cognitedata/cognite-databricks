@@ -109,3 +109,4 @@ For more information, see:
 - [Session-Scoped UDTF Registration](../session_scoped/index.md)
 - Technical Plan: CDF Databricks Integration (UDTF-Based)
 
+

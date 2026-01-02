@@ -76,3 +76,4 @@ generator.register_udtfs_and_views(
 
 After setting up Secret Manager, proceed to [Registration](./registration.md) to register UDTFs and Views.
 
+

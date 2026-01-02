@@ -71,3 +71,4 @@ REVOKE SELECT ON CATALOG main FROM `analysts@company.com`;
 - Learn about [Querying](./querying.md) Views
 - See [Troubleshooting](./troubleshooting.md) for common issues
 
+
