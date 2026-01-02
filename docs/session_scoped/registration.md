@@ -19,7 +19,7 @@ client = load_cognite_client_from_toml("config.toml")
 # Define data model
 data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 
-# Generate UDTFs
+# Generate UDTFs with all parameters
 generator = generate_udtf_notebook(
     data_model_id,
     client,
