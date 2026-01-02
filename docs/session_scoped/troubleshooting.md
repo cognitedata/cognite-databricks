@@ -62,7 +62,16 @@ registered = generator.register_session_scoped_udtfs()
 print("Registered functions:", registered)
 
 # Verify function name in SQL matches
-# If registered as "smallboat_udtf", use: SELECT * FROM smallboat_udtf(...)
+# If registered as "smallboat_udtf", use:
+# SELECT * FROM smallboat_udtf(
+#     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+#     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+#     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+#     cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+#     project => SECRET('cdf_sailboat_sailboat', 'project'),
+#     name => NULL,
+#     description => NULL
+# ) LIMIT 10;
 ```
 
 ### Issue: Time Series UDTF returns NULL values

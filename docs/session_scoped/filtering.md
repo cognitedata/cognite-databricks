@@ -6,7 +6,15 @@ UDTFs support filtering via WHERE clauses in SQL. The filters are pushed down to
 
 ```sql
 -- Filter by external_id
-SELECT * FROM smallboat_udtf(...)
+SELECT * FROM smallboat_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE external_id = 'my-boat-123'
 LIMIT 10;
 ```
@@ -27,12 +35,28 @@ Predicate pushdown means that WHERE clause conditions are evaluated in the UDTF'
 
 ```sql
 -- Filter by single property
-SELECT * FROM smallboat_udtf(...)
+SELECT * FROM smallboat_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE name = 'MyBoat'
 LIMIT 10;
 
 -- Filter by space and external_id
-SELECT * FROM vessel_udtf(...)
+SELECT * FROM vessel_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE space = 'sailboat' AND external_id = 'vessel-123'
 LIMIT 10;
 ```
@@ -41,12 +65,28 @@ LIMIT 10;
 
 ```sql
 -- Filter by timestamp range
-SELECT * FROM pump_view_udtf(...)
+SELECT * FROM pump_view_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE timestamp > '2025-01-01' AND timestamp < '2025-12-31'
 ORDER BY timestamp;
 
 -- Filter by numeric range
-SELECT * FROM sensor_udtf(...)
+SELECT * FROM sensor_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE value > 100 AND value < 200
 LIMIT 10;
 ```
@@ -55,12 +95,28 @@ LIMIT 10;
 
 ```sql
 -- Filter out NULL values
-SELECT * FROM smallboat_udtf(...)
+SELECT * FROM smallboat_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE description IS NOT NULL
 LIMIT 10;
 
 -- Find records with NULL values
-SELECT * FROM vessel_udtf(...)
+SELECT * FROM vessel_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE name IS NULL
 LIMIT 10;
 ```
@@ -69,7 +125,15 @@ LIMIT 10;
 
 ```sql
 -- Complex filtering with multiple conditions
-SELECT * FROM pump_view_udtf(...)
+SELECT * FROM pump_view_udtf(
+    client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project => SECRET('cdf_sailboat_sailboat', 'project'),
+    name => NULL,
+    description => NULL
+)
 WHERE space = 'power'
   AND timestamp > '2025-01-01'
   AND status = 'active'
