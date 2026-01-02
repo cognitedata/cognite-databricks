@@ -5,26 +5,34 @@
 The easiest way to register UDTFs is to use `register_session_scoped_udtfs()` which registers all generated UDTFs at once:
 
 ```python
+from databricks.sdk import WorkspaceClient
 from cognite.databricks import generate_udtf_notebook
 from cognite.pygen import load_cognite_client_from_toml
 from cognite.client.data_classes.data_modeling.ids import DataModelId
+
+# Create WorkspaceClient (auto-detects credentials in Databricks)
+workspace_client = WorkspaceClient()
 
 # Load client from TOML file
 client = load_cognite_client_from_toml("config.toml")
 
 # Define data model
-data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="1")
+data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v1")
 
-# Generate UDTFs
+# Generate UDTFs with all parameters
 generator = generate_udtf_notebook(
     data_model_id,
     client,
+    workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
+    catalog="main",  # Optional but recommended
+    schema="sailboat_sailboat_v1",  # Optional but recommended
 )
 
-# Register all UDTFs for session-scoped use
+# Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
 registered = generator.register_session_scoped_udtfs()
-# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf"}
+# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf", 
+#           "time_series_datapoints": "time_series_datapoints_udtf", ...}
 
 # Print registered functions
 print("\n✓ Registered UDTFs:")
@@ -48,25 +56,21 @@ function_name = register_udtf_from_file(
 print(f"✓ Registered: {function_name}")
 ```
 
-## Register Time Series UDTFs
+## Time Series UDTF Registration
 
-Time Series UDTFs are pre-built in the `cognite-databricks` package and can be registered directly:
+Time Series UDTFs are **automatically generated and registered** when you call `register_session_scoped_udtfs()`. They use the same template-based generation as Data Model UDTFs and are included in the registration result:
 
 ```python
-from pyspark.sql.functions import udtf
-from cognite.databricks.time_series_udtfs import (
-    TimeSeriesDatapointsUDTF,
-    TimeSeriesDatapointsLongUDTF,
-    TimeSeriesLatestDatapointsUDTF,
-)
+# Time series UDTFs are automatically included when registering
+registered = generator.register_session_scoped_udtfs()
 
-# Register time series UDTFs
-time_series_datapoints_udtf = udtf(TimeSeriesDatapointsUDTF)
-time_series_datapoints_long_udtf = udtf(TimeSeriesDatapointsLongUDTF)
-time_series_latest_datapoints_udtf = udtf(TimeSeriesLatestDatapointsUDTF)
-
-print("✓ Time Series UDTFs registered")
+# Time series UDTFs will appear in the registered dictionary:
+# - "time_series_datapoints" -> "time_series_datapoints_udtf"
+# - "time_series_datapoints_long" -> "time_series_datapoints_long_udtf"
+# - "time_series_latest_datapoints" -> "time_series_latest_datapoints_udtf"
 ```
+
+**Note**: No manual registration is needed for time series UDTFs - they are template-generated and auto-registered along with Data Model UDTFs.
 
 ## Next Steps
 

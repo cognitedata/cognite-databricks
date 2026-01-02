@@ -9,13 +9,27 @@
 
 ## Install Required Packages
 
-In a Databricks notebook, install the required dependencies:
+### Option 1: Install from PyPI (Recommended for Production)
+
+In a Databricks notebook, install the required dependencies from PyPI:
 
 ```python
 %pip install cognite-sdk cognite-databricks
 ```
 
 **Important**: After installing packages, restart the Python kernel when prompted. This ensures all dependencies are properly loaded.
+
+### Option 2: Install from Wheel Files (For Testing Local Builds)
+
+If you're testing locally built wheel files, install them directly:
+
+```python
+%pip install --force-reinstall \
+  /Workspace/Users/user@example.com/wheels/cognite_pygen_spark-0.1.0-py3-none-any.whl \
+  /Workspace/Users/user@example.com/wheels/cognite_databricks-0.1.0-py3-none-any.whl
+```
+
+**Note**: Replace the paths with your actual wheel file locations. After installation, restart the Python kernel.
 
 ## Verify Installation
 
