@@ -175,90 +175,6 @@ def register_udtf_from_file(
     return function_name
 
 
-def generate_time_series_udtf_files(
-    output_dir: Path | str,
-    top_level_package: str = "cognite_databricks",
-) -> dict[str, Path]:
-    """Generate standalone .py files for the three time series datapoints UDTFs.
-    
-    This function creates individual .py files for:
-    - time_series_datapoints_udtf.py (single time series)
-    - time_series_datapoints_long_udtf.py (multiple time series, long format)
-    - time_series_latest_datapoints_udtf.py (latest datapoints)
-    
-    These files follow the same pattern as generated Data Model view UDTFs,
-    making them consistent and easy to register via register_udtf_from_file().
-    
-    Args:
-        output_dir: Directory where UDTF files will be written
-        top_level_package: Top-level Python package name (default: "cognite_databricks")
-    
-    Returns:
-        Dictionary mapping UDTF name to file path
-    
-    Example:
-        files = generate_time_series_udtf_files(
-            output_dir="/Workspace/Users/user@example.com/udtf",
-            top_level_package="cognite_databricks"
-        )
-        # Returns: {
-        #     "time_series_datapoints_udtf": Path(".../time_series_datapoints_udtf.py"),
-        #     "time_series_datapoints_long_udtf": Path(".../time_series_datapoints_long_udtf.py"),
-        #     "time_series_latest_datapoints_udtf": Path(".../time_series_latest_datapoints_udtf.py"),
-        # }
-    """
-    import inspect
-    from cognite.databricks.time_series_udtfs import (
-        TimeSeriesDatapointsUDTF,
-        TimeSeriesDatapointsLongUDTF,
-        TimeSeriesLatestDatapointsUDTF,
-    )
-    
-    output_dir = Path(output_dir)
-    udtf_dir = output_dir / top_level_package
-    udtf_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Map of class to filename
-    udtf_classes = {
-        "time_series_datapoints_udtf": TimeSeriesDatapointsUDTF,
-        "time_series_datapoints_long_udtf": TimeSeriesDatapointsLongUDTF,
-        "time_series_latest_datapoints_udtf": TimeSeriesLatestDatapointsUDTF,
-    }
-    
-    generated_files: dict[str, Path] = {}
-    
-    # Get the source file to extract imports
-    time_series_udtfs_file = Path(__file__).parent / "time_series_udtfs.py"
-    with open(time_series_udtfs_file, 'r', encoding='utf-8') as f:
-        source_code = f.read()
-    
-    # Extract the imports section (everything before the first class definition)
-    import_section = source_code.split("class TimeSeriesDatapointsUDTF")[0]
-    
-    for file_name, udtf_class in udtf_classes.items():
-        # Get the class source code
-        class_source = inspect.getsource(udtf_class)
-        
-        # Combine imports + class definition
-        file_content = f"""{import_section}
-
-{class_source}"""
-        
-        # Format with Black if available
-        try:
-            import black
-            file_content = black.format_str(file_content, mode=black.Mode(line_length=120))
-        except ImportError:
-            pass
-        except Exception:
-            pass
-        
-        # Write to file
-        file_path = udtf_dir / f"{file_name}.py"
-        file_path.write_text(file_content, encoding="utf-8")
-        generated_files[file_name] = file_path
-    
-    return generated_files
 
 
 def generate_time_series_udtf_view_sql(
@@ -716,14 +632,11 @@ def generate_udtf_notebook(
     # Note: __init__ only prepares the generator; generate_udtfs() actually writes files
     udtf_result = code_generator.generate_udtfs()
     
-    # Also generate time series UDTF files
+    # Also generate time series UDTF files using the same generator instance
     try:
-        ts_files = generate_time_series_udtf_files(
-            output_dir=output_dir,
-            top_level_package="cognite_databricks",
-        )
+        ts_result = code_generator.generate_time_series_udtfs()
         # Add to the result
-        udtf_result.generated_files.update(ts_files)
+        udtf_result.generated_files.update(ts_result.generated_files)
         udtf_result.total_count = len(udtf_result.generated_files)
     except Exception as e:
         print(f"[WARNING] Failed to generate time series UDTF files: {e}")
@@ -1033,13 +946,10 @@ class UDTFGenerator:
             udtf_result = self.code_generator.generate_udtfs(data_model)
             udtf_files = udtf_result.generated_files
             
-            # Also generate time series UDTF files
+            # Also generate time series UDTF files using the same generator instance
             try:
-                ts_files = generate_time_series_udtf_files(
-                    output_dir=self.code_generator.output_dir,
-                    top_level_package=self.code_generator.top_level_package,
-                )
-                udtf_files.update(ts_files)
+                ts_result = self.code_generator.generate_time_series_udtfs()
+                udtf_files.update(ts_result.generated_files)
             except Exception as e:
                 print(f"[WARNING] Failed to generate time series UDTF files: {e}")
 
@@ -1076,15 +986,12 @@ class UDTFGenerator:
             # UDTF code was already generated in __init__, just get the files
             udtf_files = self._find_generated_udtf_files()
             
-            # Also check for time series UDTF files
+            # Also generate time series UDTF files using the same generator instance
             try:
-                ts_files = generate_time_series_udtf_files(
-                    output_dir=self.code_generator.output_dir,
-                    top_level_package=self.code_generator.top_level_package,
-                )
-                udtf_files.update(ts_files)
+                ts_result = self.code_generator.generate_time_series_udtfs()
+                udtf_files.update(ts_result.generated_files)
             except Exception as e:
-                print(f"[WARNING] Failed to find time series UDTF files: {e}")
+                print(f"[WARNING] Failed to generate time series UDTF files: {e}")
             
             # Generate View SQL using the data model from code_generator
             view_sql_result = self.code_generator.generate_views(
