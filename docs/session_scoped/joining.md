@@ -148,3 +148,4 @@ ORDER BY v.external_id, speed_ts.timestamp;
 - Learn about [Filtering](./filtering.md) data with WHERE clauses
 - See [Time Series UDTFs](./time_series.md) for more details
 
+

@@ -133,3 +133,4 @@ result = generator.register_udtfs_and_views(
 
 After registration, learn about [Views](./views.md) and how to query them.
 
+

@@ -98,9 +98,27 @@ All examples are available in the `examples/` directory:
 - **Session-Scoped Examples**: `examples/session_scoped/`
 - **Catalog-Based Examples**: `examples/catalog_based/`
 
+## Package Architecture
+
+`cognite-databricks` extends `pygen-spark` with Databricks-specific features:
+
+- **Code Generation**: Uses `pygen-spark` for template-based UDTF generation (both Data Model and Time Series UDTFs)
+- **Generic Components**: Generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) are provided by `pygen-spark` and re-exported from `cognite.databricks` for backward compatibility
+- **Databricks-Specific**: Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities
+
+**Import Paths for Generic Components**:
+```python
+# Preferred: Import directly from pygen-spark (source)
+from cognite.pygen_spark import TypeConverter, CDFConnectionConfig, to_udtf_function_name
+
+# Backward compatible: Still works (re-exported from pygen-spark)
+from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_function_name
+```
+
 ## Related Resources
 
 - [README](../README.md): Package overview and installation
 - [Technical Plan](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md): Architecture and design details
-- [pygen-spark Documentation](https://github.com/cognitedata/pygen-spark): UDTF code generation library
+- [pygen-spark Documentation](https://github.com/cognitedata/pygen-spark): Generic Spark UDTF code generation library (works with any Spark cluster)
+
 

@@ -2,21 +2,30 @@
 
 ## Session-Scoped Registration
 
-Time Series UDTFs are pre-built in the `cognite-databricks` package and can be registered for session-scoped use:
+Time Series UDTFs are **template-generated** using the same template-based generation approach as Data Model UDTFs. They are generated when you call `generate_udtf_notebook()` and can be registered for session-scoped use:
+
+Time series UDTFs are automatically generated along with data model UDTFs when using `generate_udtf_notebook()`. They use the same template-based generation for consistency:
 
 ```python
-from pyspark.sql.functions import udtf
-from cognite.databricks.time_series_udtfs import (
-    TimeSeriesDatapointsUDTF,
-    TimeSeriesDatapointsLongUDTF,
-    TimeSeriesLatestDatapointsUDTF,
+from cognite.databricks import generate_udtf_notebook
+from cognite.pygen import load_cognite_client_from_toml
+from cognite.client.data_classes.data_modeling.ids import DataModelId
+
+# Load client and generate UDTFs (includes time series UDTFs)
+client = load_cognite_client_from_toml("config.toml")
+data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="1")
+generator = generate_udtf_notebook(
+    data_model_id,
+    client,
+    output_dir="/Workspace/Users/user@example.com/udtf",
 )
 
-# Register all time series UDTFs
-time_series_datapoints_udtf = udtf(TimeSeriesDatapointsUDTF)
-time_series_datapoints_long_udtf = udtf(TimeSeriesDatapointsLongUDTF)
-time_series_latest_datapoints_udtf = udtf(TimeSeriesLatestDatapointsUDTF)
+# Register all UDTFs (data model + time series) for session-scoped use
+registered = generator.register_session_scoped_udtfs()
+# Returns: {"SmallBoat": "smallboat_udtf", ..., "time_series_datapoints": "time_series_datapoints_udtf", ...}
 ```
+
+**Note**: Time series UDTFs are generated using the same Jinja2 templates as Data Model UDTFs, ensuring consistent behavior, error handling, and initialization patterns.
 
 ## Querying Time Series Datapoints
 

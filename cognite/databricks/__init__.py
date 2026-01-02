@@ -6,7 +6,6 @@ from cognite.databricks.generator import (
     register_udtf_from_file,
     generate_udtf_sql_query,
     generate_session_scoped_notebook_code,
-    generate_time_series_udtf_files,
     generate_time_series_udtf_view_sql,
 )
 from cognite.databricks.models import (
@@ -26,7 +25,7 @@ from cognite.databricks.utils import (
     inspect_recently_created_udtf,
     to_udtf_function_name,
 )
-from cognite.databricks.time_series_udtfs import (
+from cognite.pygen_spark.time_series_udtfs import (
     TimeSeriesDatapointsUDTF,
     TimeSeriesDatapointsLongUDTF,
     TimeSeriesLatestDatapointsUDTF,
@@ -38,7 +37,6 @@ __all__ = [
     "register_udtf_from_file",
     "generate_udtf_sql_query",
     "generate_session_scoped_notebook_code",
-    "generate_time_series_udtf_files",
     "generate_time_series_udtf_view_sql",
     "UDTFRegistry",
     "SecretManagerHelper",

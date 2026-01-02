@@ -72,3 +72,4 @@ print("✓ Time Series UDTFs registered")
 
 After registration, you can start [Querying](./querying.md) your UDTFs.
 
+

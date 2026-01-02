@@ -31,3 +31,4 @@ print("✓ All imports successful")
 
 Once installation is complete, proceed to [Registration](./registration.md) to register your UDTFs.
 
+

@@ -52,3 +52,4 @@ A CDF Data Model with Views (for Data Model UDTFs) or Time Series (for Time Seri
 
 Once prerequisites are met, proceed to [Secret Manager Setup](./secret_manager.md) to configure secure credential storage.
 
+

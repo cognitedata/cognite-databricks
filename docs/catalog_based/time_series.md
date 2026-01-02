@@ -2,39 +2,33 @@
 
 ## Catalog-Based Registration
 
-Time Series UDTFs can be registered in Unity Catalog:
+Time Series UDTFs are automatically generated when using `generate_udtf_notebook()` along with data model UDTFs. They use the same template-based generation pattern for consistency.
 
 ```python
-from cognite.databricks import UDTFGenerator, generate_time_series_udtf_files
-from cognite.databricks import UDTFRegistry
+from cognite.databricks import generate_udtf_notebook, UDTFGenerator
+from cognite.pygen import load_cognite_client_from_toml
+from cognite.client.data_classes.data_modeling.ids import DataModelId
 from databricks.sdk import WorkspaceClient
-from pathlib import Path
 
 workspace_client = WorkspaceClient()
-registry = UDTFRegistry(workspace_client)
+client = load_cognite_client_from_toml("config.toml")
 
-# Generate time series UDTF files
-udtf_files = generate_time_series_udtf_files(
-    output_dir=Path("/tmp/time_series_udtfs"),
-    top_level_package="cognite_databricks",
+# Generate UDTFs (includes both data model and time series UDTFs)
+generator = generate_udtf_notebook(
+    data_model=DataModelId(space="sailboat", external_id="sailboat", version="v1"),
+    client=client,
+    workspace_client=workspace_client,
+    output_dir="/Workspace/Users/user@example.com/udtf",
+    catalog="main",
+    schema="cdf_models",
 )
 
-# Register time series UDTFs
-for udtf_name, udtf_file in udtf_files.items():
-    # Read UDTF code
-    udtf_code = udtf_file.read_text()
-    
-    # Register in Unity Catalog
-    registry.register_udtf(
-        catalog="main",
-        schema="cdf_models",
-        function_name=udtf_name,
-        udtf_code=udtf_code,
-        input_params=input_params,  # From TimeSeriesUDTFConfig
-        return_type=return_type,  # From TimeSeriesUDTFConfig
-        return_params=return_params,  # From TimeSeriesUDTFConfig
-        dependencies=["cognite-sdk>=7.90.1"],
-    )
+# Register all UDTFs (data model + time series) in Unity Catalog
+secret_scope = "cdf_sailboat_sailboat"
+result = generator.register_udtfs_and_views(secret_scope=secret_scope)
+
+# Time series UDTFs are included in the result
+print(f"Registered {result.total_count} UDTF(s) including time series UDTFs")
 ```
 
 ## Time Series Views

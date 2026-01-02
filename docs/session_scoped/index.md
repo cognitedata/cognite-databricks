@@ -20,7 +20,7 @@ This documentation covers the complete workflow for using session-scoped UDTFs:
 3. **[Querying](./querying.md)**: Query UDTFs using SQL with various parameter styles
 4. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
 5. **[Joining](./joining.md)**: Join data from different UDTFs based on `external_id` and `space`
-6. **[Time Series](./time_series.md)**: Work with pre-built time series UDTFs
+6. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs (same template-based generation as Data Model UDTFs)
 7. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
 ## Quick Links
@@ -36,4 +36,5 @@ This documentation covers the complete workflow for using session-scoped UDTFs:
 
 - [Catalog-Based UDTF Registration](../catalog_based/index.md): For production deployments with Unity Catalog
 - Technical Plan: CDF Databricks Integration (UDTF-Based)
+
 
