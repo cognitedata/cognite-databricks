@@ -6,7 +6,7 @@ Once registered, UDTFs can be queried using standard SQL:
 
 ```sql
 -- Query a Data Model UDTF
-SELECT * FROM smallboat_udtf(
+SELECT * FROM small_boat_udtf(
     SECRET('cdf_sailboat_sailboat', 'client_id'),
     SECRET('cdf_sailboat_sailboat', 'client_secret'),
     SECRET('cdf_sailboat_sailboat', 'tenant_id'),
@@ -24,7 +24,7 @@ UDTFs support named parameters for cleaner SQL:
 
 ```sql
 -- Using named parameters (recommended)
-SELECT * FROM smallboat_udtf(
+SELECT * FROM small_boat_udtf(
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),

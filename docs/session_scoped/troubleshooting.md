@@ -62,8 +62,8 @@ registered = generator.register_session_scoped_udtfs()
 print("Registered functions:", registered)
 
 # Verify function name in SQL matches
-# If registered as "smallboat_udtf", use:
-# SELECT * FROM smallboat_udtf(
+# If registered as "small_boat_udtf", use:
+# SELECT * FROM small_boat_udtf(
 #     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
 #     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
 #     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),

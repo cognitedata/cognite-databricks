@@ -41,6 +41,7 @@ LIMIT 10;
 
 ```sql
 -- Use vessel data to query time series
+-- Note: Construct instance_id from space and external_id columns
 SELECT 
     v.external_id AS vessel_id,
     v.name AS vessel_name,
@@ -49,8 +50,7 @@ SELECT
 FROM vessel_udtf(...) v
 CROSS JOIN LATERAL (
     SELECT * FROM time_series_datapoints_udtf(
-        space => v.space,
-        external_id => v.speed_ts_external_id,
+        instance_id => CONCAT(v.space, ':', v.speed_ts_external_id),  -- Format: "space:external_id"
         start => '1d-ago',
         end => 'now',
         client_id => SECRET('cdf_scope', 'client_id'),
@@ -71,6 +71,7 @@ You can join session-scoped UDTFs with Data Model views that contain time series
 
 ```sql
 -- Join vessel view with time series using instance_id from view
+-- Note: Construct instance_id from space and external_id columns
 SELECT 
     v.external_id AS vessel_id,
     v.name AS vessel_name,
@@ -81,8 +82,7 @@ SELECT
 FROM vessel_udtf(...) v
 CROSS JOIN LATERAL (
     SELECT * FROM time_series_datapoints_udtf(
-        space => v.speed_ts_space,
-        external_id => v.speed_ts_external_id,
+        instance_id => CONCAT(v.speed_ts_space, ':', v.speed_ts_external_id),  -- Format: "space:external_id"
         start => '1d-ago',
         end => 'now',
         client_id => SECRET('cdf_scope', 'client_id'),
@@ -103,6 +103,7 @@ When a Data Model view contains references to multiple time series, you can quer
 
 ```sql
 -- Query multiple time series referenced in a view
+-- Note: Construct instance_id from space and external_id columns
 SELECT 
     v.external_id AS vessel_id,
     v.name AS vessel_name,
@@ -113,8 +114,7 @@ SELECT
 FROM vessel_udtf(...) v
 CROSS JOIN LATERAL (
     SELECT * FROM time_series_datapoints_udtf(
-        space => v.speed_ts_space,
-        external_id => v.speed_ts_external_id,
+        instance_id => CONCAT(v.speed_ts_space, ':', v.speed_ts_external_id),  -- Format: "space:external_id"
         start => '1d-ago',
         end => 'now',
         client_id => SECRET('cdf_scope', 'client_id'),
@@ -126,8 +126,7 @@ CROSS JOIN LATERAL (
 ) speed_ts
 CROSS JOIN LATERAL (
     SELECT * FROM time_series_datapoints_udtf(
-        space => v.course_ts_space,
-        external_id => v.course_ts_external_id,
+        instance_id => CONCAT(v.course_ts_space, ':', v.course_ts_external_id),  -- Format: "space:external_id"
         start => '1d-ago',
         end => 'now',
         client_id => SECRET('cdf_scope', 'client_id'),

@@ -6,7 +6,7 @@ UDTFs support filtering via WHERE clauses in SQL. The filters are pushed down to
 
 ```sql
 -- Filter by external_id
-SELECT * FROM smallboat_udtf(
+SELECT * FROM small_boat_udtf(
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
@@ -35,7 +35,7 @@ Predicate pushdown means that WHERE clause conditions are evaluated in the UDTF'
 
 ```sql
 -- Filter by single property
-SELECT * FROM smallboat_udtf(
+SELECT * FROM small_boat_udtf(
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
@@ -95,7 +95,7 @@ LIMIT 10;
 
 ```sql
 -- Filter out NULL values
-SELECT * FROM smallboat_udtf(
+SELECT * FROM small_boat_udtf(
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
