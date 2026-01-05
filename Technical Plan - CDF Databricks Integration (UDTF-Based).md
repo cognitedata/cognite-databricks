@@ -3998,8 +3998,7 @@ The integration provides three UDTFs, all generated using templates in `pygen-sp
 Query datapoints from a single time series using instance_id (space + external_id).
 
 **Parameters:**
-- `space` (STRING, required): CDF space name
-- `external_id` (STRING, required): Time series external_id
+- `instance_id` (STRING, required): Instance ID in format "space:external_id" (e.g., "sailboat:ts1")
 - `start` (STRING, required): Start timestamp (ISO 8601 or relative like "2w-ago", "1d-ago")
 - `end` (STRING, required): End timestamp (ISO 8601 or relative like "now", "1d-ahead")
 - `aggregates` (STRING, optional): Aggregate type ("average", "max", "min", "count")
@@ -4013,8 +4012,7 @@ Query datapoints from a single time series using instance_id (space + external_i
 ```sql
 -- Basic query: Get raw datapoints for a time series
 SELECT * FROM time_series_datapoints_udtf(
-  space => 'sailboat',
-  external_id => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
+  instance_id => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
   start => '47w-ago',
   end => '46w-ago',
   client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
@@ -4028,8 +4026,7 @@ LIMIT 10;
 
 -- With aggregates: Get hourly averages
 SELECT * FROM time_series_datapoints_udtf(
-  space => 'sailboat',
-  external_id => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
+  instance_id => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
   start => '47w-ago',
   end => '46w-ago',
   aggregates => 'average',
@@ -4048,8 +4045,7 @@ ORDER BY timestamp;
 Query datapoints from multiple time series in long format. Similar to `client.time_series.data.retrieve_dataframe()` but returns long format that can be pivoted to wide format.
 
 **Parameters:**
-- `space` (STRING, required): CDF space name (all time series must be in same space)
-- `external_ids` (STRING, required): Comma-separated list of external_ids (e.g., "ts1,ts2,ts3")
+- `instance_ids` (STRING, required): Comma-separated list of instance IDs in format "space:external_id" (e.g., "sailboat:ts1,otherspace:ts2"). Supports time series from different spaces.
 - `start` (STRING, required): Start timestamp
 - `end` (STRING, required): End timestamp
 - `aggregates` (STRING, optional): Aggregate type
@@ -4059,13 +4055,14 @@ Query datapoints from multiple time series in long format. Similar to `client.ti
 
 **Returns:** `TABLE(timestamp TIMESTAMP, time_series_external_id STRING, value DOUBLE)`
 
+**Note:** The `time_series_external_id` in the output is in format `"space:external_id"` to support time series from different spaces.
+
 **Example SQL Queries:**
 
 ```sql
--- Query multiple time series in long format
+-- Query multiple time series in long format (supports different spaces)
 SELECT * FROM time_series_datapoints_long_udtf(
-  space => 'sailboat',
-  external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
+  instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
   start => '47w-ago',
   end => '46w-ago',
   client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
@@ -4078,13 +4075,13 @@ ORDER BY time_series_external_id, timestamp
 LIMIT 20;
 
 -- Convert long format to wide format (pivot)
+-- Note: time_series_external_id is now in format "space:external_id"
 SELECT 
   timestamp,
-  MAX(CASE WHEN time_series_external_id = 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround' THEN value END) AS speedOverGround,
-  MAX(CASE WHEN time_series_external_id = 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue' THEN value END) AS courseOverGroundTrue
+  MAX(CASE WHEN time_series_external_id = 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround' THEN value END) AS speedOverGround,
+  MAX(CASE WHEN time_series_external_id = 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue' THEN value END) AS courseOverGroundTrue
 FROM time_series_datapoints_long_udtf(
-  space => 'sailboat',
-  external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
+  instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
   start => '47w-ago',
   end => '46w-ago',
   client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
@@ -4099,8 +4096,7 @@ LIMIT 20;
 
 -- With aggregates
 SELECT * FROM time_series_datapoints_long_udtf(
-  space => 'sailboat',
-  external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
+  instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
   start => '47w-ago',
   end => '46w-ago',
   aggregates => 'average',
@@ -4121,21 +4117,21 @@ LIMIT 20;
 Get the latest datapoint(s) for one or more time series. Useful for real-time monitoring and current state queries.
 
 **Parameters:**
-- `space` (STRING, required): CDF space name
-- `external_ids` (STRING, required): Comma-separated list of external_ids
+- `instance_ids` (STRING, required): Comma-separated list of instance IDs in format "space:external_id" (e.g., "sailboat:ts1,otherspace:ts2"). Supports time series from different spaces.
 - `before` (STRING, optional): Get latest before this time (default: "now", can use "1h-ago", ISO 8601, etc.)
 - `include_status` (BOOLEAN, optional): Include status code in output (default: false)
 - Credential parameters: Same as above
 
 **Returns:** `TABLE(time_series_external_id STRING, timestamp TIMESTAMP, value DOUBLE, status_code INT)`
 
+**Note:** The `time_series_external_id` in the output is in format `"space:external_id"` to support time series from different spaces.
+
 **Example SQL Queries:**
 
 ```sql
--- Get latest datapoints for multiple time series
+-- Get latest datapoints for multiple time series (supports different spaces)
 SELECT * FROM time_series_latest_datapoints_udtf(
-  space => 'sailboat',
-  external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
+  instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',
   before => 'now',
   include_status => true,
   client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
