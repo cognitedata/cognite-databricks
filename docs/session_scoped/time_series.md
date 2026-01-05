@@ -29,7 +29,7 @@ generator = generate_udtf_notebook(
 
 # Register all UDTFs (data model + time series) for session-scoped use
 registered = generator.register_session_scoped_udtfs()
-# Returns: {"SmallBoat": "smallboat_udtf", ..., "time_series_datapoints": "time_series_datapoints_udtf", ...}
+# Returns: {"SmallBoat": "small_boat_udtf", ..., "time_series_datapoints": "time_series_datapoints_udtf", ...}
 ```
 
 **Note**: Time series UDTFs are generated using the same Jinja2 templates as Data Model UDTFs, ensuring consistent behavior, error handling, and initialization patterns.

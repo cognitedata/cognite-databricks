@@ -31,7 +31,7 @@ generator = generate_udtf_notebook(
 
 # Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
 registered = generator.register_session_scoped_udtfs()
-# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf", 
+# Returns: {"SmallBoat": "small_boat_udtf", "LargeBoat": "large_boat_udtf", 
 #           "time_series_datapoints": "time_series_datapoints_udtf", ...}
 
 # Print registered functions
@@ -50,7 +50,7 @@ from cognite.databricks import register_udtf_from_file
 # Register a single UDTF
 function_name = register_udtf_from_file(
     "/Workspace/Users/user@example.com/udtf/sailboat_sailboat_v1/SmallBoat_udtf.py",
-    function_name="smallboat_udtf"  # Optional: auto-extracted from class name if None
+    function_name="small_boat_udtf"  # Optional: auto-extracted from class name if None
 )
 
 print(f"✓ Registered: {function_name}")

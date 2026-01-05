@@ -134,11 +134,11 @@ generator = generate_udtf_notebook(
 
 # Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
 registered = generator.register_session_scoped_udtfs()
-# Returns: {"SmallBoat": "smallboat_udtf", "LargeBoat": "largeboat_udtf", 
+# Returns: {"SmallBoat": "small_boat_udtf", "LargeBoat": "large_boat_udtf", 
 #           "time_series_datapoints": "time_series_datapoints_udtf", ...}
 
 # Use in SQL (always use SECRET() for credentials)
-# SELECT * FROM smallboat_udtf(
+# SELECT * FROM small_boat_udtf(
 #     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
 #     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
 #     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
@@ -160,7 +160,7 @@ generator = generate_udtf_notebook(data_model_id, client, ...)
 # Register a single UDTF from generated file
 register_udtf_from_file(
     "/Workspace/Users/user@example.com/udtf/sailboat_sailboat_v1/SmallBoat_udtf.py",
-    function_name="smallboat_udtf"
+    function_name="small_boat_udtf"
 )
 ```
 
@@ -251,7 +251,7 @@ from cognite.databricks import register_udtf_from_file
 
 register_udtf_from_file(
     "/path/to/SmallBoat_udtf.py",
-    function_name="smallboat_udtf"
+    function_name="small_boat_udtf"
 )
 ```
 
@@ -283,7 +283,7 @@ from cognite.databricks import register_udtf_from_file
 
 register_udtf_from_file(
     "/path/to/SmallBoat_udtf.py",
-    function_name="smallboat_udtf"
+    function_name="small_boat_udtf"
 )
 ```
 
