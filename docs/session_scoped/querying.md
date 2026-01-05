@@ -53,8 +53,7 @@ SECRET('cdf_sailboat_sailboat', 'client_id')
 ```sql
 -- Query datapoints from a single time series
 SELECT * FROM time_series_datapoints_udtf(
-    space => 'sailboat',
-    external_id => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
+    instance_id => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround',
     start => '47w-ago',  -- Or use specific date like '2024-01-01T00:00:00Z'
     end => '46w-ago',    -- Or use specific date like '2024-12-31T23:59:59Z'
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
@@ -71,10 +70,9 @@ LIMIT 10;
 
 ```sql
 -- Query multiple time series in long format
--- Note: space is a single string, external_ids is a comma-separated string
+-- Note: instance_ids uses format "space:external_id" and supports time series from different spaces
 SELECT * FROM time_series_datapoints_long_udtf(
-    space => 'sailboat',  -- Single string, not ARRAY
-    external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',  -- Comma-separated string, not ARRAY
+    instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',  -- Format: "space:external_id"
     start => '47w-ago',
     end => '46w-ago',
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
@@ -91,10 +89,9 @@ LIMIT 20;
 
 ```sql
 -- Get latest datapoints for one or more time series
--- Note: space is a single string, external_ids is a comma-separated string
+-- Note: instance_ids uses format "space:external_id" and supports time series from different spaces
 SELECT * FROM time_series_latest_datapoints_udtf(
-    space => 'sailboat',  -- Single string, not ARRAY
-    external_ids => 'vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',  -- Comma-separated string, not ARRAY
+    instance_ids => 'sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue',  -- Format: "space:external_id"
     before => 'now',  -- Get latest before this time (or use '1h-ago', ISO 8601, etc.)
     include_status => true,  -- Include status_code in output
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
