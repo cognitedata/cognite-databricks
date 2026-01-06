@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.9.15,<0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "cognite-databricks"
@@ -49,9 +49,9 @@ Documentation = "https://cognite-databricks.readthedocs.io"
 Repository = "https://github.com/cognitedata/cognite-databricks"
 Issues = "https://github.com/cognitedata/cognite-databricks/issues"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["cognite*"]
+[tool.uv.build-backend]
+module-name = "cognite.databricks"
+module-root = ""
 
 [tool.black]
 line-length = 100
