@@ -1,2 +1,0 @@
-# Cognite Python packages
-
