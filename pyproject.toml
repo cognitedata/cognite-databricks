@@ -41,6 +41,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5.0",
     "pre-commit>=4.0.0",
+    "pandas>=1.5.3",  # Required by cognite-pygen._build (via cognite-pygen-spark)
 ]
 local = [
     "pyspark>=3.0.0",  # Only for local development/testing outside Databricks
