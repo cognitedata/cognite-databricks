@@ -68,6 +68,11 @@ def sample_data_model(sample_view: dm.View) -> dm.DataModel[dm.View]:
         space="test_space",
         external_id="test_model",
         version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name=None,
+        description=None,
+        is_global=False,
         views=[sample_view],
     )
 

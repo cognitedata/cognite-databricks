@@ -89,6 +89,11 @@ def sailboat_data_model(
         space="sailboat",
         external_id="sailboat",
         version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name=None,
+        description=None,
+        is_global=False,
         views=[sample_sailboat_view, sample_nmea_time_series_view],
     )
 
