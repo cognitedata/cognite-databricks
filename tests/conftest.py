@@ -44,11 +44,20 @@ def sample_view() -> dm.View:
         space="test_space",
         external_id="SmallBoat",
         version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name="",
+        description="",
         properties={
             "name": dm.Text(),
             "description": dm.Text(),
             "boat_guid": dm.Int64(),
         },
+        filter=None,
+        implements=None,
+        writable=False,
+        used_for="all",
+        is_global=False,
     )
 
 

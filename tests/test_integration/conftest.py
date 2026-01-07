@@ -38,12 +38,21 @@ def sample_sailboat_view() -> dm.View:
         space="sailboat",
         external_id="SmallBoat",
         version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name="",
+        description="",
         properties={
             "name": dm.Text(),
             "description": dm.Text(),
             "boat_guid": dm.Int64(),
             "mmsi_country": dm.Text(),
         },
+        filter=None,
+        implements=None,
+        writable=False,
+        used_for="all",
+        is_global=False,
     )
 
 
@@ -54,10 +63,19 @@ def sample_nmea_time_series_view() -> dm.View:
         space="sailboat",
         external_id="NmeaTimeSeries",
         version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name="",
+        description="",
         properties={
             "mmsi": dm.Text(),
             "value": dm.Float64(),
         },
+        filter=None,
+        implements=None,
+        writable=False,
+        used_for="all",
+        is_global=False,
     )
 
 
