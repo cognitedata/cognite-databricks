@@ -1,0 +1,26 @@
+---
+repos:
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # uv version.
+    rev: 0.9.15
+    hooks:
+      - id: uv-lock
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    hooks:
+      - id: ruff
+        args:
+          - --exit-non-zero-on-fix
+      - id: ruff-format
+    rev: v0.6.2
+
+# Mypy must be run in the local system environment, not in the pre-commit environment.
+  - hooks:
+    - id: mypy
+      name: mypy
+      entry: dmypy run -- cognite/ tests/
+      files: ^.*\.(py|pyi)$
+      language: system
+      pass_filenames: false
+    repo: local
+
