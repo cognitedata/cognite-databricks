@@ -77,6 +77,7 @@ class TestTypeConverterDatabricks:
 
     def test_spark_to_sql_type_info_unknown_type(self) -> None:
         """Test unknown type falls back to STRING."""
+
         # Create a mock type that's not handled
         class UnknownType:
             pass

@@ -27,7 +27,7 @@ class TestRegisterUdtfFromFile:
         """Test registering UDTF from file with explicit function name."""
         # Create a mock UDTF file
         udtf_file = tmp_path / "TestUDTF.py"
-        udtf_code = '''
+        udtf_code = """
 class TestUDTF:
     def analyze(self, param: str) -> object:
         from pyspark.sql.types import StructType, StructField, StringType
@@ -35,7 +35,7 @@ class TestUDTF:
     
     def eval(self, param: str) -> object:
         yield ("test",)
-'''
+"""
         udtf_file.write_text(udtf_code)
 
         # Mock SparkSession
@@ -59,7 +59,7 @@ class TestUDTF:
         """Test registering UDTF from file with auto-generated function name."""
         # Create a mock UDTF file
         udtf_file = tmp_path / "SmallBoatUDTF.py"
-        udtf_code = '''
+        udtf_code = """
 class SmallBoatUDTF:
     def analyze(self, param: str) -> object:
         from pyspark.sql.types import StructType, StructField, StringType
@@ -67,7 +67,7 @@ class SmallBoatUDTF:
     
     def eval(self, param: str) -> object:
         yield ("test",)
-'''
+"""
         udtf_file.write_text(udtf_code)
 
         # Mock SparkSession
@@ -111,7 +111,7 @@ class SmallBoatUDTF:
     ) -> None:
         """Test register_udtf_from_file raises ValueError when multiple UDTF classes found."""
         udtf_file = tmp_path / "MultipleUDTF.py"
-        udtf_code = '''
+        udtf_code = """
 class UDTF1:
     def analyze(self): pass
     def eval(self): pass
@@ -119,7 +119,7 @@ class UDTF1:
 class UDTF2:
     def analyze(self): pass
     def eval(self): pass
-'''
+"""
         udtf_file.write_text(udtf_code)
 
         mock_spark_session = MagicMock()
@@ -256,6 +256,7 @@ class TestGenerateSessionScopedNotebookCode:
         """Test generating session-scoped notebook code."""
         from cognite.client.data_classes.data_modeling.data_models import DataModelList
         from cognite.client.data_classes.data_modeling.ids import DataModelId
+
         from cognite.databricks.generator import generate_udtf_notebook
 
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
@@ -300,6 +301,7 @@ class TestGenerateSessionScopedNotebookCode:
         """Test generating session-scoped notebook code with specific view_id."""
         from cognite.client.data_classes.data_modeling.data_models import DataModelList
         from cognite.client.data_classes.data_modeling.ids import DataModelId
+
         from cognite.databricks.generator import generate_udtf_notebook
 
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
