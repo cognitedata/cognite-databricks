@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -39,8 +39,6 @@ class TestUdtfRegistration:
         assert result.total_count > 0
 
         # Register UDTFs - mock SparkSession for session-scoped registration
-        from unittest.mock import patch
-
         mock_spark_session = MagicMock()
         with patch("pyspark.sql.SparkSession.getActiveSession", return_value=mock_spark_session):
             registered = udtf_generator.register_session_scoped_udtfs(spark_session=mock_spark_session)
@@ -61,7 +59,6 @@ class TestUdtfRegistration:
         mock_workspace_client.secrets.create_scope.return_value = None
 
         # Generate and register - mock SparkSession
-        from unittest.mock import patch
         mock_spark_session = MagicMock()
         if udtf_generator.code_generator:
             _ = udtf_generator.code_generator.generate_udtfs()

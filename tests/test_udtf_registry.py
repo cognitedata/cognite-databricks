@@ -51,8 +51,9 @@ def test_secret_manager(
     mock_workspace_client: MagicMock,
 ) -> None:
     """Test Secret Manager integration."""
-    from cognite.databricks.secret_manager import SecretManagerHelper
     from databricks.sdk.service.workspace import SecretScope
+
+    from cognite.databricks.secret_manager import SecretManagerHelper
 
     helper = SecretManagerHelper(workspace_client=mock_workspace_client)
 
