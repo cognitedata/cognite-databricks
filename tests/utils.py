@@ -5,13 +5,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from cognite.client import data_modeling as dm
+from cognite.client.data_classes.data_modeling.views import ViewProperty
 
 
 def create_mock_view(
     space: str = "test_space",
     external_id: str = "TestView",
     version: str = "v1",
-    properties: dict[str, dm.ViewProperty] | None = None,
+    properties: dict[str, ViewProperty] | None = None,
 ) -> dm.View:
     """Create a mock view for testing.
 
@@ -29,7 +30,7 @@ def create_mock_view(
             "name": dm.MappedProperty(
                 type=dm.Text(),
                 nullable=True,
-                container=dm.ContainerId(space, "TestContainer", "1"),
+                container=dm.ContainerId(space, "TestContainer"),
                 container_property_identifier="name",
                 immutable=False,
                 auto_increment=False,

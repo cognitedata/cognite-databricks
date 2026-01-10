@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 
@@ -16,7 +17,7 @@ class TestUDTFGenerator:
 
     def test_init(
         self,
-        mock_cognite_client,
+        mock_cognite_client: CogniteClient,
         mock_workspace_client: MagicMock,
         temp_output_dir: Path,
         sample_data_model: dm.DataModel[dm.View],
@@ -40,7 +41,7 @@ class TestUDTFGenerator:
 
     def test_generate_udtfs(
         self,
-        mock_cognite_client,
+        mock_cognite_client: CogniteClient,
         mock_workspace_client: MagicMock,
         temp_output_dir: Path,
         sample_data_model: dm.DataModel[dm.View],

@@ -21,11 +21,13 @@ class TestUdtfRegistration:
         """Test UDTF generation and registration (Cells 12-13)."""
         # Mock data model retrieval
         if udtf_generator.cognite_client:
-            udtf_generator.cognite_client.data_modeling.data_models.retrieve.return_value = MagicMock(
-                views=[
-                    MagicMock(external_id="SmallBoat", space="sailboat"),
-                    MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
-                ]
+            udtf_generator.cognite_client.data_modeling.data_models.retrieve.return_value = (  # type: ignore[attr-defined]
+                MagicMock(
+                    views=[
+                        MagicMock(external_id="SmallBoat", space="sailboat"),
+                        MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
+                    ]
+                )
             )
 
         # Generate UDTFs using code_generator

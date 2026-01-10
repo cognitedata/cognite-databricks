@@ -8,12 +8,11 @@ from threading import Semaphore
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from cognite.client.data_classes.data_modeling.ids import DataModelId
+    pass
 
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling import DataModelIdentifier
-from cognite.client.data_classes.data_modeling.ids import DataModelId
 from cognite.client.data_classes.data_modeling.views import (
     MultiReverseDirectRelation,
     SingleReverseDirectRelation,
@@ -118,6 +117,10 @@ def register_udtf_from_file(
                 "or ensure you're running in a Databricks notebook with an active Spark session."
             )
 
+    # Type narrow spark_session for mypy
+    if not hasattr(spark_session, "udtf"):
+        raise RuntimeError("spark_session does not have udtf attribute")
+
     udtf_file_path = Path(udtf_file_path)
     if not udtf_file_path.exists():
         raise FileNotFoundError(f"UDTF file not found: {udtf_file_path}")
@@ -164,7 +167,7 @@ def register_udtf_from_file(
     udtf_wrapped = udtf()(udtf_class)  # type: ignore[arg-type]
 
     # Register the wrapped version
-    spark_session.udtf.register(function_name, udtf_wrapped)
+    spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined]
 
     print(f"✓ UDTF registered successfully: {function_name}")
     print(f"✓ Class: {udtf_class.__name__}")
@@ -404,7 +407,7 @@ def generate_session_scoped_notebook_code(
                 model_id = data_model.as_id()
             else:
                 # Type narrowing - data_model is DataModelId at this point
-                model_id: DataModelId = data_model  # type: ignore[assignment]
+                model_id = data_model
             secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
         else:
             try:
@@ -683,8 +686,8 @@ class UDTFGenerator:
             self.udtf_registry = UDTFRegistry(workspace_client)
             self.secret_helper = SecretManagerHelper(workspace_client)
         else:
-            self.udtf_registry: UDTFRegistry | None = None
-            self.secret_helper: SecretManagerHelper | None = None
+            self.udtf_registry = None  # type: ignore[assignment]
+            self.secret_helper = None  # type: ignore[assignment]
 
         # Note: If code_generator is None, we can't create SparkUDTFGenerator without a data_model
         # This should only happen if code_generator is provided or if generate_udtf_notebook was called
@@ -932,7 +935,7 @@ class UDTFGenerator:
                     model_id = data_model.as_id()
                 else:
                     # Type narrowing
-                    model_id: DataModelId = data_model  # type: ignore[assignment]
+                    model_id = data_model
                 secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
             else:
                 raise ValueError("secret_scope must be provided if data_model is None")
@@ -1375,8 +1378,10 @@ class UDTFGenerator:
                 spark_type: DataType = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
 
             # Convert PySpark type to SQL type info
-            sql_type, type_name = TypeConverter.spark_to_sql_type_info(spark_type)
-            type_json_value = TypeConverter.spark_to_type_json(spark_type, param_name, nullable=(default_value is None))
+            sql_type, type_name = TypeConverter.spark_to_sql_type_info(param_spark_type)
+            type_json_value = TypeConverter.spark_to_type_json(
+                param_spark_type, param_name, nullable=(default_value is None)
+            )
             if debug:
                 print(
                     f"  [{position}] {param_name}: type_text='{sql_type}', "
