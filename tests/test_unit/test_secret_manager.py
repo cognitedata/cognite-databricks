@@ -20,7 +20,16 @@ class TestSecretManagerHelper:
         mock_workspace_client: MagicMock,
     ) -> None:
         """Test storing secrets."""
+        from databricks.sdk.service.workspace import SecretScope
+
         helper = SecretManagerHelper(workspace_client=mock_workspace_client)
+
+        # Mock list_scopes to return empty initially, then return created scope
+        created_scope = SecretScope(name="test_scope")
+        mock_workspace_client.secrets.list_scopes.side_effect = [
+            [],  # First call: scope doesn't exist
+            [created_scope],  # Second call: scope exists after creation
+        ]
 
         secrets = {
             "client_id": "test_client_id",
@@ -43,8 +52,12 @@ class TestSecretManagerHelper:
         mock_workspace_client: MagicMock,
     ) -> None:
         """Test getting a secret."""
+        from databricks.sdk.service.workspace import GetSecretResponse
+
         helper = SecretManagerHelper(workspace_client=mock_workspace_client)
-        mock_workspace_client.secrets.get_secret.return_value = "secret_value"
+        # Mock to return GetSecretResponse object with value attribute
+        secret_response = GetSecretResponse(key="test_key", value="secret_value")
+        mock_workspace_client.secrets.get_secret.return_value = secret_response
 
         value = helper.get_secret("test_scope", "test_key")
         assert value == "secret_value"

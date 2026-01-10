@@ -114,6 +114,7 @@ def udtf_generator(
     sailboat_data_model: dm.DataModel[dm.View],
 ) -> UDTFGenerator:
     """UDTFGenerator instance for integration testing."""
+    from cognite.client.data_classes.data_modeling.data_models import DataModelList
     from cognite.client.data_classes.data_modeling.ids import DataModelId
 
     data_model_id = DataModelId(
@@ -121,6 +122,9 @@ def udtf_generator(
         external_id="sailboat",
         version="v1",
     )
+
+    # Mock retrieve to return DataModelList (list-like object)
+    mock_cognite_client.data_modeling.data_models.retrieve.return_value = DataModelList([sailboat_data_model])  # type: ignore[attr-defined]
 
     from cognite.databricks.generator import generate_udtf_notebook
 

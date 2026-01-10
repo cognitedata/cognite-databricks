@@ -38,13 +38,17 @@ class TestUdtfRegistration:
         assert result is not None
         assert result.total_count > 0
 
-        # Register UDTFs
-        registered = udtf_generator.register_session_scoped_udtfs()
+        # Register UDTFs - mock SparkSession for session-scoped registration
+        from unittest.mock import patch
+
+        mock_spark_session = MagicMock()
+        with patch("pyspark.sql.SparkSession.getActiveSession", return_value=mock_spark_session):
+            registered = udtf_generator.register_session_scoped_udtfs(spark_session=mock_spark_session)
         assert registered is not None
         assert len(registered) > 0
 
-        # Verify registration was called
-        assert mock_workspace_client.functions.create.called or mock_workspace_client.functions.get.called
+        # Verify registration was called (session-scoped uses spark_session.udtf.register, not workspace client)
+        assert mock_spark_session.udtf.register.called
 
     def test_register_with_secret_scope(
         self,
@@ -56,10 +60,13 @@ class TestUdtfRegistration:
         mock_workspace_client.secrets.list_scopes.return_value = []
         mock_workspace_client.secrets.create_scope.return_value = None
 
-        # Generate and register
+        # Generate and register - mock SparkSession
+        from unittest.mock import patch
+        mock_spark_session = MagicMock()
         if udtf_generator.code_generator:
             _ = udtf_generator.code_generator.generate_udtfs()
-        registered = udtf_generator.register_session_scoped_udtfs()
+        with patch("pyspark.sql.SparkSession.getActiveSession", return_value=mock_spark_session):
+            registered = udtf_generator.register_session_scoped_udtfs(spark_session=mock_spark_session)
 
         assert registered is not None
 

@@ -23,8 +23,11 @@ class TestUDTFGenerator:
         sample_data_model: dm.DataModel[dm.View],
     ) -> None:
         """Test generator initialization."""
+        from cognite.client.data_classes.data_modeling.data_models import DataModelList
+
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
-        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model  # type: ignore[attr-defined]
+        # Return DataModelList (list-like object), not single DataModel
+        mock_cognite_client.data_modeling.data_models.retrieve.return_value = DataModelList([sample_data_model])  # type: ignore[attr-defined]
 
         generator = generate_udtf_notebook(
             data_model=data_model_id,
@@ -47,8 +50,10 @@ class TestUDTFGenerator:
         sample_data_model: dm.DataModel[dm.View],
     ) -> None:
         """Test UDTF generation."""
-        # Mock data model retrieval
-        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model  # type: ignore[attr-defined]
+        from cognite.client.data_classes.data_modeling.data_models import DataModelList
+
+        # Mock data model retrieval - return DataModelList
+        mock_cognite_client.data_modeling.data_models.retrieve.return_value = DataModelList([sample_data_model])  # type: ignore[attr-defined]
 
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
 
