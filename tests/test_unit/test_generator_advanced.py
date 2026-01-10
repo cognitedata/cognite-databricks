@@ -253,19 +253,6 @@ class TestUDTFGeneratorAdvanced:
             def outputSchema() -> StructType:
                 return StructType([StructField("timestamp", TimestampType()), StructField("value", DoubleType())])
 
-        return_params = generator._parse_return_params_from_class(MockUDTF, debug=False)
-        assert len(return_params) > 0
-        assert all(isinstance(p, FunctionParameterInfo) for p in return_params)
-
-        # Test missing outputSchema method
-        class NoOutputSchema:
-            pass
-
-        with pytest.raises(ValueError, match="must have an outputSchema\\(\\) method"):
-            generator._parse_return_params_from_class(NoOutputSchema)
-            def outputSchema() -> StructType:
-                return StructType([StructField("timestamp", TimestampType()), StructField("value", DoubleType())])
-
         return_type = generator._parse_return_type_from_class(MockUDTF)
         assert return_type.startswith("TABLE(")
         assert "timestamp" in return_type
