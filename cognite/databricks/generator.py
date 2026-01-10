@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling import DataModelIdentifier
+from cognite.client.data_classes.data_modeling.ids import DataModelId
 from cognite.client.data_classes.data_modeling.views import (
     MultiReverseDirectRelation,
     SingleReverseDirectRelation,
