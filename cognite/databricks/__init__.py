@@ -6,6 +6,7 @@ from cognite.pygen_spark.time_series_udtfs import (
     TimeSeriesLatestDatapointsUDTF,
 )
 
+from cognite.databricks._version import __version__
 from cognite.databricks.generator import (
     UDTFGenerator,
     generate_session_scoped_notebook_code,
@@ -57,5 +58,3 @@ __all__ = [
     "time_series_udtf_registry",
     "to_udtf_function_name",
 ]
-
-from cognite.databricks._version import __version__
