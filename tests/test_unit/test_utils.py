@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-from databricks.sdk.service.catalog import FunctionInfo, FunctionParameterInfo, FunctionParameterType
+from databricks.sdk.service.catalog import (
+    ColumnTypeName,
+    FunctionInfo,
+    FunctionInfoRoutineBody,
+    FunctionParameterInfo,
+    FunctionParameterType,
+)
 
 from cognite.databricks.utils import (
     inspect_function_parameters,
@@ -78,26 +83,29 @@ class TestUtils:
     ) -> None:
         """Test inspecting function parameters."""
         # Mock function info with input and return parameters
+        # Note: type_name should be ColumnTypeName, not FunctionParameterType
         mock_input_param = FunctionParameterInfo(
             name="param1",
             type_text="STRING",
-            type_name=FunctionParameterType.STRING,
+            type_name=ColumnTypeName.STRING,  # Fixed: use ColumnTypeName
             type_json='{"type": "string"}',
             position=0,
+            parameter_type=FunctionParameterType.PARAM,
         )
         mock_return_param = FunctionParameterInfo(
             name="result",
             type_text="TABLE(id INT)",
-            type_name=FunctionParameterType.TABLE,
+            type_name=ColumnTypeName.TABLE_TYPE,  # Fixed: use ColumnTypeName.TABLE_TYPE
             type_json='{"type": "table", "fields": [{"name": "id", "type": "int"}]}',
             position=0,
+            parameter_type=FunctionParameterType.PARAM,
         )
 
         mock_func_info = FunctionInfo(
             full_name="catalog.schema.func",
-            routine_body="SELECT 1",
+            routine_body=FunctionInfoRoutineBody.EXTERNAL,  # Fixed: use enum
             external_language="PYTHON",
-            data_type="TABLE",
+            data_type=ColumnTypeName.TABLE_TYPE,  # Fixed: use ColumnTypeName enum
             full_data_type="TABLE(id INT)",
             input_params=MagicMock(parameters=[mock_input_param]),
             return_params=MagicMock(parameters=[mock_return_param]),
@@ -116,9 +124,9 @@ class TestUtils:
         """Test inspecting function with no parameters."""
         mock_func_info = FunctionInfo(
             full_name="catalog.schema.func",
-            routine_body="SELECT 1",
+            routine_body=FunctionInfoRoutineBody.EXTERNAL,  # Fixed: use enum
             external_language="PYTHON",
-            data_type="TABLE",
+            data_type=ColumnTypeName.TABLE_TYPE,  # Fixed: use ColumnTypeName enum
             full_data_type="TABLE()",
             input_params=None,
             return_params=None,
@@ -145,9 +153,9 @@ class TestUtils:
         """Test inspecting a recently created UDTF."""
         mock_func_info = FunctionInfo(
             full_name="catalog.schema.test_udtf",
-            routine_body="class TestUDTF: pass",
+            routine_body=FunctionInfoRoutineBody.EXTERNAL,  # Fixed: use enum
             external_language="PYTHON",
-            data_type="TABLE",
+            data_type=ColumnTypeName.TABLE_TYPE,  # Fixed: use ColumnTypeName enum
             full_data_type="TABLE(id INT)",
             input_params=None,
             return_params=None,
