@@ -77,11 +77,11 @@ class TestDataModelUdtfQueries:
 
             # Verify UDTF files were created
             for _view_id, file_path in result.generated_files.items():
-            assert file_path.exists()
-            code = file_path.read_text()
-            # Verify UDTF structure
-            assert "class" in code
-            assert "eval" in code.lower() or "__call__" in code.lower()
+                assert file_path.exists()
+                code = file_path.read_text()
+                # Verify UDTF structure
+                assert "class" in code
+                assert "eval" in code.lower() or "__call__" in code.lower()
 
     def test_named_parameters_support(
         self,
