@@ -7,6 +7,6 @@ exclude_lines =
     raise AssertionError
     raise NotImplementedError
     if TYPE_CHECKING:
-# Note: We want to measure coverage on cognite/databricks/* code
-# Only omit templates or generated files if any exist
+omit =
+    cognite/databricks/templates/*
 

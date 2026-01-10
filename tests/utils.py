@@ -3,9 +3,47 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.views import ViewProperty
+
+if TYPE_CHECKING:
+    pass
+
+
+def assert_udtf_file_valid(file_path: Path) -> None:
+    """Assert that a UDTF file is valid.
+
+    Args:
+        file_path: Path to the UDTF file
+
+    Raises:
+        AssertionError: If file is invalid
+    """
+    assert file_path.exists(), f"UDTF file does not exist: {file_path}"
+    assert file_path.suffix == ".py", f"UDTF file should be .py: {file_path}"
+
+    code = file_path.read_text()
+    assert len(code) > 0, f"UDTF file is empty: {file_path}"
+    assert "class" in code, f"UDTF file should contain class definition: {file_path}"
+
+
+def assert_sql_view_valid(sql_content: str, view_id: str) -> None:
+    """Assert that a SQL view is valid.
+
+    Args:
+        sql_content: SQL view content
+        view_id: Expected view ID
+
+    Raises:
+        AssertionError: If SQL is invalid
+    """
+    assert sql_content is not None, "SQL content should not be None"
+    assert len(sql_content) > 0, "SQL content should not be empty"
+    sql_upper = sql_content.upper()
+    assert "CREATE" in sql_upper or "SELECT" in sql_upper, "SQL should contain CREATE or SELECT"
 
 
 def create_mock_view(
