@@ -7,8 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
+from cognite.client import CogniteClient, data_modeling as dm
 from cognite.client.testing import monkeypatch_cognite_client
 from databricks.sdk import WorkspaceClient
 

@@ -10,8 +10,7 @@ from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     pass
 
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
+from cognite.client import CogniteClient, data_modeling as dm
 from cognite.client.data_classes.data_modeling import DataModelIdentifier
 from cognite.client.data_classes.data_modeling.views import (
     MultiReverseDirectRelation,
