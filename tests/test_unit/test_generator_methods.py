@@ -27,6 +27,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -58,6 +59,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -92,6 +94,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -125,6 +128,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -167,6 +171,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -195,6 +200,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
@@ -220,6 +226,7 @@ class TestUDTFGeneratorMethods:
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
+            data_model=sample_data_model,
         )
 
         generator = UDTFGenerator(
