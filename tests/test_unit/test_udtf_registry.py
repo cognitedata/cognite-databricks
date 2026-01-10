@@ -153,3 +153,92 @@ class TestUDTFRegistry:
         call_args = mock_workspace_client.statement_execution.execute_statement.call_args
         assert call_args.kwargs["warehouse_id"] == "test-warehouse-id"
         assert "CREATE VIEW" in call_args.kwargs["statement"]
+
+    def test_register_foreign_key_constraint(
+        self,
+        udtf_registry: UDTFRegistry,
+        mock_workspace_client: MagicMock,
+    ) -> None:
+        """Test registering a foreign key constraint."""
+        # Mock successful constraint registration
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.state = StatementState.SUCCEEDED
+        mock_response.status = mock_status
+        mock_workspace_client.statement_execution.execute_statement.return_value = mock_response
+
+        udtf_registry.register_foreign_key_constraint(
+            catalog="test_catalog",
+            schema="test_schema",
+            view_name="test_view",
+            column_name="user_id",
+            referenced_catalog="test_catalog",
+            referenced_schema="test_schema",
+            referenced_view="Users",
+            referenced_column="external_id",
+            warehouse_id="test-warehouse-id",
+            debug=False,
+        )
+
+        mock_workspace_client.statement_execution.execute_statement.assert_called_once()
+        call_args = mock_workspace_client.statement_execution.execute_statement.call_args
+        assert call_args.kwargs["warehouse_id"] == "test-warehouse-id"
+        assert "ALTER VIEW" in call_args.kwargs["statement"]
+        assert "FOREIGN KEY" in call_args.kwargs["statement"]
+        assert "REFERENCES" in call_args.kwargs["statement"]
+
+    def test_register_foreign_key_constraint_auto_warehouse(
+        self,
+        udtf_registry: UDTFRegistry,
+        mock_workspace_client: MagicMock,
+    ) -> None:
+        """Test registering foreign key constraint with auto-detected warehouse."""
+        # Mock successful constraint registration
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.state = StatementState.SUCCEEDED
+        mock_response.status = mock_status
+        mock_workspace_client.statement_execution.execute_statement.return_value = mock_response
+
+        udtf_registry.register_foreign_key_constraint(
+            catalog="test_catalog",
+            schema="test_schema",
+            view_name="test_view",
+            column_name="user_id",
+            referenced_catalog="test_catalog",
+            referenced_schema="test_schema",
+            referenced_view="Users",
+            warehouse_id=None,  # Should auto-detect
+        )
+
+        # Should use default warehouse ID
+        call_args = mock_workspace_client.statement_execution.execute_statement.call_args
+        assert call_args.kwargs["warehouse_id"] == "test-warehouse-id"
+
+    def test_register_foreign_key_constraint_auto_name(
+        self,
+        udtf_registry: UDTFRegistry,
+        mock_workspace_client: MagicMock,
+    ) -> None:
+        """Test registering foreign key constraint with auto-generated constraint name."""
+        # Mock successful constraint registration
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.state = StatementState.SUCCEEDED
+        mock_response.status = mock_status
+        mock_workspace_client.statement_execution.execute_statement.return_value = mock_response
+
+        udtf_registry.register_foreign_key_constraint(
+            catalog="test_catalog",
+            schema="test_schema",
+            view_name="test_view",
+            column_name="user_id",
+            referenced_catalog="test_catalog",
+            referenced_schema="test_schema",
+            referenced_view="Users",
+            constraint_name=None,  # Should auto-generate
+            warehouse_id="test-warehouse-id",
+        )
+
+        call_args = mock_workspace_client.statement_execution.execute_statement.call_args
+        assert "fk_test_view_user_id" in call_args.kwargs["statement"]
