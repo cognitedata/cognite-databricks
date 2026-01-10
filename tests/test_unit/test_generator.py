@@ -24,7 +24,7 @@ class TestUDTFGenerator:
     ) -> None:
         """Test generator initialization."""
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
-        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model
+        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model  # type: ignore[attr-defined]
 
         generator = generate_udtf_notebook(
             data_model=data_model_id,
@@ -48,7 +48,7 @@ class TestUDTFGenerator:
     ) -> None:
         """Test UDTF generation."""
         # Mock data model retrieval
-        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model
+        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model  # type: ignore[attr-defined]
 
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
 

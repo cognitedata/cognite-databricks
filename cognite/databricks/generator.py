@@ -16,6 +16,7 @@ from cognite.client.data_classes.data_modeling import DataModelIdentifier
 from cognite.client.data_classes.data_modeling.views import (
     MultiReverseDirectRelation,
     SingleReverseDirectRelation,
+    ViewProperty,
 )
 
 from cognite.databricks.models import (
@@ -407,7 +408,7 @@ def generate_session_scoped_notebook_code(
                 model_id = data_model.as_id()
             else:
                 # Type narrowing - data_model is DataModelId at this point
-                model_id = data_model
+                model_id = data_model  # type: ignore[assignment]
             secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
         else:
             try:
@@ -935,7 +936,7 @@ class UDTFGenerator:
                     model_id = data_model.as_id()
                 else:
                     # Type narrowing
-                    model_id = data_model
+                    model_id = data_model  # type: ignore[assignment]
                 secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
             else:
                 raise ValueError("secret_scope must be provided if data_model is None")
