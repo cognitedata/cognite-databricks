@@ -40,7 +40,7 @@ from databricks.sdk.service.catalog import (
 
 # PySpark is provided by Databricks runtime - import with error handling
 try:
-    from pyspark.sql.types import (
+    from pyspark.sql.types import (  # type: ignore[import-not-found]
         ArrayType,
         BooleanType,
         DataType,
@@ -102,8 +102,8 @@ def register_udtf_from_file(
     """
     # Import here to avoid requiring PySpark at module level
     try:
-        from pyspark.sql import SparkSession
-        from pyspark.sql.functions import udtf
+        from pyspark.sql import SparkSession  # type: ignore[import-not-found]
+        from pyspark.sql.functions import udtf  # type: ignore[import-not-found]
     except ImportError as e:
         raise ImportError(
             "PySpark is required for session-scoped UDTF registration. "
@@ -168,7 +168,7 @@ def register_udtf_from_file(
     udtf_wrapped = udtf()(udtf_class)  # type: ignore[arg-type]
 
     # Register the wrapped version
-    spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined]
+    spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined,union-attr]
 
     print(f"✓ UDTF registered successfully: {function_name}")
     print(f"✓ Class: {udtf_class.__name__}")
@@ -1129,7 +1129,7 @@ class UDTFGenerator:
         """
         # Import here to avoid requiring PySpark at module level
         try:
-            from pyspark.sql import SparkSession
+            from pyspark.sql import SparkSession  # type: ignore[import-not-found]
         except ImportError as e:
             raise ImportError(
                 "PySpark is required for session-scoped UDTF registration. "
@@ -1956,7 +1956,7 @@ class UDTFGenerator:
             True if types match, False otherwise
         """
         # Use PySpark's type equality
-        return type1 == type2
+        return bool(type1 == type2)  # type: ignore[no-any-return]
 
     def _parse_return_type(self, view_id: str) -> str:
         """Parse UDTF return type using PySpark StructType.

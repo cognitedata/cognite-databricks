@@ -18,7 +18,7 @@ repos:
   - hooks:
     - id: mypy
       name: mypy
-      entry: dmypy run -- cognite/ tests/
+      entry: uv run mypy cognite/ tests/
       files: ^.*\.(py|pyi)$
       language: system
       pass_filenames: false

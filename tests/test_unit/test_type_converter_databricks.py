@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pyspark.sql.types import (
+from pyspark.sql.types import (  # type: ignore[import-not-found]
     ArrayType,
     BooleanType,
     DateType,

@@ -42,6 +42,7 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=4.0.0",
     "pandas>=1.5.3",  # Required by cognite-pygen._build (via cognite-pygen-spark)
+    "pydantic>=2.0.0",  # Required for mypy pydantic plugin
 ]
 local = [
     "pyspark>=3.0.0",  # Only for local development/testing outside Databricks
