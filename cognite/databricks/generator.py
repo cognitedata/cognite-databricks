@@ -1424,7 +1424,7 @@ class UDTFGenerator:
             raise ValueError(f"UDTF class {udtf_class.__name__} must have an outputSchema() method")
 
         struct_type = udtf_class.outputSchema()
-        return TypeConverter.struct_type_to_ddl(struct_type)
+        return str(TypeConverter.struct_type_to_ddl(struct_type))  # type: ignore[no-any-return]
 
     def _parse_return_params_from_class(
         self,
@@ -1973,7 +1973,7 @@ class UDTFGenerator:
         # Build StructType (same as generated UDTF's outputSchema())
         struct_type = self._build_output_schema(view_id)
         # Convert to SQL DDL
-        return TypeConverter.struct_type_to_ddl(struct_type)
+        return str(TypeConverter.struct_type_to_ddl(struct_type))  # type: ignore[no-any-return]
 
     def _parse_return_params(self, view_id: str, debug: bool = False) -> list[FunctionParameterInfo]:
         """Parse structured return parameters using PySpark StructType.

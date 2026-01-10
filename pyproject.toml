@@ -95,11 +95,45 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 plugins = ["pydantic.mypy"]
+ignore_missing_imports = false  # Set to false by default, use overrides for specific modules
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+# Ignore missing imports for third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "pyspark.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "databricks.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.pygen_spark.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.databricks.udtf_registry"
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "cognite.databricks.secret_manager"
+disable_error_code = ["no-any-return"]
 
 [tool.pytest.ini_options]
 filterwarnings = [
