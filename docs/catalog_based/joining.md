@@ -50,8 +50,7 @@ SELECT
 FROM main.sailboat_sailboat_1.vessel v
 CROSS JOIN LATERAL (
     SELECT * FROM main.cdf_models.time_series_datapoints_udtf(
-        space => v.speed_ts_space,
-        external_id => v.speed_ts_external_id,
+        instance_id => CONCAT(v.speed_ts_space, ':', v.speed_ts_external_id),
         start => '1d-ago',
         end => 'now',
         client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
