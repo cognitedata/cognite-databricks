@@ -61,3 +61,38 @@ class TestSecretManagerHelper:
 
         value = helper.get_secret("test_scope", "test_key")
         assert value == "secret_value"
+
+    def test_set_cdf_credentials(
+        self,
+        mock_workspace_client: MagicMock,
+    ) -> None:
+        """Test set_cdf_credentials stores all CDF credentials."""
+        from databricks.sdk.service.workspace import SecretScope
+
+        helper = SecretManagerHelper(workspace_client=mock_workspace_client)
+
+        # Mock create_scope_if_not_exists
+        mock_scope = SecretScope(name="test_scope")
+        mock_workspace_client.secrets.list_scopes.side_effect = [
+            [],  # First call: scope doesn't exist
+            [mock_scope],  # Second call: scope exists after creation
+        ]
+        mock_workspace_client.secrets.create_scope.return_value = None
+
+        # Call set_cdf_credentials
+        helper.set_cdf_credentials(
+            scope_name="test_scope",
+            project="test_project",
+            cdf_cluster="test_cluster",
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+            tenant_id="test_tenant_id",
+        )
+
+        # Verify put_secret was called 5 times (once for each credential)
+        assert mock_workspace_client.secrets.put_secret.call_count == 5
+
+        # Verify all credentials were stored
+        calls = mock_workspace_client.secrets.put_secret.call_args_list
+        stored_keys = {call[0][1] for call in calls}  # Extract key from positional args
+        assert stored_keys == {"project", "cdf_cluster", "client_id", "client_secret", "tenant_id"}
