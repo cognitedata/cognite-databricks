@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from cognite.databricks.secret_manager import SecretManagerHelper
 
 
@@ -23,7 +21,7 @@ class TestSecretManagerHelper:
     ) -> None:
         """Test storing secrets."""
         helper = SecretManagerHelper(workspace_client=mock_workspace_client)
-        
+
         secrets = {
             "client_id": "test_client_id",
             "client_secret": "test_client_secret",
@@ -31,12 +29,12 @@ class TestSecretManagerHelper:
             "cdf_cluster": "test_cluster",
             "project": "test_project",
         }
-        
+
         helper.store_secrets(
             secret_scope="test_scope",
             secrets=secrets,
         )
-        
+
         # Verify secrets were stored
         assert mock_workspace_client.secrets.put_secret.called
 
@@ -47,7 +45,6 @@ class TestSecretManagerHelper:
         """Test getting a secret."""
         helper = SecretManagerHelper(workspace_client=mock_workspace_client)
         mock_workspace_client.secrets.get_secret.return_value = "secret_value"
-        
+
         value = helper.get_secret("test_scope", "test_key")
         assert value == "secret_value"
-

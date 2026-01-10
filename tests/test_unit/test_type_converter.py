@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from cognite.databricks.type_converter import TypeConverter
 
 
@@ -16,4 +14,3 @@ class TestTypeConverter:
 
     # Note: TypeConverter in cognite-databricks is a re-export from pygen-spark
     # More detailed tests are in pygen-spark/tests/test_unit/test_type_converter.py
-

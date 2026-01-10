@@ -5,8 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from cognite.client import data_modeling as dm
-from cognite.client.data_classes.data_modeling.ids import DataModelId
 
 from cognite.databricks.generator import UDTFGenerator
 
@@ -22,23 +20,23 @@ class TestUdtfRegistration:
     ) -> None:
         """Test UDTF generation and registration (Cells 12-13)."""
         # Mock data model retrieval
-        udtf_generator.client.data_modeling.data_models.retrieve.return_value = udtf_generator.client.data_modeling.data_models.retrieve.return_value = MagicMock(
+        mock_data_model = MagicMock(
             views=[
                 MagicMock(external_id="SmallBoat", space="sailboat"),
                 MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
             ]
         )
-        
+
         # Generate UDTFs
         result = udtf_generator.generate_udtfs()
         assert result is not None
         assert result.total_count > 0
-        
+
         # Register UDTFs
         registered = udtf_generator.register_session_scoped_udtfs()
         assert registered is not None
         assert len(registered) > 0
-        
+
         # Verify registration was called
         assert mock_workspace_client.functions.create.called or mock_workspace_client.functions.get.called
 
@@ -51,11 +49,11 @@ class TestUdtfRegistration:
         # Mock secret scope operations
         mock_workspace_client.secrets.list_scopes.return_value = []
         mock_workspace_client.secrets.create_scope.return_value = None
-        
+
         # Generate and register
-        result = udtf_generator.generate_udtfs()
+        _ = udtf_generator.generate_udtfs()
         registered = udtf_generator.register_session_scoped_udtfs()
-        
+
         assert registered is not None
 
 
@@ -70,9 +68,10 @@ class TestDataModelUdtfQueries:
         """Test basic UDTF query structure (Cell 14)."""
         result = udtf_generator.generate_udtfs()
         assert result.total_count > 0
-        
+
         # Verify UDTF files were created
-        for view_id, file_path in result.generated_files.items():
+        result = udtf_generator.generate_udtfs()
+        for _view_id, file_path in result.generated_files.items():
             assert file_path.exists()
             code = file_path.read_text()
             # Verify UDTF structure
@@ -85,7 +84,7 @@ class TestDataModelUdtfQueries:
     ) -> None:
         """Test named parameters support (Cell 15)."""
         result = udtf_generator.generate_udtfs()
-        
+
         # Find small_boat UDTF
         small_boat_file = result.get_file("SmallBoat")
         if small_boat_file:
@@ -104,7 +103,7 @@ class TestTimeSeriesUdtfQueries:
 
         instance_id_str = "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround"
         node_id = parse_instance_id(instance_id_str)
-        
+
         assert node_id.space == "sailboat"
         assert "speedOverGround" in node_id.external_id
 
@@ -112,9 +111,12 @@ class TestTimeSeriesUdtfQueries:
         """Test multiple time series instance_ids parsing (Cell 18)."""
         from cognite.pygen_spark.utils import parse_instance_ids
 
-        instance_ids_str = "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue"
+        instance_ids_str = (
+            "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,"
+            "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue"
+        )
         node_ids = parse_instance_ids(instance_ids_str)
-        
+
         assert len(node_ids) == 2
         assert all(node_id.space == "sailboat" for node_id in node_ids)
 
@@ -122,9 +124,12 @@ class TestTimeSeriesUdtfQueries:
         """Test latest time series instance_ids parsing (Cell 19)."""
         from cognite.pygen_spark.utils import parse_instance_ids
 
-        instance_ids_str = "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue"
+        instance_ids_str = (
+            "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.speedOverGround,"
+            "sailboat:vessels.urn:mrn:imo:mmsi:258219000::129038::navigation.courseOverGroundTrue"
+        )
         node_ids = parse_instance_ids(instance_ids_str)
-        
+
         assert len(node_ids) == 2
 
 
@@ -139,7 +144,7 @@ class TestFilteringQueries:
         """Test external_id filter support (Cell 20)."""
         result = udtf_generator.generate_udtfs()
         small_boat_file = result.get_file("SmallBoat")
-        
+
         if small_boat_file:
             code = small_boat_file.read_text()
             # Verify external_id handling
@@ -152,7 +157,7 @@ class TestFilteringQueries:
         """Test property filter support (Cell 21)."""
         result = udtf_generator.generate_udtfs()
         small_boat_file = result.get_file("SmallBoat")
-        
+
         if small_boat_file:
             code = small_boat_file.read_text()
             # Verify property filter parameters
@@ -165,7 +170,7 @@ class TestFilteringQueries:
         """Test numeric range filter support (Cell 23)."""
         result = udtf_generator.generate_udtfs()
         small_boat_file = result.get_file("SmallBoat")
-        
+
         if small_boat_file:
             code = small_boat_file.read_text()
             # Verify numeric property handling
@@ -182,16 +187,15 @@ class TestJoinQueries:
     ) -> None:
         """Test JOIN compatibility between UDTFs (Cell 25)."""
         result = udtf_generator.generate_udtfs()
-        
+
         small_boat_file = result.get_file("SmallBoat")
         nmea_file = result.get_file("NmeaTimeSeries")
-        
+
         if small_boat_file and nmea_file:
             small_boat_code = small_boat_file.read_text()
             nmea_code = nmea_file.read_text()
-            
+
             # Verify both have join-compatible columns
             assert "space" in small_boat_code.lower() or "external_id" in small_boat_code.lower()
             assert "mmsi" in nmea_code.lower()
             assert "boat_guid" in small_boat_code.lower() or "boatGuid" in small_boat_code.lower()
-

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
 from databricks.sdk.errors import NotFound
 from databricks.sdk.service.catalog import FunctionInfo
 
@@ -18,7 +17,7 @@ def test_register_udtf(
     """Test UDTF registration."""
     # Mock function not existing
     mock_workspace_client.functions.get.side_effect = NotFound("Function not found")
-    
+
     # Mock successful creation
     created_function = FunctionInfo(
         name="test_udtf",
@@ -26,7 +25,7 @@ def test_register_udtf(
         schema_name="test_schema",
     )
     mock_workspace_client.functions.create.return_value = created_function
-    
+
     result = udtf_registry.register_udtf(
         catalog="test_catalog",
         schema="test_schema",
@@ -36,7 +35,7 @@ def test_register_udtf(
         return_type="TABLE(id INT)",
         return_params=[],
     )
-    
+
     assert result == created_function
     mock_workspace_client.functions.create.assert_called_once()
 
@@ -48,14 +47,14 @@ def test_secret_manager(
     from cognite.databricks.secret_manager import SecretManagerHelper
 
     helper = SecretManagerHelper(workspace_client=mock_workspace_client)
-    
+
     # Mock scope creation
     mock_workspace_client.secrets.list_scopes.return_value = []
-    
+
     # Test scope creation
     scope = helper.create_scope_if_not_exists("test_scope")
     assert scope is not None
-    
+
     # Test storing secrets
     helper.set_cdf_credentials(
         scope_name="test_scope",
@@ -65,7 +64,6 @@ def test_secret_manager(
         client_secret="test_client_secret",
         tenant_id="test_tenant_id",
     )
-    
+
     # Verify secrets were stored
     assert mock_workspace_client.secrets.put_secret.called
-

@@ -27,23 +27,23 @@ if TYPE_CHECKING:
 
 class TypeConverter(BaseTypeConverter):
     """TypeConverter with Databricks-specific extensions.
-    
+
     Extends the generic TypeConverter from pygen-spark with Databricks SDK
     integration for Unity Catalog registration.
     """
-    
+
     @staticmethod
     def spark_to_sql_type_info(spark_type: DataType) -> tuple[str, ColumnTypeName]:
         """Convert PySpark DataType to SQL type info (Databricks-specific).
-        
+
         Args:
             spark_type: PySpark DataType
-            
+
         Returns:
             Tuple of (sql_type_string, ColumnTypeName)
         """
         from databricks.sdk.service.catalog import ColumnTypeName
-        
+
         if isinstance(spark_type, StringType):
             return ("STRING", ColumnTypeName.STRING)
         elif isinstance(spark_type, LongType):

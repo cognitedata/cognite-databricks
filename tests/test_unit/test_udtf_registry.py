@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from databricks.sdk.service.catalog import FunctionInfo, FunctionParameterInfo, ColumnTypeName
+from databricks.sdk.service.catalog import FunctionInfo
 
 from cognite.databricks.udtf_registry import UDTFRegistry
 
@@ -126,4 +126,3 @@ class TestUDTFRegistry:
 
         mock_workspace_client.functions.create.assert_called_once()
         assert result == new_function
-

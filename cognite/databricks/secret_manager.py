@@ -31,10 +31,10 @@ class SecretManagerHelper:
         for scope in existing_scopes:
             if scope.name == scope_name:
                 return scope
-        
+
         # Scope doesn't exist, create it (scope is positional parameter)
         self.workspace_client.secrets.create_scope(scope_name)
-        
+
         # Return the newly created scope (need to fetch it)
         # Note: create_scope doesn't return the scope, so we list again
         scopes = list(self.workspace_client.secrets.list_scopes())
@@ -68,7 +68,8 @@ class SecretManagerHelper:
             cdf_cluster: CDF cluster name (from TOML: [cognite].cdf_cluster) - plain text, e.g., "westeurope-1"
             client_id: OAuth2 client ID (from TOML: [cognite].client_id) - plain text
             client_secret: OAuth2 client secret (from TOML: [cognite].client_secret) - plain text
-            tenant_id: Azure AD tenant ID (from TOML: [cognite].tenant_id) - plain text GUID, e.g., "dbf2ec1b-2fbc-4106-9371-017d78d6df71"
+            tenant_id: Azure AD tenant ID (from TOML: [cognite].tenant_id) - plain text GUID,
+                         e.g., "dbf2ec1b-2fbc-4106-9371-017d78d6df71"
         """
         self.create_scope_if_not_exists(scope_name)
 
@@ -88,4 +89,3 @@ class SecretManagerHelper:
                 key,  # positional
                 string_value=value,  # keyword
             )
-

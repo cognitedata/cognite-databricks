@@ -80,6 +80,7 @@ ignore = [
     # This is done when setting the pygen configs, and useful for getting pretty docs.
     # In that case, this is also safe as the function calls produced immutable data.
     "RUF009", #Do not perform function call in defaults
+    "W293", # Blank line contains whitespace (primarily in docstrings)
 ]
 
 [tool.ruff.lint.isort]

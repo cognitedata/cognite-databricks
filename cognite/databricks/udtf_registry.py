@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
+    ColumnTypeName,
+    CreateFunction,
+    CreateFunctionParameterStyle,
+    CreateFunctionRoutineBody,
+    CreateFunctionSecurityType,
+    CreateFunctionSqlDataAccess,
     FunctionInfo,
     FunctionParameterInfo,
-    CreateFunction,
     FunctionParameterInfos,
-    ColumnTypeName,
-    CreateFunctionRoutineBody,
-    CreateFunctionParameterStyle,
-    CreateFunctionSqlDataAccess,
-    CreateFunctionSecurityType,
 )
 
 if TYPE_CHECKING:
@@ -34,19 +34,20 @@ class UDTFRegistry:
 
     def _get_default_warehouse_id(self) -> str:
         """Finds and returns the ID of the first available SQL warehouse.
-        
+
         Returns:
             The warehouse ID string
-            
+
         Raises:
             ValueError: If no warehouses are found
         """
         warehouses = list(self.workspace_client.warehouses.list())
         if not warehouses:
-            raise ValueError(
-                "No SQL warehouses found. Please provide warehouse_id parameter or create a warehouse."
-            )
-        return warehouses[0].id
+            raise ValueError("No SQL warehouses found. Please provide warehouse_id parameter or create a warehouse.")
+        warehouse_id = warehouses[0].id
+        if warehouse_id is None:
+            raise ValueError("Warehouse ID is None")
+        return warehouse_id
 
     def register_udtf(
         self,
@@ -85,7 +86,7 @@ class UDTFRegistry:
 
         Returns:
             Registered FunctionInfo, or None if skipped
-            
+
         Note:
             For Python UDTFs registered via Unity Catalog API:
             - data_type must be TABLE_TYPE
@@ -95,10 +96,10 @@ class UDTFRegistry:
             - external_language must be PYTHON
         """
         from databricks.sdk.errors import ResourceAlreadyExists
-        
+
         # Check if function already exists
         full_function_name = f"{catalog}.{schema}.{function_name}"
-        
+
         if debug:
             print(f"\n[DEBUG] === Registering UDTF: {full_function_name} ===")
             print(f"[DEBUG] if_exists: {if_exists}")
@@ -126,12 +127,11 @@ class UDTFRegistry:
                 # Wait a brief moment to ensure deletion is complete
                 # This prevents race conditions where the function might still exist during creation
                 import time
+
                 time.sleep(0.5)
             elif if_exists == "error":
                 # Raise error immediately if function exists
-                raise ResourceAlreadyExists(
-                    f"Routine or Model '{function_name}' already exists in {catalog}.{schema}"
-                )
+                raise ResourceAlreadyExists(f"Routine or Model '{function_name}' already exists in {catalog}.{schema}")
             else:
                 raise ValueError(f"Invalid if_exists value: {if_exists}. Must be 'skip', 'replace', or 'error'")
         except ResourceAlreadyExists:
@@ -140,22 +140,22 @@ class UDTFRegistry:
         except Exception:
             # Function doesn't exist, proceed with creation
             pass
-        
+
         # Build CreateFunction object according to Databricks SDK API
         # Based on OpenAPI spec: CreateFunction requires separate catalog_name, schema_name, name
         # and input_params must be wrapped in FunctionParameterInfos
-        
+
         # Wrap input_params and return_params in FunctionParameterInfos structure
         input_params_wrapped = FunctionParameterInfos(parameters=input_params)
         return_params_wrapped = FunctionParameterInfos(parameters=return_params)
-        
+
         # For EXTERNAL functions (Python UDTFs):
         # - return_params MUST be provided as structured metadata (since we use TABLE_TYPE)
         # - data_type must be "TABLE_TYPE"
         # - full_data_type must be the DDL string: "TABLE(col1 TYPE, col2 TYPE, ...)"
         # - routine_body must be "EXTERNAL"
         # - external_language must be "PYTHON"
-        
+
         # Build CreateFunction with all required fields for Python UDTF
         create_function = CreateFunction(
             name=function_name,
@@ -177,11 +177,11 @@ class UDTFRegistry:
             security_type=CreateFunctionSecurityType.DEFINER,
             specific_name=function_name,
         )
-        
+
         # The API expects CreateFunctionRequest with function_info field
         if debug:
-            print(f"[DEBUG] CreateFunction object built, calling workspace_client.functions.create()...")
-        
+            print("[DEBUG] CreateFunction object built, calling workspace_client.functions.create()...")
+
         try:
             result = self.workspace_client.functions.create(function_info=create_function)
             if debug:
@@ -194,11 +194,11 @@ class UDTFRegistry:
             # between our check and create call (race condition)
             # Return the existing function
             if debug:
-                print(f"[DEBUG] UDTF already exists (race condition), returning existing function")
+                print("[DEBUG] UDTF already exists (race condition), returning existing function")
             return self.workspace_client.functions.get(full_function_name)
         except Exception as e:
             print(f"\n[ERROR] Failed to create UDTF '{full_function_name}'")
-            print(f"[ERROR] Input parameters sent:")
+            print("[ERROR] Input parameters sent:")
             for p in input_params:
                 print(f"  - {p.name}: type_text='{p.type_text}', type_json='{p.type_json}', position={p.position}")
             print(f"[ERROR] Return type: {return_type}")
@@ -232,49 +232,49 @@ class UDTFRegistry:
         if debug:
             print(f"\n[DEBUG] === Registering View: {catalog}.{schema}.{view_name} ===")
             print(f"[DEBUG] Warehouse ID (input): {warehouse_id}")
-        
+
         # Get warehouse_id - try to find default if not provided
         if warehouse_id is None:
             warehouse_id = self._get_default_warehouse_id()
-        
+
         # Add comment to view SQL if provided
         # Note: SQL comments in CREATE VIEW are typically added as:
         # CREATE VIEW ... COMMENT 'comment text'
         # But this depends on your SQL dialect. For now, we'll just execute the provided SQL.
         # If comment is provided, it could be added to the SQL statement here if needed.
-        
+
         if debug:
             print(f"[DEBUG] Warehouse ID (resolved): {warehouse_id}")
-            print(f"[DEBUG] View SQL to execute:")
+            print("[DEBUG] View SQL to execute:")
             print("-" * 40)
             print(view_sql)
             print("-" * 40)
-        
+
         # Execute CREATE VIEW statement via Databricks SQL API
         try:
             if debug:
-                print(f"[DEBUG] Calling statement_execution.execute_statement()...")
-            
+                print("[DEBUG] Calling statement_execution.execute_statement()...")
+
             response = self.workspace_client.statement_execution.execute_statement(
                 warehouse_id=warehouse_id,
                 statement=view_sql,
                 wait_timeout="30s",
             )
-            
+
             if debug:
                 print(f"[DEBUG] Response received: {type(response).__name__}")
                 # Log response attributes for diagnosis
                 print(f"[DEBUG] Response attributes: {[attr for attr in dir(response) if not attr.startswith('_')]}")
-            
+
             # Check if execution was successful
             # Handle response status flexibly (may be string or enum)
             state = None
             try:
-                if hasattr(response, 'status') and hasattr(response.status, 'state'):
+                if hasattr(response, "status") and response.status is not None and hasattr(response.status, "state"):
                     state = response.status.state
                     if debug:
                         print(f"[DEBUG] Got state from response.status.state: {state}")
-                elif hasattr(response, 'state'):
+                elif hasattr(response, "state"):
                     state = response.state
                     if debug:
                         print(f"[DEBUG] Got state from response.state: {state}")
@@ -282,49 +282,51 @@ class UDTFRegistry:
                 if debug:
                     print(f"[DEBUG] Error extracting state: {state_error}")
                     print(f"[DEBUG] State extraction error type: {type(state_error).__name__}")
-            
+
             # Convert state to string for comparison
             state_str = str(state).upper() if state else None
-            
+
             if debug:
                 print(f"[DEBUG] Statement state: {state_str}")
-            
+
             # Extract error message if available - with comprehensive error handling
             error_message = None
             error_details = {}
             statement_id = None
             try:
                 # Try to get statement_id for further diagnosis
-                if hasattr(response, 'statement_id'):
+                if hasattr(response, "statement_id"):
                     statement_id = response.statement_id
                     if debug:
                         print(f"[DEBUG] Statement ID: {statement_id}")
-                
-                if hasattr(response, 'status'):
-                    if debug and hasattr(response.status, '__dict__'):
-                        print(f"[DEBUG] response.status attributes: {[attr for attr in dir(response.status) if not attr.startswith('_')]}")
-                    
-                    if hasattr(response.status, 'error'):
+
+                if hasattr(response, "status") and response.status is not None:
+                    if debug and hasattr(response.status, "__dict__"):
+                        attrs = [attr for attr in dir(response.status) if not attr.startswith("_")]
+                        print(f"[DEBUG] response.status attributes: {attrs}")
+
+                    if hasattr(response.status, "error") and response.status.error is not None:
                         error_obj = response.status.error
                         if debug:
-                            print(f"[DEBUG] Response status has 'error' attribute")
-                            if hasattr(error_obj, '__dict__'):
-                                print(f"[DEBUG] response.status.error attributes: {[attr for attr in dir(error_obj) if not attr.startswith('_')]}")
-                        
-                        if hasattr(error_obj, 'message'):
+                            print("[DEBUG] Response status has 'error' attribute")
+                            if hasattr(error_obj, "__dict__"):
+                                attrs = [attr for attr in dir(error_obj) if not attr.startswith("_")]
+                                print(f"[DEBUG] response.status.error attributes: {attrs}")
+
+                        if hasattr(error_obj, "message"):
                             error_message = error_obj.message
                             if debug:
                                 print(f"[DEBUG] Extracted error message: {error_message}")
-                        if hasattr(error_obj, 'error_code'):
-                            error_details['error_code'] = error_obj.error_code
-                        if hasattr(error_obj, 'error_type'):
-                            error_details['error_type'] = error_obj.error_type
-                        if hasattr(error_obj, 'message_parameters'):
-                            error_details['message_parameters'] = error_obj.message_parameters
-                elif hasattr(response, 'error'):
+                        if hasattr(error_obj, "error_code"):
+                            error_details["error_code"] = error_obj.error_code
+                        if hasattr(error_obj, "error_type"):
+                            error_details["error_type"] = error_obj.error_type
+                        if hasattr(error_obj, "message_parameters"):
+                            error_details["message_parameters"] = error_obj.message_parameters
+                elif hasattr(response, "error"):
                     if debug:
-                        print(f"[DEBUG] Response has 'error' attribute")
-                    if hasattr(response.error, 'message'):
+                        print("[DEBUG] Response has 'error' attribute")
+                    if hasattr(response.error, "message"):
                         error_message = response.error.message
             except Exception as parse_error:
                 # Error message extraction failed (might be empty response)
@@ -332,17 +334,18 @@ class UDTFRegistry:
                     print(f"[DEBUG] Could not extract error message from response: {parse_error}")
                     print(f"[DEBUG] Error extraction exception type: {type(parse_error).__name__}")
                     import traceback
+
                     print(f"[DEBUG] Error extraction traceback:\n{traceback.format_exc()}")
                 error_message = None
-            
-            if state_str and 'SUCCEEDED' in state_str:
+
+            if state_str and "SUCCEEDED" in state_str:
                 if debug:
                     print(f"[DEBUG] View '{catalog}.{schema}.{view_name}' created successfully!")
                 return
-            elif state_str and 'FAILED' in state_str:
+            elif state_str and "FAILED" in state_str:
                 # Log comprehensive failure information
                 if debug:
-                    print(f"[DEBUG] === VIEW CREATION FAILED ===")
+                    print("[DEBUG] === VIEW CREATION FAILED ===")
                     print(f"[DEBUG] Error message: {error_message}")
                     print(f"[DEBUG] Error details: {error_details}")
                     print(f"[DEBUG] Statement ID: {statement_id}")
@@ -351,19 +354,23 @@ class UDTFRegistry:
                         try:
                             statement_info = self.workspace_client.statement_execution.get_statement(statement_id)
                             if debug:
-                                print(f"[DEBUG] Statement info from get_statement:")
+                                print("[DEBUG] Statement info from get_statement:")
                                 print(f"[DEBUG]   - Type: {type(statement_info).__name__}")
-                                if hasattr(statement_info, 'status'):
+                                if hasattr(statement_info, "status") and statement_info.status is not None:
                                     print(f"[DEBUG]   - Status: {statement_info.status}")
-                                    if hasattr(statement_info.status, 'error'):
+                                    if (
+                                        hasattr(statement_info.status, "error")
+                                        and statement_info.status.error is not None
+                                    ):
                                         print(f"[DEBUG]   - Status error: {statement_info.status.error}")
-                                if hasattr(statement_info, '__dict__'):
-                                    print(f"[DEBUG]   - Attributes: {[attr for attr in dir(statement_info) if not attr.startswith('_')]}")
+                                if hasattr(statement_info, "__dict__"):
+                                    attrs = [attr for attr in dir(statement_info) if not attr.startswith("_")]
+                                    print(f"[DEBUG]   - Attributes: {attrs}")
                         except Exception as get_error:
                             if debug:
                                 print(f"[DEBUG] Could not get statement details: {get_error}")
                                 print(f"[DEBUG] get_statement error type: {type(get_error).__name__}")
-                
+
                 # Even if state is FAILED, verify if the view actually exists
                 # This handles cases where SECRET() causes a security warning but view is still created
                 try:
@@ -374,31 +381,27 @@ class UDTFRegistry:
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            print(f"[DEBUG] View state was FAILED but view exists - treating as success")
+                            print("[DEBUG] View state was FAILED but view exists - treating as success")
                             if error_message:
                                 print(f"[DEBUG] Error message (may be security warning): {error_message}")
                         return
                 except Exception as view_check_error:
                     if debug:
-                        print(f"[DEBUG] View does not exist (checked via tables.get)")
+                        print("[DEBUG] View does not exist (checked via tables.get)")
                         print(f"[DEBUG] View check error: {view_check_error}")
                         print(f"[DEBUG] View check error type: {type(view_check_error).__name__}")
                     pass
-                
+
                 # View doesn't exist, so raise the error
                 error_msg = error_message or "Unknown error"
                 if error_details:
                     error_msg += f" (Details: {error_details})"
                 if statement_id:
                     error_msg += f" (Statement ID: {statement_id})"
-                raise RuntimeError(
-                    f"Failed to create view {catalog}.{schema}.{view_name}: {error_msg}"
-                )
+                raise RuntimeError(f"Failed to create view {catalog}.{schema}.{view_name}: {error_msg}")
             elif state_str:
                 # State might be PENDING, RUNNING, etc.
-                raise RuntimeError(
-                    f"View creation did not complete. State: {state_str}"
-                )
+                raise RuntimeError(f"View creation did not complete. State: {state_str}")
             else:
                 # If we can't determine state but no exception was raised, verify view exists
                 try:
@@ -406,15 +409,15 @@ class UDTFRegistry:
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            print(f"[DEBUG] No state returned but view exists - assuming success")
+                            print("[DEBUG] No state returned but view exists - assuming success")
                         return
                 except Exception:
                     pass
-                
+
                 if debug:
-                    print(f"[DEBUG] No state returned, assuming success")
+                    print("[DEBUG] No state returned, assuming success")
                 return
-                
+
         except Exception as e:
             # Special handling for "end-of-input" which often means empty response from SQL Warehouse
             # This is common for DDL statements like CREATE VIEW when they succeed immediately.
@@ -427,32 +430,33 @@ class UDTFRegistry:
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            print(f"[DEBUG] Received empty response but view exists - treating as success")
+                            print("[DEBUG] Received empty response but view exists - treating as success")
                         return
                 except Exception:
                     pass
-                
+
                 # View doesn't exist - this is a real error
                 # Wait briefly in case view creation is still in progress
                 import time
+
                 time.sleep(0.5)
-                
+
                 # Check one more time
                 try:
                     full_view_name = f"{catalog}.{schema}.{view_name}"
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            print(f"[DEBUG] View exists after brief wait - treating as success")
+                            print("[DEBUG] View exists after brief wait - treating as success")
                         return
                 except Exception:
                     pass
-                
+
                 # View still doesn't exist - this is a real failure
                 print(f"\n[ERROR] Received 'end-of-input' error when creating view '{catalog}.{schema}.{view_name}'")
-                print(f"[ERROR] View does not exist after error, indicating CREATE VIEW statement failed")
+                print("[ERROR] View does not exist after error, indicating CREATE VIEW statement failed")
                 print(f"[ERROR] Warehouse ID: {warehouse_id}")
-                print(f"[ERROR] View SQL:")
+                print("[ERROR] View SQL:")
                 print("-" * 40)
                 print(view_sql)
                 print("-" * 40)
@@ -465,7 +469,7 @@ class UDTFRegistry:
             # Enhanced error message with full context
             print(f"\n[ERROR] Failed to register view '{catalog}.{schema}.{view_name}'")
             print(f"[ERROR] Warehouse ID: {warehouse_id}")
-            print(f"[ERROR] View SQL:")
+            print("[ERROR] View SQL:")
             print("-" * 40)
             print(view_sql)
             print("-" * 40)
@@ -491,13 +495,13 @@ class UDTFRegistry:
         debug: bool = False,
     ) -> None:
         """Register an informational foreign key constraint on a view.
-        
+
         Informational constraints (NOT ENFORCED) document relationships between views
         where a STRING column (external_id) references another view's external_id column.
-        
+
         This is useful for documenting DirectRelation and MultiReverseDirectRelation
         properties that reference other nodes/edges in the data model.
-        
+
         Args:
             catalog: Catalog containing the view
             schema: Schema containing the view
@@ -511,7 +515,7 @@ class UDTFRegistry:
                            f"fk_{view_name}_{column_name}"
             warehouse_id: Optional SQL warehouse ID. If None, auto-detects.
             debug: If True, prints SQL being executed
-            
+
         Example:
             # Document that user_id in MyView references external_id in Users view
             registry.register_foreign_key_constraint(
@@ -526,13 +530,13 @@ class UDTFRegistry:
         """
         if warehouse_id is None:
             warehouse_id = self._get_default_warehouse_id()
-        
+
         if constraint_name is None:
             constraint_name = f"fk_{view_name}_{column_name}"
-        
+
         # Build ALTER VIEW statement with foreign key constraint
-        # Format: ALTER VIEW catalog.schema.view_name 
-        #         ADD CONSTRAINT constraint_name 
+        # Format: ALTER VIEW catalog.schema.view_name
+        #         ADD CONSTRAINT constraint_name
         #         FOREIGN KEY (column_name) REFERENCES catalog.schema.referenced_view(referenced_column) NOT ENFORCED
         constraint_sql = (
             f"ALTER VIEW {catalog}.{schema}.{view_name} "
@@ -541,24 +545,23 @@ class UDTFRegistry:
             f"REFERENCES {referenced_catalog}.{referenced_schema}.{referenced_view}({referenced_column}) "
             f"NOT ENFORCED"
         )
-        
+
         if debug:
-            print(f"[DEBUG] Adding foreign key constraint:")
+            print("[DEBUG] Adding foreign key constraint:")
             print(f"[DEBUG] {constraint_sql}")
-        
+
         try:
-            response = self.workspace_client.statement_execution.execute_statement(
+            self.workspace_client.statement_execution.execute_statement(
                 warehouse_id=warehouse_id,
                 statement=constraint_sql,
                 wait_timeout="30s",
             )
-            
+
             if debug:
                 print(f"[DEBUG] Foreign key constraint '{constraint_name}' added successfully")
-                
+
         except Exception as e:
             # Foreign key constraints are informational - log but don't fail registration
             if debug:
                 print(f"[WARNING] Failed to add foreign key constraint '{constraint_name}': {e}")
             # Don't raise - constraints are optional metadata
-

@@ -49,9 +49,9 @@ def sample_view() -> dm.View:
         name="",
         description="",
         properties={
-            "name": dm.Text(),
-            "description": dm.Text(),
-            "boat_guid": dm.Int64(),
+            "name": dm.Text(),  # type: ignore[dict-item]
+            "description": dm.Text(),  # type: ignore[dict-item]
+            "boat_guid": dm.Int64(),  # type: ignore[dict-item]
         },
         filter=None,
         implements=None,
@@ -75,4 +75,3 @@ def sample_data_model(sample_view: dm.View) -> dm.DataModel[dm.View]:
         is_global=False,
         views=[sample_view],
     )
-

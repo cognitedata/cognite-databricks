@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from databricks.sdk import WorkspaceClient
 
@@ -25,9 +23,9 @@ def sample_view() -> dm.View:
         name="",
         description="",
         properties={
-            "name": dm.Text(),
-            "description": dm.Text(),
-            "boat_guid": dm.Int64(),
+            "name": dm.Text(),  # type: ignore[dict-item]
+            "description": dm.Text(),  # type: ignore[dict-item]
+            "boat_guid": dm.Int64(),  # type: ignore[dict-item]
         },
         filter=None,
         implements=None,
@@ -65,4 +63,3 @@ def mock_workspace_client() -> MagicMock:
 def udtf_registry(mock_workspace_client: MagicMock) -> UDTFRegistry:
     """UDTFRegistry instance for testing."""
     return UDTFRegistry(workspace_client=mock_workspace_client)
-

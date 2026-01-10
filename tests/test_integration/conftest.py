@@ -43,10 +43,10 @@ def sample_sailboat_view() -> dm.View:
         name="",
         description="",
         properties={
-            "name": dm.Text(),
-            "description": dm.Text(),
-            "boat_guid": dm.Int64(),
-            "mmsi_country": dm.Text(),
+            "name": dm.Text(),  # type: ignore[dict-item]
+            "description": dm.Text(),  # type: ignore[dict-item]
+            "boat_guid": dm.Int64(),  # type: ignore[dict-item]
+            "mmsi_country": dm.Text(),  # type: ignore[dict-item]
         },
         filter=None,
         implements=None,
@@ -68,8 +68,8 @@ def sample_nmea_time_series_view() -> dm.View:
         name="",
         description="",
         properties={
-            "mmsi": dm.Text(),
-            "value": dm.Float64(),
+            "mmsi": dm.Text(),  # type: ignore[dict-item]
+            "value": dm.Float64(),  # type: ignore[dict-item]
         },
         filter=None,
         implements=None,
@@ -130,4 +130,3 @@ def udtf_generator(
         catalog="test_catalog",
         schema="test_schema",
     )
-
