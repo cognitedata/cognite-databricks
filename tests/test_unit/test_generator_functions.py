@@ -29,7 +29,8 @@ class TestRegisterUdtfFromFile:
         udtf_file = tmp_path / "TestUDTF.py"
         udtf_code = """
 class TestUDTF:
-    def analyze(self, param: str) -> object:
+    @staticmethod
+    def analyze(param: str) -> object:
         from pyspark.sql.types import StructType, StructField, StringType
         return StructType([StructField("result", StringType())])
     
@@ -61,7 +62,8 @@ class TestUDTF:
         udtf_file = tmp_path / "SmallBoatUDTF.py"
         udtf_code = """
 class SmallBoatUDTF:
-    def analyze(self, param: str) -> object:
+    @staticmethod
+    def analyze(param: str) -> object:
         from pyspark.sql.types import StructType, StructField, StringType
         return StructType([StructField("result", StringType())])
     
@@ -113,11 +115,13 @@ class SmallBoatUDTF:
         udtf_file = tmp_path / "MultipleUDTF.py"
         udtf_code = """
 class UDTF1:
-    def analyze(self): pass
+    @staticmethod
+    def analyze(): pass
     def eval(self): pass
 
 class UDTF2:
-    def analyze(self): pass
+    @staticmethod
+    def analyze(): pass
     def eval(self): pass
 """
         udtf_file.write_text(udtf_code)
@@ -207,7 +211,11 @@ class TestGenerateUdtfSqlQuery:
         assert "f0connectortest.sailboat_sailboat_v1.small_boat_udtf" in sql
         assert "client_id     => SECRET" in sql
         assert "LIMIT 10" in sql
-        assert "NULL" not in sql  # Named parameters don't include NULLs
+        # Named parameters don't include NULL in actual parameters (only in comments)
+        # Check that NULL is not in the parameter lines (lines with =>)
+        sql_lines = sql.split("\n")
+        param_lines = [line for line in sql_lines if "=>" in line]
+        assert all("NULL" not in line for line in param_lines), "Named parameters should not include NULL values"
 
     def test_generate_udtf_sql_query_positional_parameters(self) -> None:
         """Test generating SQL query with positional parameters."""
