@@ -127,3 +127,29 @@ class TestUDTFRegistry:
 
         mock_workspace_client.functions.create.assert_called_once()
         assert result == new_function
+
+    def test_register_view(
+        self,
+        udtf_registry: UDTFRegistry,
+        mock_workspace_client: MagicMock,
+    ) -> None:
+        """Test registering a view."""
+        # Mock successful view registration
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.state = StatementState.SUCCEEDED
+        mock_response.status = mock_status
+        mock_workspace_client.statement_execution.execute_statement.return_value = mock_response
+
+        udtf_registry.register_view(
+            catalog="test_catalog",
+            schema="test_schema",
+            view_name="test_view",
+            view_sql="CREATE VIEW test_view AS SELECT 1",
+            warehouse_id="test-warehouse-id",
+        )
+
+        mock_workspace_client.statement_execution.execute_statement.assert_called_once()
+        call_args = mock_workspace_client.statement_execution.execute_statement.call_args
+        assert call_args.kwargs["warehouse_id"] == "test-warehouse-id"
+        assert "CREATE VIEW" in call_args.kwargs["statement"]
