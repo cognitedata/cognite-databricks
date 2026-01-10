@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from cognite.client import CogniteClient, data_modeling as dm
+from cognite.client import CogniteClient
+from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 
 from cognite.databricks.generator import generate_udtf_notebook
