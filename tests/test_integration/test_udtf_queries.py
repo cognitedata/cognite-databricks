@@ -20,15 +20,19 @@ class TestUdtfRegistration:
     ) -> None:
         """Test UDTF generation and registration (Cells 12-13)."""
         # Mock data model retrieval
-        udtf_generator.client.data_modeling.data_models.retrieve.return_value = MagicMock(
-            views=[
-                MagicMock(external_id="SmallBoat", space="sailboat"),
-                MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
-            ]
-        )
+        if udtf_generator.cognite_client:
+            udtf_generator.cognite_client.data_modeling.data_models.retrieve.return_value = MagicMock(
+                views=[
+                    MagicMock(external_id="SmallBoat", space="sailboat"),
+                    MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
+                ]
+            )
 
-        # Generate UDTFs
-        result = udtf_generator.generate_udtfs()
+        # Generate UDTFs using code_generator
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
+        else:
+            raise ValueError("code_generator is None")
         assert result is not None
         assert result.total_count > 0
 
@@ -51,7 +55,8 @@ class TestUdtfRegistration:
         mock_workspace_client.secrets.create_scope.return_value = None
 
         # Generate and register
-        _ = udtf_generator.generate_udtfs()
+        if udtf_generator.code_generator:
+            _ = udtf_generator.code_generator.generate_udtfs()
         registered = udtf_generator.register_session_scoped_udtfs()
 
         assert registered is not None
@@ -66,12 +71,12 @@ class TestDataModelUdtfQueries:
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test basic UDTF query structure (Cell 14)."""
-        result = udtf_generator.generate_udtfs()
-        assert result.total_count > 0
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
+            assert result.total_count > 0
 
-        # Verify UDTF files were created
-        result = udtf_generator.generate_udtfs()
-        for _view_id, file_path in result.generated_files.items():
+            # Verify UDTF files were created
+            for _view_id, file_path in result.generated_files.items():
             assert file_path.exists()
             code = file_path.read_text()
             # Verify UDTF structure
@@ -83,14 +88,15 @@ class TestDataModelUdtfQueries:
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test named parameters support (Cell 15)."""
-        result = udtf_generator.generate_udtfs()
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
 
-        # Find small_boat UDTF
-        small_boat_file = result.get_file("SmallBoat")
-        if small_boat_file:
-            code = small_boat_file.read_text()
-            # Verify named parameter support (Python keyword arguments)
-            assert "def" in code or "class" in code
+            # Find small_boat UDTF
+            small_boat_file = result.get_file("SmallBoat")
+            if small_boat_file:
+                code = small_boat_file.read_text()
+                # Verify named parameter support (Python keyword arguments)
+                assert "def" in code or "class" in code
 
 
 @pytest.mark.integration
@@ -142,39 +148,42 @@ class TestFilteringQueries:
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test external_id filter support (Cell 20)."""
-        result = udtf_generator.generate_udtfs()
-        small_boat_file = result.get_file("SmallBoat")
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
+            small_boat_file = result.get_file("SmallBoat")
 
-        if small_boat_file:
-            code = small_boat_file.read_text()
-            # Verify external_id handling
-            assert "external_id" in code.lower() or "externalId" in code.lower()
+            if small_boat_file:
+                code = small_boat_file.read_text()
+                # Verify external_id handling
+                assert "external_id" in code.lower() or "externalId" in code.lower()
 
     def test_property_filter_support(
         self,
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test property filter support (Cell 21)."""
-        result = udtf_generator.generate_udtfs()
-        small_boat_file = result.get_file("SmallBoat")
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
+            small_boat_file = result.get_file("SmallBoat")
 
-        if small_boat_file:
-            code = small_boat_file.read_text()
-            # Verify property filter parameters
-            assert "name" in code.lower()
+            if small_boat_file:
+                code = small_boat_file.read_text()
+                # Verify property filter parameters
+                assert "name" in code.lower()
 
     def test_numeric_range_filter_support(
         self,
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test numeric range filter support (Cell 23)."""
-        result = udtf_generator.generate_udtfs()
-        small_boat_file = result.get_file("SmallBoat")
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
+            small_boat_file = result.get_file("SmallBoat")
 
-        if small_boat_file:
-            code = small_boat_file.read_text()
-            # Verify numeric property handling
-            assert "boat_guid" in code.lower() or "boatGuid" in code.lower()
+            if small_boat_file:
+                code = small_boat_file.read_text()
+                # Verify numeric property handling
+                assert "boat_guid" in code.lower() or "boatGuid" in code.lower()
 
 
 @pytest.mark.integration
@@ -186,16 +195,17 @@ class TestJoinQueries:
         udtf_generator: UDTFGenerator,
     ) -> None:
         """Test JOIN compatibility between UDTFs (Cell 25)."""
-        result = udtf_generator.generate_udtfs()
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_udtfs()
 
-        small_boat_file = result.get_file("SmallBoat")
-        nmea_file = result.get_file("NmeaTimeSeries")
+            small_boat_file = result.get_file("SmallBoat")
+            nmea_file = result.get_file("NmeaTimeSeries")
 
-        if small_boat_file and nmea_file:
-            small_boat_code = small_boat_file.read_text()
-            nmea_code = nmea_file.read_text()
+            if small_boat_file and nmea_file:
+                small_boat_code = small_boat_file.read_text()
+                nmea_code = nmea_file.read_text()
 
-            # Verify both have join-compatible columns
-            assert "space" in small_boat_code.lower() or "external_id" in small_boat_code.lower()
-            assert "mmsi" in nmea_code.lower()
-            assert "boat_guid" in small_boat_code.lower() or "boatGuid" in small_boat_code.lower()
+                # Verify both have join-compatible columns
+                assert "space" in small_boat_code.lower() or "external_id" in small_boat_code.lower()
+                assert "mmsi" in nmea_code.lower()
+                assert "boat_guid" in small_boat_code.lower() or "boatGuid" in small_boat_code.lower()

@@ -122,8 +122,10 @@ def udtf_generator(
         version="v1",
     )
 
-    return UDTFGenerator(
-        data_model_id=data_model_id,
+    from cognite.databricks.generator import generate_udtf_notebook
+
+    return generate_udtf_notebook(
+        data_model=data_model_id,
         client=mock_cognite_client,
         workspace_client=mock_workspace_client,
         output_dir=temp_output_dir,

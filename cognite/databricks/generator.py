@@ -7,6 +7,9 @@ from pathlib import Path
 from threading import Semaphore
 from typing import TYPE_CHECKING, Union
 
+if TYPE_CHECKING:
+    from cognite.client.data_classes.data_modeling.ids import DataModelId
+
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling import DataModelIdentifier
@@ -67,7 +70,7 @@ DataModel = Union[DataModelIdentifier, dm.DataModel[dm.View]]
 def register_udtf_from_file(
     udtf_file_path: str | Path,
     function_name: str | None = None,
-    spark_session=None,
+    spark_session: object | None = None,  # SparkSession type
 ) -> str:
     """Register a UDTF from a generated Python file for session-scoped use.
 
@@ -123,7 +126,7 @@ def register_udtf_from_file(
         udtf_code = f.read()
 
     # Execute the code in a temporary namespace to get the UDTF class
-    namespace = {}
+    namespace: dict[str, object] = {}
     exec(udtf_code, namespace)
 
     # Find the UDTF class (it should be the only class defined in the file with eval and analyze methods)
@@ -157,7 +160,7 @@ def register_udtf_from_file(
         raise RuntimeError(f"analyze method not found in {udtf_class.__name__}! " "Required for PySpark Connect.")
 
     # Wrap the class with udtf() - DO NOT pass returnType when analyze method exists
-    udtf_wrapped = udtf()(udtf_class)
+    udtf_wrapped = udtf()(udtf_class)  # type: ignore[arg-type]
 
     # Register the wrapped version
     spark_session.udtf.register(function_name, udtf_wrapped)
@@ -243,8 +246,9 @@ def generate_time_series_udtf_view_sql(
     ]
 
     # Add UDTF-specific parameters first (with default NULL)
-    for param in udtf_params:
-        sql_lines.append(f"    {param} => NULL,")
+    if udtf_params is not None:
+        for param in udtf_params:
+            sql_lines.append(f"    {param} => NULL,")
 
     # Add SECRET parameters for credentials
     sql_lines.append(f"    client_id     => SECRET('{secret_scope}', 'client_id'),")
@@ -398,7 +402,8 @@ def generate_session_scoped_notebook_code(
             if isinstance(data_model, dm.DataModel):
                 model_id = data_model.as_id()
             else:
-                model_id = data_model
+                # Type narrowing - data_model is DataModelId at this point
+                model_id: DataModelId = data_model  # type: ignore[assignment]
             secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
         else:
             try:
@@ -591,9 +596,12 @@ def generate_udtf_notebook(
             schema = f"{model_id.space}_{model_id.external_id.lower()}_{model_id.version}"
     elif isinstance(data_model, tuple):
         # Backward compatibility: DataModelIdentifier supports tuples
-        folder_name = f"{data_model[0]}_{data_model[1]}_{data_model[2]}"
-        if schema is None:
-            schema = f"{data_model[0]}_{data_model[1].lower()}_{data_model[2]}"
+        if len(data_model) >= 3:
+            folder_name = f"{data_model[0]}_{data_model[1]}_{data_model[2]}"
+            if schema is None:
+                schema = f"{data_model[0]}_{data_model[1].lower()}_{data_model[2]}"
+        else:
+            raise ValueError(f"Invalid tuple format for data_model: {data_model}")
     else:
         folder_name = f"{data_model.space}_{data_model.external_id}_{data_model.version}"
         if schema is None:
@@ -674,8 +682,8 @@ class UDTFGenerator:
             self.udtf_registry = UDTFRegistry(workspace_client)
             self.secret_helper = SecretManagerHelper(workspace_client)
         else:
-            self.udtf_registry = None
-            self.secret_helper = None
+            self.udtf_registry: UDTFRegistry | None = None
+            self.secret_helper: SecretManagerHelper | None = None
 
         # Note: If code_generator is None, we can't create SparkUDTFGenerator without a data_model
         # This should only happen if code_generator is provided or if generate_udtf_notebook was called
@@ -750,7 +758,7 @@ class UDTFGenerator:
         if is_time_series_udtf:
             # For time series UDTFs, parse directly from the class
             # Execute the code to get the class
-            namespace = {}
+            namespace: dict[str, object] = {}
             exec(udtf_code, namespace)
 
             # Find the UDTF class
@@ -858,6 +866,9 @@ class UDTFGenerator:
                         if debug:
                             print(f"[DEBUG] Failed to register foreign keys for {view_id}: {e}")
 
+        if function_info is None:
+            raise ValueError(f"Failed to register UDTF for view {view_id}")
+
         return RegisteredUDTFResult(
             view_id=view_id,
             function_info=function_info,
@@ -919,7 +930,8 @@ class UDTFGenerator:
                 if isinstance(data_model, dm.DataModel):
                     model_id = data_model.as_id()
                 else:
-                    model_id = data_model
+                    # Type narrowing
+                    model_id: DataModelId = data_model  # type: ignore[assignment]
                 secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
             else:
                 raise ValueError("secret_scope must be provided if data_model is None")
@@ -1054,7 +1066,7 @@ class UDTFGenerator:
                     # Handle errors per view (don't fail entire registration)
                     error_result = RegisteredUDTFResult(
                         view_id=view_id,
-                        function_info=None,
+                        function_info=None,  # type: ignore[arg-type]
                         view_name=None,
                         udtf_file_path=udtf_files.get(view_id),
                         view_registered=False,
@@ -1076,7 +1088,7 @@ class UDTFGenerator:
     def register_session_scoped_udtfs(
         self,
         data_model: DataModel | None = None,
-        spark_session=None,
+        spark_session: object | None = None,  # SparkSession type
         function_name_prefix: str | None = None,
     ) -> dict[str, str]:
         """Register all generated UDTFs for session-scoped use in PySpark.
@@ -1357,9 +1369,9 @@ class UDTFGenerator:
                     param_type = non_none_types[0]
                 else:
                     param_type = str
-                spark_type = TypeConverter.python_type_to_spark(param_type)
+                spark_type: DataType = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
             else:
-                spark_type = TypeConverter.python_type_to_spark(param_type)
+                spark_type: DataType = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
 
             # Convert PySpark type to SQL type info
             sql_type, type_name = TypeConverter.spark_to_sql_type_info(spark_type)
@@ -1451,8 +1463,7 @@ class UDTFGenerator:
                     type_name=type_name,
                     type_json=type_json_value,
                     position=position,
-                    parameter_mode=FunctionParameterMode.OUT,
-                    parameter_type=FunctionParameterType.PARAM,
+                    # Note: return parameters don't usually have mode/type set the same as input
                 )
             )
 
@@ -1555,7 +1566,7 @@ class UDTFGenerator:
                         )
             else:
                 # Use PySpark as source of truth - build Spark type first, then derive SQL type
-                spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)
+                spark_type: DataType = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
                 sql_type, type_name = TypeConverter.spark_to_sql_type_info(spark_type)
                 type_json_value = TypeConverter.spark_to_type_json(spark_type, prop_name, nullable=True)
                 if debug:
@@ -1583,7 +1594,7 @@ class UDTFGenerator:
 
         return input_params
 
-    def _get_view_by_id(self, view_id: str):
+    def _get_view_by_id(self, view_id: str) -> dm.View | None:
         """Get view from code_generator's data model by external_id."""
         if not self.code_generator:
             raise ValueError("code_generator must be set")
@@ -1602,7 +1613,7 @@ class UDTFGenerator:
 
         return None
 
-    def _get_property_type(self, prop) -> tuple[object, bool, bool]:
+    def _get_property_type(self, prop: dm.ViewProperty) -> tuple[object, bool, bool]:
         """Safely extract property type, handling relationship properties and array types.
 
         Args:
@@ -1641,7 +1652,7 @@ class UDTFGenerator:
 
         return (property_type, False, is_multi)  # Not a relationship, but may be an array
 
-    def _property_type_to_sql_type(self, property_type) -> tuple[str, ColumnTypeName, str]:
+    def _property_type_to_sql_type(self, property_type: object) -> tuple[str, ColumnTypeName, str]:
         """Convert CDF property type to SQL type and Spark type name.
 
         DEPRECATED: Use _property_type_to_spark_type() + _spark_type_to_sql_type_info() instead.
@@ -1713,7 +1724,7 @@ class UDTFGenerator:
                 spark_type = StringType()
             else:
                 # Build Spark type from property type
-                spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)
+                spark_type: DataType = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
 
             fields.append(StructField(udtf_field.name, spark_type, nullable=udtf_field.nullable))
 
@@ -1763,6 +1774,8 @@ class UDTFGenerator:
         if function_info.return_params and function_info.return_params.parameters:
             for param in function_info.return_params.parameters:
                 # Parse type_json back to PySpark DataType
+                if param.type_json is None:
+                    continue
                 spark_type = self._parse_type_json_to_spark_type(param.type_json)
                 # Get nullable from type_json or default to True
                 nullable = True

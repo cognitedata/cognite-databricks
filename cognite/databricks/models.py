@@ -28,7 +28,7 @@ class RegisteredUDTFResult(BaseModel):
     """
 
     view_id: str
-    function_info: FunctionInfo
+    function_info: FunctionInfo | None = None
     view_name: str | None = None
     udtf_file_path: Path | None = None
     view_registered: bool = False

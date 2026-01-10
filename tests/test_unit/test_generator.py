@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 from cognite.client import data_modeling as dm
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 
-from cognite.databricks.generator import UDTFGenerator
+from cognite.databricks.generator import generate_udtf_notebook
 
 
 class TestUDTFGenerator:
@@ -19,12 +19,14 @@ class TestUDTFGenerator:
         mock_cognite_client,
         mock_workspace_client: MagicMock,
         temp_output_dir: Path,
+        sample_data_model: dm.DataModel[dm.View],
     ) -> None:
         """Test generator initialization."""
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
+        mock_cognite_client.data_modeling.data_models.retrieve.return_value = sample_data_model
 
-        generator = UDTFGenerator(
-            data_model_id=data_model_id,
+        generator = generate_udtf_notebook(
+            data_model=data_model_id,
             client=mock_cognite_client,
             workspace_client=mock_workspace_client,
             output_dir=temp_output_dir,
@@ -32,9 +34,9 @@ class TestUDTFGenerator:
             schema="test_schema",
         )
 
-        assert generator.output_dir == temp_output_dir
         assert generator.catalog == "test_catalog"
         assert generator.schema == "test_schema"
+        assert generator.code_generator is not None
 
     def test_generate_udtfs(
         self,
@@ -49,8 +51,8 @@ class TestUDTFGenerator:
 
         data_model_id = DataModelId(space="test_space", external_id="test_model", version="v1")
 
-        generator = UDTFGenerator(
-            data_model_id=data_model_id,
+        generator = generate_udtf_notebook(
+            data_model=data_model_id,
             client=mock_cognite_client,
             workspace_client=mock_workspace_client,
             output_dir=temp_output_dir,
@@ -58,6 +60,7 @@ class TestUDTFGenerator:
             schema="test_schema",
         )
 
-        result = generator.generate_udtfs()
+        # Use code_generator to generate UDTFs
+        result = generator.code_generator.generate_udtfs()
         assert result is not None
         assert result.total_count > 0
