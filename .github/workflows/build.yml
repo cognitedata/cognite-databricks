@@ -41,7 +41,7 @@ jobs:
       - run: uv sync --all-extras
 
       - name: Test
-        run: uv run pytest cognite tests/test_unit -v
+        run: uv run pytest tests/ -v
 
       - name: Build package
         run: uv build

@@ -110,7 +110,7 @@ markers = [
     "slow: Slow running tests.",
 ]
 pythonpath = ["."]
-testpaths = ["tests", "cognite/databricks"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
