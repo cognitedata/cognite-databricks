@@ -18,6 +18,8 @@ from cognite.client.data_classes.data_modeling.views import (
     SingleReverseDirectRelation,
     ViewProperty,
 )
+from cognite.pygen_spark import SparkUDTFGenerator
+from cognite.pygen_spark.fields import UDTFField
 
 from cognite.databricks.models import (
     RegisteredUDTFResult,
@@ -27,8 +29,6 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 from cognite.databricks.type_converter import TypeConverter
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
-from cognite.pygen_spark import SparkUDTFGenerator
-from cognite.pygen_spark.fields import UDTFField
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -143,7 +143,7 @@ def register_udtf_from_file(
 
     if not udtf_classes:
         raise ValueError(
-            f"No UDTF class found in {udtf_file_path}. " "Expected a class with 'eval' and 'analyze' methods."
+            f"No UDTF class found in {udtf_file_path}. Expected a class with 'eval' and 'analyze' methods."
         )
 
     if len(udtf_classes) > 1:
@@ -162,7 +162,7 @@ def register_udtf_from_file(
 
     # Verify analyze method exists
     if not hasattr(udtf_class, "analyze"):
-        raise RuntimeError(f"analyze method not found in {udtf_class.__name__}! " "Required for PySpark Connect.")
+        raise RuntimeError(f"analyze method not found in {udtf_class.__name__}! Required for PySpark Connect.")
 
     # Wrap the class with udtf() - DO NOT pass returnType when analyze method exists
     udtf_wrapped = udtf()(udtf_class)  # type: ignore[arg-type]
@@ -1026,7 +1026,7 @@ class UDTFGenerator:
         registered_udtfs: list[RegisteredUDTFResult] = []
 
         if debug:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("[DEBUG] Starting UDTF and View registration")
             print(f"[DEBUG] Catalog: {self.catalog}")
             print(f"[DEBUG] Schema: {self.schema}")
@@ -1035,7 +1035,7 @@ class UDTFGenerator:
             print(f"[DEBUG] Max workers: {max_workers}")
             print(f"[DEBUG] Max parallel requests: {max_parallel_requests or 'unlimited'}")
             print(f"[DEBUG] UDTFs to register: {list(udtf_files.keys())}")
-            print(f"{'='*60}\n")
+            print(f"{'=' * 60}\n")
 
         # Create rate limiter if specified (similar to cognite-sdk-scala's RateLimitingBackend)
         rate_limiter = Semaphore(max_parallel_requests) if max_parallel_requests else None
@@ -1199,7 +1199,7 @@ class UDTFGenerator:
 
         if not udtf_dir.exists():
             raise FileNotFoundError(
-                f"UDTF directory not found: {udtf_dir}. " "Make sure generate_udtfs() was called first."
+                f"UDTF directory not found: {udtf_dir}. Make sure generate_udtfs() was called first."
             )
 
         # Find all *_udtf.py files
@@ -1210,9 +1210,7 @@ class UDTFGenerator:
             udtf_files[view_id] = file_path
 
         if not udtf_files:
-            raise FileNotFoundError(
-                f"No UDTF files found in {udtf_dir}. " "Make sure generate_udtfs() was called first."
-            )
+            raise FileNotFoundError(f"No UDTF files found in {udtf_dir}. Make sure generate_udtfs() was called first.")
 
         return udtf_files
 
@@ -2127,6 +2125,5 @@ class UDTFGenerator:
                         print(f"[WARNING] Failed to register FK for {view_id}.{prop_name}: {e}")
             elif debug:
                 print(
-                    f"[DEBUG] Relationship property {view_id}.{prop_name} found "
-                    f"but could not determine referenced view"
+                    f"[DEBUG] Relationship property {view_id}.{prop_name} found but could not determine referenced view"
                 )

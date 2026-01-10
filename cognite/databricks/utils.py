@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from cognite.pygen_spark.utils import to_udtf_function_name
+
 from databricks.sdk import WorkspaceClient
 
 # Re-export for backward compatibility
@@ -31,9 +32,9 @@ def inspect_function_parameters(
     try:
         func_info = workspace_client.functions.get(function_name)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Function: {function_name}")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Full name: {func_info.full_name}")
         print(f"Routine body: {func_info.routine_body}")
         print(f"External language: {func_info.external_language}")
@@ -62,7 +63,7 @@ def inspect_function_parameters(
                 print(f"      type_name: {param.type_name}")
                 print(f"      type_json: {param.type_json!r}")
 
-        print(f"\n{'='*60}\n")
+        print(f"\n{'=' * 60}\n")
 
     except Exception as e:
         print(f"Error getting function {function_name}: {e}")

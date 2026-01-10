@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from cognite.pygen_spark.type_converter import TypeConverter as BaseTypeConverter
 from pyspark.sql.types import (  # type: ignore[import-not-found]
     ArrayType,
     BooleanType,
@@ -18,8 +19,6 @@ from pyspark.sql.types import (  # type: ignore[import-not-found]
     StringType,
     TimestampType,
 )
-
-from cognite.pygen_spark.type_converter import TypeConverter as BaseTypeConverter
 
 if TYPE_CHECKING:
     from databricks.sdk.service.catalog import ColumnTypeName
@@ -58,7 +57,7 @@ class TypeConverter(BaseTypeConverter):
             return ("TIMESTAMP", ColumnTypeName.TIMESTAMP)
         elif isinstance(spark_type, ArrayType):
             # For arrays, extract base type for ColumnTypeName
-            base_sql_type, base_type_name = TypeConverter.spark_to_sql_type_info(spark_type.elementType)
+            base_sql_type, _base_type_name = TypeConverter.spark_to_sql_type_info(spark_type.elementType)
             sql_type = f"ARRAY<{base_sql_type}>"
             # ColumnTypeName doesn't have ARRAY, use base type or STRING as fallback
             return (sql_type, ColumnTypeName.STRING)
