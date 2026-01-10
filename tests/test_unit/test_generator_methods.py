@@ -162,17 +162,18 @@ class TestUDTFGeneratorMethods:
         """Test _find_generated_udtf_files finds UDTF files."""
         from cognite.pygen_spark import SparkUDTFGenerator
 
-        # Create a mock UDTF file
-        udtf_dir = temp_output_dir / "test_space_test_model_v1" / "cognite_databricks"
-        udtf_dir.mkdir(parents=True)
-        udtf_file = udtf_dir / "SmallBoat_udtf.py"
-        udtf_file.write_text("class SmallBoatUDTF: pass")
-
         code_generator = SparkUDTFGenerator(
             client=mock_cognite_client,
             output_dir=temp_output_dir,
             data_model=sample_data_model,
         )
+
+        # Create a mock UDTF file in the correct location
+        # Files are stored in: output_dir / top_level_package / "{view_external_id}_udtf.py"
+        udtf_dir = temp_output_dir / code_generator.top_level_package
+        udtf_dir.mkdir(parents=True)
+        udtf_file = udtf_dir / "SmallBoat_udtf.py"
+        udtf_file.write_text("class SmallBoatUDTF: pass")
 
         generator = UDTFGenerator(
             workspace_client=mock_workspace_client,
@@ -186,7 +187,8 @@ class TestUDTFGeneratorMethods:
         files = generator._find_generated_udtf_files()
 
         # Should find the UDTF file
-        assert "SmallBoat" in files or len(files) > 0
+        assert "SmallBoat" in files
+        assert files["SmallBoat"] == udtf_file
 
     def test_ensure_catalog_exists_no_workspace_client(
         self,
