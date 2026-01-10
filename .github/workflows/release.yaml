@@ -1,0 +1,73 @@
+---
+name: release
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install required dependencies
+        run: |
+          uv sync --all-extras
+      - name: Linting and static code checks
+        run: uv run pre-commit run --all-files
+
+  release:
+    runs-on: ubuntu-latest
+    environment: CD
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install required dependencies
+        run: |
+          uv sync --all-extras
+      - name: Dump last commit message to file
+        run: git log -1 --pretty=%B > last_git_message.txt
+      - name: Dump last tag to file
+        run: git describe --tags --abbrev=0 > last_version.txt
+      - name: Bump Version
+        run: uv run python dev.py bump --verbose
+      - id: version
+        name: Read the new version
+        # Read the version from the cognite/databricks/_version.py file
+        run: echo "version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' cognite/databricks/_version.py)" >> $GITHUB_ENV
+      - name: Create CHANGELOG entry
+        if: env.version != '0.0.0'
+        run: uv run python dev.py changelog
+      - name: Build package
+        if: env.version != '0.0.0'
+        run: uv build
+
+      - name: Release to PyPI
+        if: env.version != '0.0.0'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv run twine upload --skip-existing --verbose dist/*
+
+      - name: Add entry to CHANGELOG
+        if: env.version != '0.0.0'
+        uses: ncipollo/release-action@v1
+        with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            prerelease: false
+            draft: false
+            tag: ${{ env.version }}
+            bodyFile: last_changelog_entry.md

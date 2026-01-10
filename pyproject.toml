@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "cognite-databricks"
-version = "0.1.0"
+version = "0.0.0"
 description = "Helper SDK for Databricks UDTF registration and Unity Catalog integration"
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
@@ -43,6 +43,10 @@ dev = [
     "pre-commit>=4.0.0",
     "pandas>=1.5.3",  # Required by cognite-pygen._build (via cognite-pygen-spark)
     "pydantic>=2.0.0",  # Required for mypy pydantic plugin
+    "typer>=0.9.0",  # For dev.py CLI
+    "marko>=2.1.0,<3.0.0",  # For parsing commit messages
+    "packaging>=21.3",  # For version parsing
+    "twine>=6.0.0",  # For PyPI upload
 ]
 local = [
     "pyspark>=3.0.0",  # Only for local development/testing outside Databricks
