@@ -1639,7 +1639,7 @@ class UDTFGenerator:
             return (None, True, False)  # is_relationship=True, is_multi=False (STRING)
 
         # Check if property has a .type attribute (for MappedProperty)
-        if not hasattr(prop, "type"):
+        if not isinstance(prop, dm.MappedProperty):
             # Default to single relationship if we can't determine
             return (None, True, False)
 
