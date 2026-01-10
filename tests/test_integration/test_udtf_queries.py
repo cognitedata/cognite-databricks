@@ -20,7 +20,7 @@ class TestUdtfRegistration:
     ) -> None:
         """Test UDTF generation and registration (Cells 12-13)."""
         # Mock data model retrieval
-        mock_data_model = MagicMock(
+        udtf_generator.client.data_modeling.data_models.retrieve.return_value = MagicMock(
             views=[
                 MagicMock(external_id="SmallBoat", space="sailboat"),
                 MagicMock(external_id="NmeaTimeSeries", space="sailboat"),
