@@ -1364,7 +1364,7 @@ class UDTFGenerator:
 
             # Map Python types to PySpark types using TypeConverter
             if param_type is None or param_type is type(None):
-                spark_type = StringType()
+                param_spark_type = StringType()
             elif hasattr(param_type, "__origin__"):  # Union types like str | None
                 # Extract the non-None type
                 args = getattr(param_type, "__args__", ())
@@ -1373,9 +1373,9 @@ class UDTFGenerator:
                     param_type = non_none_types[0]
                 else:
                     param_type = str
-                spark_type: DataType = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
+                param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
             else:
-                spark_type: DataType = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
+                param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
 
             # Convert PySpark type to SQL type info
             sql_type, type_name = TypeConverter.spark_to_sql_type_info(param_spark_type)
@@ -1572,9 +1572,9 @@ class UDTFGenerator:
                         )
             else:
                 # Use PySpark as source of truth - build Spark type first, then derive SQL type
-                spark_type: DataType = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
-                sql_type, type_name = TypeConverter.spark_to_sql_type_info(spark_type)
-                type_json_value = TypeConverter.spark_to_type_json(spark_type, prop_name, nullable=True)
+                prop_spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
+                sql_type, type_name = TypeConverter.spark_to_sql_type_info(prop_spark_type)
+                type_json_value = TypeConverter.spark_to_type_json(prop_spark_type, prop_name, nullable=True)
                 if debug:
                     print(
                         f"  [{position}] {prop_name}: type_text='{sql_type}', "
@@ -1615,7 +1615,7 @@ class UDTFGenerator:
         # Find view by external_id
         for view in data_model.views:
             if view.external_id == view_id:
-                return view
+                return view  # type: ignore[no-any-return]
 
         return None
 
@@ -1727,12 +1727,12 @@ class UDTFGenerator:
 
             if is_relationship:
                 # Relationships are always StringType (external_id references)
-                spark_type = StringType()
+                field_spark_type = StringType()
             else:
                 # Build Spark type from property type
-                spark_type: DataType = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
+                field_spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
 
-            fields.append(StructField(udtf_field.name, spark_type, nullable=udtf_field.nullable))
+            fields.append(StructField(udtf_field.name, field_spark_type, nullable=udtf_field.nullable))
 
         return StructType(fields)
 
