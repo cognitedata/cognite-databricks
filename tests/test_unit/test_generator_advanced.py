@@ -9,19 +9,10 @@ import pytest
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from databricks.sdk.service.catalog import (
-    ColumnTypeName,
-    FunctionInfo,
-    FunctionInfoRoutineBody,
     FunctionParameterInfo,
-    FunctionParameterMode,
-    FunctionParameterType,
 )
 from pyspark.sql.types import (  # type: ignore[import-not-found]
-    ArrayType,
-    BooleanType,
-    DateType,
     DoubleType,
-    LongType,
     StringType,
     StructField,
     StructType,
@@ -29,7 +20,6 @@ from pyspark.sql.types import (  # type: ignore[import-not-found]
 )
 
 from cognite.databricks.generator import UDTFGenerator
-from cognite.databricks.models import RegisteredUDTFResult
 
 
 class TestUDTFGeneratorAdvanced:
@@ -95,7 +85,7 @@ class TestUDTFGeneratorAdvanced:
         assert view is not None
 
         # Test MappedProperty
-        for prop_name, prop in view.properties.items():
+        for _prop_name, prop in view.properties.items():
             if isinstance(prop, dm.MappedProperty):
                 property_type, is_relationship, is_multi = generator._get_property_type(prop)
                 assert property_type is not None
@@ -218,7 +208,7 @@ class TestUDTFGeneratorAdvanced:
         class MockUDTF:
             @staticmethod
             def analyze(instance_id: str, start: str | None = None, end: str | None = None) -> object:
-                from pyspark.sql.types import StructType, StructField, StringType
+                from pyspark.sql.types import StructField, StructType
 
                 return StructType([StructField("result", StringType())])
 
@@ -263,6 +253,19 @@ class TestUDTFGeneratorAdvanced:
             def outputSchema() -> StructType:
                 return StructType([StructField("timestamp", TimestampType()), StructField("value", DoubleType())])
 
+        return_params = generator._parse_return_params_from_class(MockUDTF, debug=False)
+        assert len(return_params) > 0
+        assert all(isinstance(p, FunctionParameterInfo) for p in return_params)
+
+        # Test missing outputSchema method
+        class NoOutputSchema:
+            pass
+
+        with pytest.raises(ValueError, match="must have an outputSchema\\(\\) method"):
+            generator._parse_return_params_from_class(NoOutputSchema)
+            def outputSchema() -> StructType:
+                return StructType([StructField("timestamp", TimestampType()), StructField("value", DoubleType())])
+
         return_type = generator._parse_return_type_from_class(MockUDTF)
         assert return_type.startswith("TABLE(")
         assert "timestamp" in return_type
@@ -301,3 +304,16 @@ class TestUDTFGeneratorAdvanced:
         # Create a mock UDTF class with outputSchema method
         class MockUDTF:
             @staticmethod
+            def outputSchema() -> StructType:
+                return StructType([StructField("timestamp", TimestampType()), StructField("value", DoubleType())])
+
+        return_params = generator._parse_return_params_from_class(MockUDTF, debug=False)
+        assert len(return_params) > 0
+        assert all(isinstance(p, FunctionParameterInfo) for p in return_params)
+
+        # Test missing outputSchema method
+        class NoOutputSchema:
+            pass
+
+        with pytest.raises(ValueError, match="must have an outputSchema\\(\\) method"):
+            generator._parse_return_params_from_class(NoOutputSchema)
