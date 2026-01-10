@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from databricks.sdk.service.catalog import FunctionInfo
+from databricks.sdk.service.sql import StatementState
 
 from cognite.databricks.udtf_registry import UDTFRegistry
 
