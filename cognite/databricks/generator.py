@@ -1619,7 +1619,7 @@ class UDTFGenerator:
 
         return None
 
-    def _get_property_type(self, prop: dm.ViewProperty) -> tuple[object, bool, bool]:
+    def _get_property_type(self, prop: ViewProperty) -> tuple[object, bool, bool]:
         """Safely extract property type, handling relationship properties and array types.
 
         Args:
