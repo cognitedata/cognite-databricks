@@ -95,7 +95,7 @@ class UDTFRegistry:
             - routine_body must be EXTERNAL
             - external_language must be PYTHON
         """
-        from databricks.sdk.errors import ResourceAlreadyExists
+        from databricks.sdk.errors import NotFound, ResourceAlreadyExists
 
         # Check if function already exists
         full_function_name = f"{catalog}.{schema}.{function_name}"
@@ -137,7 +137,7 @@ class UDTFRegistry:
         except ResourceAlreadyExists:
             # Re-raise ResourceAlreadyExists if it was raised above
             raise
-        except Exception:
+        except NotFound:
             # Function doesn't exist, proceed with creation
             pass
 
@@ -196,8 +196,9 @@ class UDTFRegistry:
             if debug:
                 print("[DEBUG] UDTF already exists (race condition), returning existing function")
             return self.workspace_client.functions.get(full_function_name)
-        except Exception as e:
-            print(f"\n[ERROR] Failed to create UDTF '{full_function_name}'")
+        except (RuntimeError, ValueError, ResourceAlreadyExists) as e:
+            print(f"
+[ERROR] Failed to create UDTF '{full_function_name}'")
             print("[ERROR] Input parameters sent:")
             for p in input_params:
                 print(f"  - {p.name}: type_text='{p.type_text}', type_json='{p.type_json}', position={p.position}")
@@ -278,7 +279,7 @@ class UDTFRegistry:
                     state = response.state
                     if debug:
                         print(f"[DEBUG] Got state from response.state: {state}")
-            except Exception as state_error:
+            except (AttributeError, KeyError) as state_error:
                 if debug:
                     print(f"[DEBUG] Error extracting state: {state_error}")
                     print(f"[DEBUG] State extraction error type: {type(state_error).__name__}")
@@ -328,7 +329,7 @@ class UDTFRegistry:
                         print("[DEBUG] Response has 'error' attribute")
                     if hasattr(response.error, "message"):
                         error_message = response.error.message
-            except Exception as parse_error:
+            except (AttributeError, KeyError) as parse_error:
                 # Error message extraction failed (might be empty response)
                 if debug:
                     print(f"[DEBUG] Could not extract error message from response: {parse_error}")
@@ -366,7 +367,7 @@ class UDTFRegistry:
                                 if hasattr(statement_info, "__dict__"):
                                     attrs = [attr for attr in dir(statement_info) if not attr.startswith("_")]
                                     print(f"[DEBUG]   - Attributes: {attrs}")
-                        except Exception as get_error:
+                        except (NotFound, RuntimeError, ValueError) as get_error:
                             if debug:
                                 print(f"[DEBUG] Could not get statement details: {get_error}")
                                 print(f"[DEBUG] get_statement error type: {type(get_error).__name__}")
@@ -385,7 +386,7 @@ class UDTFRegistry:
                             if error_message:
                                 print(f"[DEBUG] Error message (may be security warning): {error_message}")
                         return
-                except Exception as view_check_error:
+                except NotFound as view_check_error:
                     if debug:
                         print("[DEBUG] View does not exist (checked via tables.get)")
                         print(f"[DEBUG] View check error: {view_check_error}")
@@ -404,6 +405,8 @@ class UDTFRegistry:
                 raise RuntimeError(f"View creation did not complete. State: {state_str}")
             else:
                 # If we can't determine state but no exception was raised, verify view exists
+                from databricks.sdk.errors import NotFound
+
                 try:
                     full_view_name = f"{catalog}.{schema}.{view_name}"
                     existing_view = self.workspace_client.tables.get(full_view_name)
@@ -411,16 +414,18 @@ class UDTFRegistry:
                         if debug:
                             print("[DEBUG] No state returned but view exists - assuming success")
                         return
-                except Exception:
+                except NotFound:
                     pass
 
                 if debug:
                     print("[DEBUG] No state returned, assuming success")
                 return
 
-        except Exception as e:
+        except (RuntimeError, ValueError, AttributeError) as e:
             # Special handling for "end-of-input" which often means empty response from SQL Warehouse
             # This is common for DDL statements like CREATE VIEW when they succeed immediately.
+            from databricks.sdk.errors import NotFound
+
             error_str = str(e)
             if "end-of-input" in error_str or "No content to map" in error_str:
                 # Even with end-of-input, verify view exists
@@ -432,7 +437,7 @@ class UDTFRegistry:
                         if debug:
                             print("[DEBUG] Received empty response but view exists - treating as success")
                         return
-                except Exception:
+                except NotFound:
                     pass
 
                 # View doesn't exist - this is a real error
@@ -449,7 +454,7 @@ class UDTFRegistry:
                         if debug:
                             print("[DEBUG] View exists after brief wait - treating as success")
                         return
-                except Exception:
+                except NotFound:
                     pass
 
                 # View still doesn't exist - this is a real failure
