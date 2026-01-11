@@ -197,7 +197,7 @@ class UDTFRegistry:
             if debug:
                 print("[DEBUG] UDTF already exists (race condition), returning existing function")
             return self.workspace_client.functions.get(full_function_name)
-        except (RuntimeError, ValueError, ResourceAlreadyExists) as e:
+        except (RuntimeError, ValueError) as e:
             print(f"\n[ERROR] Failed to create UDTF '{full_function_name}'")
             print("[ERROR] Input parameters sent:")
             for p in input_params:
