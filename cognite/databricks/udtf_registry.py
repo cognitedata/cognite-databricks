@@ -407,6 +407,8 @@ class UDTFRegistry:
                 # If we can't determine state but no exception was raised, verify view exists
                 from databricks.sdk.errors import NotFound
 
+                from databricks.sdk.errors import NotFound
+
                 try:
                     full_view_name = f"{catalog}.{schema}.{view_name}"
                     existing_view = self.workspace_client.tables.get(full_view_name)
