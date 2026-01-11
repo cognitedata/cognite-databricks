@@ -372,8 +372,22 @@ class UDTFRegistry:
                                 print(f"[DEBUG] Could not get statement details: {get_error}")
                                 print(f"[DEBUG] get_statement error type: {type(get_error).__name__}")
 
+                # Check if error message indicates pre-DBR 18.1 empty response issue
                 # Even if state is FAILED, verify if the view actually exists
                 # This handles cases where SECRET() causes a security warning but view is still created
+                # OR where pre-DBR 18.1 returns empty response but view is created
+                error_str = (error_message or "").lower()
+                is_empty_response_error = (
+                    "end-of-input" in error_str
+                    or "no content to map" in error_str
+                    or "bad_request" in str(error_details.get("error_code", "")).lower()
+                )
+
+                if is_empty_response_error:
+                    if debug:
+                        print("[DEBUG] Detected empty response error (likely pre-DBR 18.1 issue)")
+                        print("[DEBUG] Verifying if view was created despite error...")
+
                 try:
                     # Try to get the view to verify it exists
                     full_view_name = f"{catalog}.{schema}.{view_name}"
@@ -382,13 +396,21 @@ class UDTFRegistry:
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            print("[DEBUG] View state was FAILED but view exists - treating as success")
+                            if is_empty_response_error:
+                                print(
+                                    "[DEBUG] View state was FAILED with empty response error but view exists - "
+                                    "treating as success (pre-DBR 18.1 workaround)"
+                                )
+                            else:
+                                print("[DEBUG] View state was FAILED but view exists - treating as success")
                             if error_message:
                                 print(f"[DEBUG] Error message (may be security warning): {error_message}")
                         return
                 except NotFound as view_check_error:
                     if debug:
                         print("[DEBUG] View does not exist (checked via tables.get)")
+                        if is_empty_response_error:
+                            print("[DEBUG] This may be a pre-DBR 18.1 compatibility issue")
                         print(f"[DEBUG] View check error: {view_check_error}")
                         print(f"[DEBUG] View check error type: {type(view_check_error).__name__}")
                     pass
@@ -399,14 +421,20 @@ class UDTFRegistry:
                     error_msg += f" (Details: {error_details})"
                 if statement_id:
                     error_msg += f" (Statement ID: {statement_id})"
+
+                # Add helpful message for pre-DBR 18.1 issues
+                if is_empty_response_error:
+                    error_msg += (
+                        "\nThis may be a pre-DBR 18.1 compatibility issue. "
+                        "Try upgrading to DBR 18.1+ or verify the SQL statement manually."
+                    )
+
                 raise RuntimeError(f"Failed to create view {catalog}.{schema}.{view_name}: {error_msg}")
             elif state_str:
                 # State might be PENDING, RUNNING, etc.
                 raise RuntimeError(f"View creation did not complete. State: {state_str}")
             else:
                 # If we can't determine state but no exception was raised, verify view exists
-                from databricks.sdk.errors import NotFound
-
                 try:
                     full_view_name = f"{catalog}.{schema}.{view_name}"
                     existing_view = self.workspace_client.tables.get(full_view_name)
@@ -424,7 +452,7 @@ class UDTFRegistry:
         except (RuntimeError, ValueError, AttributeError) as e:
             # Special handling for "end-of-input" which often means empty response from SQL Warehouse
             # This is common for DDL statements like CREATE VIEW when they succeed immediately.
-            from databricks.sdk.errors import NotFound
+            # NOTE: NotFound is already imported at module level (line 8)
 
             error_str = str(e)
             if "end-of-input" in error_str or "No content to map" in error_str:

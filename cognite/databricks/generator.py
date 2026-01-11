@@ -922,9 +922,164 @@ class UDTFGenerator:
         Returns:
             UDTFRegistrationResult with structured information about registered UDTFs and views.
             Access individual results via result['view_id'] or result.get('view_id').
+
+        Raises:
+            ValueError: If running on pre-DBR 18.1 (not supported for view registration).
         """
         if not self.workspace_client:
             raise ValueError("WorkspaceClient must be set before registration")
+
+        # Check DBR version - register_udtfs_and_views requires DBR 18.1+ for view registration
+        import os
+
+        def _get_dbr_version() -> str | None:
+            """
+            Get DBR version using multiple fallback methods in order of reliability.
+
+            Tries methods in this order:
+            1. Spark conf: spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")
+            2. SQL query: SELECT current_version().dbr_version
+            3. Environment variable: DATABRICKS_RUNTIME_VERSION
+
+            Returns:
+                DBR version string (e.g., "18.1") or None if not available
+            """
+            # Method 1: Try Spark conf (most reliable in Databricks notebooks)
+            try:
+                from pyspark.sql import SparkSession  # type: ignore[import-not-found]
+
+                spark = SparkSession.getActiveSession()
+                if spark is not None:
+                    try:
+                        dbr_raw = spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion", "")
+                        if dbr_raw:
+                            # Extract version (format: "18.1.x-scala2.12" -> "18.1")
+                            version_part = str(dbr_raw).split("-")[0]  # Remove scala suffix
+                            return version_part
+                    except Exception:
+                        # spark.conf.get() may raise exception if config is not available
+                        # (e.g., with Spark Connect or when config doesn't exist)
+                        # Fall through to next method
+                        pass
+            except (ImportError, AttributeError, RuntimeError):
+                # Spark not available, try next method
+                pass
+
+            # Method 2: Try SQL query (works in Databricks SQL warehouses and notebooks)
+            try:
+                from pyspark.sql import SparkSession  # type: ignore[import-not-found]
+
+                spark = SparkSession.getActiveSession()
+                if spark is not None:
+                    try:
+                        result = spark.sql("SELECT current_version().dbr_version AS dbr_version").collect()
+                        if result and len(result) > 0:
+                            dbr_version = result[0]["dbr_version"]
+                            if dbr_version:
+                                # Extract version (format: "18.1.x-scala2.12" -> "18.1")
+                                version_part = str(dbr_version).split("-")[0]  # Remove scala suffix
+                                return version_part
+                    except Exception:
+                        # SQL query may fail if current_version() is not available
+                        # Fall through to next method
+                        pass
+            except (ImportError, AttributeError, RuntimeError):
+                # Spark not available, try next method
+                pass
+
+            # Method 3: Fall back to environment variable
+            env_version = os.environ.get("DATABRICKS_RUNTIME_VERSION", "")
+            if env_version:
+                # Extract version (format: "18.1.x-scala2.12" -> "18.1")
+                version_part = str(env_version).split("-")[0]  # Remove scala suffix
+                return version_part
+
+            return None
+
+        dbr_version = _get_dbr_version()
+        if dbr_version:
+            # Use packaging.version for robust version comparison
+            try:
+                from packaging import version
+
+                # Normalize version string: remove ".x" suffix if present (e.g., "17.3.x" -> "17.3")
+                # SQL query returns versions like "17.3" or "18.1", but may also return "17.3.x"
+                normalized_version = dbr_version.rstrip(".x") if dbr_version.endswith(".x") else dbr_version
+
+                # Extract only major.minor (ignore patch version)
+                # e.g., "17.3.5" -> "17.3", "18.1.2" -> "18.1", "17.3.x" -> "17.3"
+                version_parts = normalized_version.split(".")
+                if len(version_parts) >= 2:
+                    try:
+                        # Check if first two parts are numeric (DBR versions are numeric)
+                        major = int(version_parts[0])
+                        minor = int(version_parts[1])
+
+                        # Extract only major.minor for comparison (ignore patch version)
+                        major_minor_version = f"{major}.{minor}"
+
+                        # This looks like a DBR version, check it using packaging.version
+                        # Compare only major.minor versions
+                        current_version = version.parse(major_minor_version)
+                        required_version = version.parse("18.1")
+
+                        if current_version < required_version:
+                            raise ValueError(
+                                f"register_udtfs_and_views() requires Databricks Runtime 18.1 or later. "
+                                f"Current version: {dbr_version}. "
+                                f"Please upgrade to DBR 18.1+ or use register_session_scoped_udtfs() "
+                                f"for pre-DBR 18.1 environments."
+                            )
+                    except ValueError as e:
+                        # Not a numeric version (e.g., "client.4.8") - skip DBR version check
+                        # This is likely not a DBR version string, so we can't validate it
+                        if "requires Databricks Runtime" in str(e):
+                            raise  # Re-raise if it's our version check error
+                        if debug:
+                            print(
+                                f"[INFO] DBR version '{dbr_version}' does not appear to be a DBR version. "
+                                f"Skipping version check. If running on pre-DBR 18.1, view registration may fail."
+                            )
+                else:
+                    # Version format doesn't match expected pattern - skip check
+                    if debug:
+                        print(
+                            f"[INFO] DBR version '{dbr_version}' format not recognized. "
+                            f"Skipping version check. If running on pre-DBR 18.1, view registration may fail."
+                        )
+            except ImportError:
+                # packaging not available (shouldn't happen in dev dependencies, but handle gracefully)
+                # Fall back to simple string comparison
+                # Normalize version string: remove ".x" suffix if present
+                normalized_version = dbr_version.rstrip(".x") if dbr_version.endswith(".x") else dbr_version
+                version_parts = normalized_version.split(".")
+                if len(version_parts) >= 2:
+                    try:
+                        # Extract only major.minor (ignore patch version)
+                        major = int(version_parts[0])
+                        minor = int(version_parts[1])
+                        if major < 18 or (major == 18 and minor < 1):
+                            raise ValueError(
+                                f"register_udtfs_and_views() requires Databricks Runtime 18.1 or later. "
+                                f"Current version: {dbr_version}. "
+                                f"Please upgrade to DBR 18.1+ or use register_session_scoped_udtfs() "
+                                f"for pre-DBR 18.1 environments."
+                            )
+                    except ValueError:
+                        # Not a numeric version - skip check
+                        if debug:
+                            print(
+                                f"[INFO] DBR version '{dbr_version}' does not appear to be a DBR version. "
+                                f"Skipping version check. If running on pre-DBR 18.1, view registration may fail."
+                            )
+        else:
+            # Not running on Databricks (local development) - allow but warn
+            if debug:
+                print(
+                    "[INFO] Could not determine DBR version (all methods failed). "
+                    "Assuming DBR 18.1+ for local development. "
+                    "If running on pre-DBR 18.1, view registration may fail."
+                )
 
         # Ensure schema exists before registering functions
         self._ensure_schema_exists()
