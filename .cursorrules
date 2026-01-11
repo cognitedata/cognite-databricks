@@ -358,6 +358,63 @@ class UDTFResult(BaseModel):
         return self.success
 ```
 
+## Testing & Quality Guardrails
+
+### Pre-commit Hooks (REQUIRED)
+- All code must pass pre-commit hooks before committing
+- Hooks include: `uv-lock`, `ruff` (lint + format), `mypy`
+- Run `uv run pre-commit run --all-files` before pushing
+- Pre-commit config: `.pre-commit-config.yaml`
+
+### Linting & Formatting (Ruff)
+- **Line length**: 120 characters maximum
+- **Target version**: Python 3.10+
+- **Enabled rules**: `E`, `W`, `F`, `I`, `RUF`, `TID`, `UP`, `B`, `FLY`, `PTH`, `ERA`
+- **Ignored rules**: `UP007` (X | Y annotations), `B008` (function calls in defaults), `RUF009` (function calls in defaults), `W293` (whitespace in docstrings)
+- **Import sorting**: Use `isort` via ruff, known-third-party includes `cognite.client`
+- Run `ruff check --fix` and `ruff format` before committing
+
+### Type Checking (Mypy)
+- **Configuration**: `explicit_package_bases = true`, `plugins = ["pydantic.mypy"]`
+- **Strictness**: Aligned with [pygen-main](https://github.com/cognitedata/pygen) (lenient, not overly strict)
+- **Pydantic plugin**: Required for proper Pydantic model type checking
+
+### Running Tools (Same as CI)
+
+**IMPORTANT**: Always run tools the same way as CI to ensure consistency:
+
+1. **Linting & Formatting** (matches CI lint job):
+   ```bash
+   uv run pre-commit run --all-files
+   ```
+   This runs:
+   - `uv-lock` - Validates lock file
+   - `ruff` - Linting (v0.6.2 via pre-commit)
+   - `ruff-format` - Formatting (v0.6.2 via pre-commit)
+   - `mypy` - Type checking (v1.19.1 via pre-commit with args: `cognite/, tests/`)
+
+2. **Testing** (matches CI tests job):
+   ```bash
+   uv run pytest tests/ -v
+   ```
+   - Run from project root
+   - Uses `testpaths = ["tests"]` from `pyproject.toml`
+   - Requires `--extra dev --extra local` dependencies installed
+
+3. **Individual Tool Commands** (for quick checks):
+   ```bash
+   # Ruff linting (local version - may differ from pre-commit)
+   uv run ruff check cognite/ tests/
+   
+   # Ruff formatting (local version - may differ from pre-commit)
+   uv run ruff format cognite/ tests/
+   
+   # Mypy type checking (local version - may differ from pre-commit)
+   uv run mypy cognite/databricks/
+   ```
+
+**Note**: Pre-commit uses specific versions (ruff v0.6.2, mypy v1.19.1). Local versions may differ, so always run `uv run pre-commit run --all-files` before committing to match CI exactly.
+
 ---
 
 **Remember**: Code should be indistinguishable from pygen-main - same developer, same patterns, same quality.
