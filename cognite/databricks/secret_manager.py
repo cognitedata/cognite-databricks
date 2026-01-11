@@ -31,10 +31,10 @@ class SecretManagerHelper:
         for scope in existing_scopes:
             if scope.name == scope_name:
                 return scope
-        
+
         # Scope doesn't exist, create it (scope is positional parameter)
         self.workspace_client.secrets.create_scope(scope_name)
-        
+
         # Return the newly created scope (need to fetch it)
         # Note: create_scope doesn't return the scope, so we list again
         scopes = list(self.workspace_client.secrets.list_scopes())
@@ -68,7 +68,8 @@ class SecretManagerHelper:
             cdf_cluster: CDF cluster name (from TOML: [cognite].cdf_cluster) - plain text, e.g., "westeurope-1"
             client_id: OAuth2 client ID (from TOML: [cognite].client_id) - plain text
             client_secret: OAuth2 client secret (from TOML: [cognite].client_secret) - plain text
-            tenant_id: Azure AD tenant ID (from TOML: [cognite].tenant_id) - plain text GUID, e.g., "dbf2ec1b-2fbc-4106-9371-017d78d6df71"
+            tenant_id: Azure AD tenant ID (from TOML: [cognite].tenant_id) - plain text GUID,
+                         e.g., "dbf2ec1b-2fbc-4106-9371-017d78d6df71"
         """
         self.create_scope_if_not_exists(scope_name)
 
@@ -89,3 +90,32 @@ class SecretManagerHelper:
                 string_value=value,  # keyword
             )
 
+    def store_secrets(self, secret_scope: str, secrets: dict[str, str]) -> None:
+        """Store multiple secrets in Secret Manager.
+
+        Args:
+            secret_scope: Secret Manager scope name
+            secrets: Dictionary mapping secret keys to values
+        """
+        self.create_scope_if_not_exists(secret_scope)
+        for key, value in secrets.items():
+            self.workspace_client.secrets.put_secret(
+                secret_scope,
+                key,
+                string_value=value,
+            )
+
+    def get_secret(self, secret_scope: str, secret_key: str) -> str:
+        """Get a secret value from Secret Manager.
+
+        Args:
+            secret_scope: Secret Manager scope name
+            secret_key: Secret key name
+
+        Returns:
+            Secret value as string
+        """
+        secret = self.workspace_client.secrets.get_secret(secret_scope, secret_key)
+        if secret.value is None:
+            raise ValueError(f"Secret {secret_key} not found in scope {secret_scope}")
+        return secret.value

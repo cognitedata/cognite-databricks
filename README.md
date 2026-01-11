@@ -4,7 +4,15 @@ A helper SDK for Databricks that provides UDTF registration utilities, Secret Ma
 
 ## Overview
 
-`cognite-databricks` simplifies the process of registering CDF Data Models as discoverable Unity Catalog Views in Databricks. It provides high-level APIs for:
+`cognite-databricks` is a **Databricks-specific helper SDK** that extends `pygen-spark` with Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities. It simplifies the process of registering CDF Data Models as discoverable Unity Catalog Views in Databricks.
+
+**Package Purpose:**
+- **Databricks-Specific Features**: Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities
+- **Uses pygen-spark for Code Generation**: All UDTF code generation (both Data Model and Time Series UDTFs) is done by `pygen-spark` using template-based generation
+- **Generic Components**: Generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) are provided by `pygen-spark` and re-exported from `cognite.databricks` for backward compatibility
+- **Notebook-Friendly API**: Aligned with `cognite.pygen`'s notebook workflow
+
+It provides high-level APIs for:
 
 - **UDTF Registration**: Register Python UDTFs in Unity Catalog
 - **Secret Manager Integration**: Manage OAuth2 credentials securely
@@ -187,8 +195,8 @@ register_udtf_from_file(
 - `cognite-pygen-spark` (PyPI package name; import: `cognite.pygen_spark`)
 - `cognite-sdk-python` (dependency)
 - `databricks-sdk` (dependency)
-- **Databricks Runtime 18.1+** (for custom dependencies in UDTFs)
-  - **Pre-DBR 18.1**: Works with pre-installed packages (see [Pre-DBR 18.1 Usage](#pre-dbr-181-usage) below)
+- **Databricks Runtime 18.1+** (REQUIRED for `register_udtfs_and_views()`)
+  - **Pre-DBR 18.1**: Use `register_session_scoped_udtfs()` instead (see [Session-Scoped UDTF Registration](#session-scoped-udtf-registration) below)
 
 ## Package Structure
 
@@ -323,7 +331,7 @@ pytest tests/
 
 ## Pre-DBR 18.1 Usage
 
-For Databricks Runtime versions prior to 18.1, custom dependencies are not supported. You must pre-install required packages on your cluster:
+For Databricks Runtime versions prior to 18.1, **`register_udtfs_and_views()` is not supported**. Use `register_session_scoped_udtfs()` instead, which works on all DBR versions:
 
 ### Step 1: Install Packages on Cluster
 
@@ -334,7 +342,7 @@ For Databricks Runtime versions prior to 18.1, custom dependencies are not suppo
 
 Or configure cluster libraries via the Databricks UI.
 
-### Step 2: Register UDTFs Without Dependencies
+### Step 2: Register UDTFs for Session-Scoped Use
 
 ```python
 from cognite.client.data_classes.data_modeling.ids import DataModelId
@@ -345,14 +353,12 @@ client = load_cognite_client_from_toml("config.toml")
 data_model_id = DataModelId(space="sp_pygen_power", external_id="WindTurbine", version="1")
 generator = generate_udtf_notebook(data_model_id, client)
 
-# Omit dependencies parameter or set to None
-generator.register_udtfs_and_views(
-    secret_scope=None,  # Auto-generated
-    dependencies=None,  # Required for pre-DBR 18.1
-)
+# Use register_session_scoped_udtfs() for pre-DBR 18.1
+registered = generator.register_session_scoped_udtfs()
+# Returns: {"WindTurbine": "wind_turbine_udtf", ...}
 ```
 
-**Note:** The code automatically detects when `dependencies=None` and uses the fallback registration path that works on all DBR versions.
+**Note:** Session-scoped UDTFs are temporary and only available in the current notebook session. For production use with Unity Catalog views, upgrade to DBR 18.1+ and use `register_udtfs_and_views()`.
 
 ## Related Packages
 

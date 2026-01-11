@@ -4,10 +4,10 @@ build-backend = "uv_build"
 
 [project]
 name = "cognite-databricks"
-version = "0.1.0"
+version = "0.0.0"
 description = "Helper SDK for Databricks UDTF registration and Unity Catalog integration"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10,<4.0"
 license = "Apache-2.0"
 authors = [
     {name = "Cognite", email = "support@cognite.com"}
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -33,11 +32,21 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "black>=23.0.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.10.0",
+    "pytest-rerunfailures>=14.0",
+    "pytest-icdiff>=0.8",
+    "black>=24.4.2",
     "ruff>=0.1.0",
-    "mypy>=1.0.0",
+    "mypy>=1.5.0",
+    "pre-commit>=4.0.0",
+    "pandas>=1.5.3",  # Required by cognite-pygen._build (via cognite-pygen-spark)
+    "pydantic>=2.0.0",  # Required for mypy pydantic plugin
+    "typer>=0.9.0",  # For dev.py CLI
+    "marko>=2.1.0,<3.0.0",  # For parsing commit messages
+    "packaging>=21.3",  # For version parsing
+    "twine>=6.0.0",  # For PyPI upload
 ]
 local = [
     "pyspark>=3.0.0",  # Only for local development/testing outside Databricks
@@ -54,20 +63,92 @@ module-name = "cognite.databricks"
 module-root = ""
 
 [tool.black]
-line-length = 100
-target-version = ['py39', 'py310', 'py311', 'py312']
+line-length = 120
+target_version = ['py310']
+include = '\.py$'
 
 [tool.ruff]
-line-length = 100
-target-version = "py39"
+# See https://beta.ruff.rs/docs/rules for an overview of ruff rules
+line-length = 120
+target-version = "py310"
+exclude = ["examples", "scripts"]
+fix = true
+
+[tool.ruff.lint]
+select = ["E","W","F","I","RUF","TID","UP", "B", "FLY", "PTH", "ERA"]
+fixable = ["E","W","F","I","RUF","TID","UP", "B", "FLY", "PTH", "ERA"]
+ignore = [
+    # This is causing issues for pydantic which does not support use of X | Y for type annotations before 3.10
+    "UP007", # Use X | Y for type annotations
+    # Typer do function calls when setting up the CLI.
+    "B008", # Do not perform function call {name} in argument defaults
+    # This is done when setting the pygen configs, and useful for getting pretty docs.
+    # In that case, this is also safe as the function calls produced immutable data.
+    "RUF009", #Do not perform function call in defaults
+    "W293", # Blank line contains whitespace (primarily in docstrings)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = []
+known-third-party = ["cognite.client"]
 
 [tool.mypy]
-python_version = "3.9"
+explicit_package_bases = true
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = false  # Set to false by default, use overrides for specific modules
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# Ignore missing imports for third-party libraries without type stubs
+[[tool.mypy.overrides]]
+module = "pyspark.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "databricks.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.client.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.pygen_spark.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cognite.databricks.udtf_registry"
+disable_error_code = ["no-any-return"]
+
+[[tool.mypy.overrides]]
+module = "cognite.databricks.secret_manager"
+disable_error_code = ["no-any-return"]
 
 [tool.pytest.ini_options]
+filterwarnings = [
+  "ignore::DeprecationWarning:pkg_resources",
+]
+addopts = "--doctest-modules"
+markers = [
+    "integration: Integration tests requiring external services.",
+    "slow: Slow running tests.",
+]
+pythonpath = ["."]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

@@ -1,5 +1,14 @@
 # Registration
 
+## DBR Version Requirement
+
+**Important**: `register_udtfs_and_views()` requires Databricks Runtime 18.1 or later. The function automatically detects your DBR version using multiple methods:
+1. Spark configuration (`spark.conf.get`)
+2. SQL query (`SELECT current_version().dbr_version`)
+3. Environment variable (`DATABRICKS_RUNTIME_VERSION`)
+
+If you're running on DBR < 18.1, you'll receive a clear error message directing you to use `register_session_scoped_udtfs()` instead.
+
 ## Complete Registration (Recommended)
 
 The easiest way to register UDTFs and Views is using `register_udtfs_and_views()`:
@@ -118,15 +127,16 @@ result = generator.register_udtfs_and_views(
 
 **Note**: PyPI package names use hyphens (e.g., `cognite-sdk`), while import names use underscores (e.g., `cognite.client`).
 
-### Pre-DBR 18.1 (Pre-installed Packages)
+### Pre-DBR 18.1 (Not Supported)
 
-For DBR < 18.1, dependencies must be pre-installed on the cluster. Omit the `dependencies` parameter:
+**`register_udtfs_and_views()` requires DBR 18.1+ and is not supported on pre-DBR 18.1 environments.**
+
+For DBR < 18.1, use `register_session_scoped_udtfs()` instead:
 
 ```python
-# Dependencies must be pre-installed on cluster
-result = generator.register_udtfs_and_views(
-    dependencies=None,  # Uses fallback mode
-)
+# Use session-scoped registration for pre-DBR 18.1
+registered = generator.register_session_scoped_udtfs()
+# This works on all DBR versions
 ```
 
 ## Next Steps

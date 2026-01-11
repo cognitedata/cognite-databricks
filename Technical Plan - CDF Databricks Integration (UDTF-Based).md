@@ -274,11 +274,11 @@ This phase occurs when users query the registered Views or call UDTFs directly:
    - **Secret Injection**: Secrets passed as UDTF parameters in View definition, never exposed to end users
    - **Two UDTF Types**:
      - **Data Model UDTFs**: Generated from CDF Data Models (via cognite-pygen-spark)
-     - **Time Series UDTFs**: Pre-built UDTFs for time series datapoints (included in cognite-databricks)
+     - **Time Series UDTFs**: Template-generated UDTFs for time series datapoints (generated using same templates as Data Model UDTFs)
 
 2. **Separation of Concerns:**
    - **Code Generation**: Happens once at development time (driver only) for Data Model UDTFs
-   - **Pre-built UDTFs**: Time Series UDTFs are included in cognite-databricks package, no generation needed
+   - **Template-Generated UDTFs**: Time Series UDTFs are generated using Jinja2 templates in pygen-spark, same as Data Model UDTFs
    - **Data Access**: Happens at runtime (distributed across workers via UDTF execution)
 
 3. **Governance-First Design:**
@@ -310,7 +310,7 @@ This phase occurs when users query the registered Views or call UDTFs directly:
    - Secret Manager integration helpers
    - View generation with Secret injection
    - Convenience wrappers for Databricks notebooks
-   - **Pre-built Time Series UDTFs**: Three specialized UDTFs for time series datapoints queries:
+   - **Template-Generated Time Series UDTFs**: Three specialized UDTFs for time series datapoints queries (generated using templates):
      - `time_series_datapoints_udtf`: Single time series query
      - `time_series_datapoints_long_udtf`: Multiple time series query (long format)
      - `time_series_latest_datapoints_udtf`: Latest datapoints query
@@ -319,7 +319,7 @@ This phase occurs when users query the registered Views or call UDTFs directly:
 
 3. **Generated UDTFs and Views**
    - **Data Model UDTFs**: Python UDTF functions generated from CDF Data Models, registered in Unity Catalog
-   - **Time Series UDTFs**: Pre-built UDTFs for time series datapoints (included in cognite-databricks)
+   - **Time Series UDTFs**: Template-generated UDTFs for time series datapoints (generated using same templates as Data Model UDTFs)
    - **SQL Views**: Registered on top of UDTFs for discoverability and governance
    - All are discoverable and governable via Unity Catalog
 
