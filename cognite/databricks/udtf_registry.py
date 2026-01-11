@@ -197,8 +197,7 @@ class UDTFRegistry:
                 print("[DEBUG] UDTF already exists (race condition), returning existing function")
             return self.workspace_client.functions.get(full_function_name)
         except (RuntimeError, ValueError, ResourceAlreadyExists) as e:
-            print(f"
-[ERROR] Failed to create UDTF '{full_function_name}'")
+            print(f"\n[ERROR] Failed to create UDTF '{full_function_name}'")
             print("[ERROR] Input parameters sent:")
             for p in input_params:
                 print(f"  - {p.name}: type_text='{p.type_text}', type_json='{p.type_json}', position={p.position}")
@@ -407,7 +406,6 @@ class UDTFRegistry:
                 # If we can't determine state but no exception was raised, verify view exists
                 from databricks.sdk.errors import NotFound
 
-                from databricks.sdk.errors import NotFound
 
                 try:
                     full_view_name = f"{catalog}.{schema}.{view_name}"
