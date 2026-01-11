@@ -71,7 +71,7 @@ class TestUtils:
         mock_workspace_client: MagicMock,
     ) -> None:
         """Test error handling in list_functions_in_schema."""
-        mock_workspace_client.functions.list.side_effect = Exception("Connection error")
+        mock_workspace_client.functions.list.side_effect = RuntimeError("Connection error")
 
         result = list_functions_in_schema(mock_workspace_client, "catalog", "schema", limit=10)
 

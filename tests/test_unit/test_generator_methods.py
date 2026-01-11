@@ -71,7 +71,9 @@ class TestUDTFGeneratorMethods:
         )
 
         # Mock catalog.get to fail (catalog doesn't exist)
-        mock_workspace_client.catalogs.get.side_effect = Exception("Catalog not found")
+        from databricks.sdk.errors import NotFound
+
+        mock_workspace_client.catalogs.get.side_effect = NotFound("Catalog not found")
         # Mock catalog.create to succeed
         mock_workspace_client.catalogs.create.return_value = None
 
@@ -142,7 +144,9 @@ class TestUDTFGeneratorMethods:
         # Mock catalog.get to succeed
         mock_workspace_client.catalogs.get.return_value = MagicMock()
         # Mock schema.get to fail (schema doesn't exist)
-        mock_workspace_client.schemas.get.side_effect = Exception("Schema not found")
+        from databricks.sdk.errors import NotFound
+
+        mock_workspace_client.schemas.get.side_effect = NotFound("Schema not found")
         # Mock schema.create to succeed
         mock_workspace_client.schemas.create.return_value = None
 
