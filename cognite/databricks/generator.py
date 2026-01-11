@@ -5,7 +5,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import Semaphore
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 # Define DataModel type alias (same as pygen)
 # Short-term: We define our own type alias using public types from cognite.client
 # This avoids depending on pygen's private API (_generator module)
-DataModel = Union[DataModelIdentifier, dm.DataModel[dm.View]]
+DataModel = DataModelIdentifier | dm.DataModel[dm.View]
 
 
 def register_udtf_from_file(
@@ -397,7 +397,7 @@ def generate_session_scoped_notebook_code(
     else:
         try:
             udtf_files = generator._find_generated_udtf_files()
-        except Exception:
+        except (FileNotFoundError, OSError):
             # If files don't exist yet, we'll use a generic example
             udtf_files = {}
 
@@ -420,7 +420,7 @@ def generate_session_scoped_notebook_code(
                     secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
                 else:
                     secret_scope = "cdf_<space>_<external_id>"
-            except Exception:
+            except (AttributeError, KeyError):
                 secret_scope = "cdf_<space>_<external_id>"
 
     # Get view IDs
@@ -436,20 +436,20 @@ def generate_session_scoped_notebook_code(
         view = generator._get_view_by_id(example_view_id)
         if view and view.properties:
             view_property_names = list(view.properties.keys())
-    except Exception:
+    except (AttributeError, KeyError):
         pass
 
     # Try to get actual values from generator
     try:
         actual_output_dir = str(generator.code_generator.output_dir)
-    except Exception:
+    except AttributeError:
         actual_output_dir = "/Workspace/Users/<your_email>/udtf"
 
     # Try to get catalog and schema (not used, but kept for potential future use)
     try:
         _ = generator.catalog
         _ = generator.schema
-    except Exception:
+    except AttributeError:
         pass  # Use placeholders in code snippets
 
     # Cell 1: Install Dependencies
@@ -638,7 +638,7 @@ def generate_udtf_notebook(
         # Add to the result
         udtf_result.generated_files.update(ts_result.generated_files)
         udtf_result.total_count = len(udtf_result.generated_files)
-    except Exception as e:
+    except (ValueError, AttributeError, KeyError) as e:
         print(f"[WARNING] Failed to generate time series UDTF files: {e}")
 
     # Create UDTFGenerator for registration
@@ -853,7 +853,7 @@ class UDTFGenerator:
                     )
                     view_registered = True
                     view_name = f"{self.catalog}.{self.schema}.{actual_view_name}"
-                except Exception as e:
+                except (RuntimeError, ValueError) as e:
                     if debug:
                         print(f"[DEBUG] Failed to register view {view_id}: {e}")
 
@@ -867,7 +867,7 @@ class UDTFGenerator:
                             warehouse_id=warehouse_id,
                             debug=debug,
                         )
-                    except Exception as e:
+                    except (RuntimeError, ValueError, AttributeError) as e:
                         if debug:
                             print(f"[DEBUG] Failed to register foreign keys for {view_id}: {e}")
 
@@ -951,7 +951,7 @@ class UDTFGenerator:
             try:
                 ts_result = self.code_generator.generate_time_series_udtfs()
                 udtf_files.update(ts_result.generated_files)
-            except Exception as e:
+            except (ValueError, AttributeError, KeyError) as e:
                 print(f"[WARNING] Failed to generate time series UDTF files: {e}")
 
             # Generate View SQL
@@ -980,7 +980,7 @@ class UDTFGenerator:
                                 udtf_params=config.parameters,
                             )
                             view_sqls[udtf_name] = view_sql  # Use udtf_name as key for consistency
-            except Exception as e:
+            except (ValueError, AttributeError, KeyError, ImportError) as e:
                 print(f"[WARNING] Failed to generate time series UDTF view SQL: {e}")
         else:
             # Use the data model from code_generator initialization
@@ -991,7 +991,7 @@ class UDTFGenerator:
             try:
                 ts_result = self.code_generator.generate_time_series_udtfs()
                 udtf_files.update(ts_result.generated_files)
-            except Exception as e:
+            except (ValueError, AttributeError, KeyError) as e:
                 print(f"[WARNING] Failed to generate time series UDTF files: {e}")
 
             # Generate View SQL using the data model from code_generator
@@ -1020,7 +1020,7 @@ class UDTFGenerator:
                                 udtf_params=config.parameters,
                             )
                             view_sqls[udtf_name] = view_sql  # Use udtf_name as key for consistency
-            except Exception as e:
+            except (ValueError, AttributeError, KeyError, ImportError) as e:
                 print(f"[WARNING] Failed to generate time series UDTF view SQL: {e}")
 
         registered_udtfs: list[RegisteredUDTFResult] = []
@@ -1067,7 +1067,7 @@ class UDTFGenerator:
                     if debug:
                         status = "✓" if result.function_info and result.view_registered else "⚠"
                         print(f"[DEBUG] {status} Completed registration for {view_id}")
-                except Exception as e:
+                except (ValueError, RuntimeError, AttributeError) as e:
                     # Handle errors per view (don't fail entire registration)
                     error_result = RegisteredUDTFResult(
                         view_id=view_id,
@@ -1174,7 +1174,7 @@ class UDTFGenerator:
                     spark_session=spark_session,
                 )
                 registered_functions[view_id] = registered_name
-            except Exception as e:
+            except (ValueError, AttributeError, FileNotFoundError, ImportError) as e:
                 print(f"[ERROR] Failed to register {view_id} as {function_name}: {e}")
                 # Continue with other UDTFs even if one fails
                 continue
@@ -1222,22 +1222,24 @@ class UDTFGenerator:
         if not self.workspace_client:
             return
 
+        from databricks.sdk.errors import NotFound
+
         try:
             # Try to get the catalog - if it exists, we're done
             self.workspace_client.catalogs.get(self.catalog)
-        except Exception:
+        except NotFound:
             # Catalog doesn't exist, create it
             try:
                 self.workspace_client.catalogs.create(
                     name=self.catalog,
                     comment="Catalog for CDF Data Model UDTFs and Views",
                 )
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 # If creation fails, it might be a permission issue or catalog already exists
                 # Try to get it again in case it was created concurrently
                 try:
                     self.workspace_client.catalogs.get(self.catalog)
-                except Exception:
+                except NotFound:
                     # Re-raise the original creation error
                     raise RuntimeError(
                         f"Failed to create catalog '{self.catalog}'. "
@@ -1256,11 +1258,13 @@ class UDTFGenerator:
         # First ensure the catalog exists
         self._ensure_catalog_exists()
 
+        from databricks.sdk.errors import NotFound
+
         try:
             # Try to get the schema - if it exists, we're done
             full_name = f"{self.catalog}.{self.schema}"
             self.workspace_client.schemas.get(full_name)
-        except Exception:
+        except NotFound:
             # Schema doesn't exist, create it
             try:
                 self.workspace_client.schemas.create(
@@ -1268,12 +1272,12 @@ class UDTFGenerator:
                     catalog_name=self.catalog,
                     comment="Schema for CDF Data Model UDTFs and Views",
                 )
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 # If creation fails, it might be a permission issue or schema already exists
                 # Try to get it again in case it was created concurrently
                 try:
                     self.workspace_client.schemas.get(full_name)
-                except Exception:
+                except NotFound:
                     # Re-raise the original creation error
                     raise RuntimeError(
                         f"Failed to create schema {full_name}. "
@@ -1663,6 +1667,8 @@ class UDTFGenerator:
         DEPRECATED: Use _property_type_to_spark_type() + _spark_type_to_sql_type_info() instead.
         This method is kept for backward compatibility but should not be used in new code.
 
+        Uses TypeConverter for all type conversions, following cursor rules.
+
         Args:
             property_type: CDF property type (e.g., dm.Text, dm.Int32, etc.)
 
@@ -1672,28 +1678,44 @@ class UDTFGenerator:
             - ColumnTypeName: Databricks SDK enum
             - spark_type_name: Lowercase Spark type name for StructField JSON: "string", "double", etc.
         """
-        # dm is already imported at module level
+        # Convert CDF property type to PySpark DataType using TypeConverter
+        spark_type = TypeConverter.cdf_to_spark(property_type, is_array=False)
 
-        # Map CDF property types to SQL types and Spark type names (lowercase)
-        # These type names are used in Spark StructField JSON format
-        if isinstance(property_type, dm.Int32 | dm.Int64):
-            return ("INT", ColumnTypeName.INT, "long")
-        elif isinstance(property_type, dm.Boolean):
-            return ("BOOLEAN", ColumnTypeName.BOOLEAN, "boolean")
-        elif isinstance(property_type, dm.Float32 | dm.Float64):
-            return ("DOUBLE", ColumnTypeName.DOUBLE, "double")
-        elif isinstance(property_type, dm.Date):
-            return ("DATE", ColumnTypeName.DATE, "date")
-        elif isinstance(property_type, dm.Timestamp):
-            return ("TIMESTAMP", ColumnTypeName.TIMESTAMP, "timestamp")
-        elif isinstance(property_type, dm.Text):
-            return ("STRING", ColumnTypeName.STRING, "string")
-        elif isinstance(property_type, dm.DirectRelation):
-            # Direct relations are typically represented as strings (external_id references)
-            return ("STRING", ColumnTypeName.STRING, "string")
+        # Convert PySpark DataType to SQL type info using TypeConverter
+        sql_type, column_type_name = TypeConverter.spark_to_sql_type_info(spark_type)
+
+        # Get lowercase Spark type name from PySpark DataType
+        spark_type_name = self._get_spark_type_name(spark_type)
+
+        return (sql_type, column_type_name, spark_type_name)
+
+    def _get_spark_type_name(self, spark_type: DataType) -> str:
+        """Get lowercase Spark type name from PySpark DataType for StructField JSON.
+
+        Args:
+            spark_type: PySpark DataType
+
+        Returns:
+            Lowercase Spark type name (e.g., "string", "long", "double")
+        """
+        if isinstance(spark_type, StringType):
+            return "string"
+        elif isinstance(spark_type, LongType):
+            return "long"
+        elif isinstance(spark_type, DoubleType):
+            return "double"
+        elif isinstance(spark_type, BooleanType):
+            return "boolean"
+        elif isinstance(spark_type, DateType):
+            return "date"
+        elif isinstance(spark_type, TimestampType):
+            return "timestamp"
+        elif isinstance(spark_type, ArrayType):
+            # For arrays, return "array" (element type is in elementType field)
+            return "array"
         else:
-            # Default to STRING for unknown types
-            return ("STRING", ColumnTypeName.STRING, "string")
+            # Default fallback
+            return "string"
 
     def _build_output_schema(self, view_id: str) -> StructType:
         """Build the output schema StructType (matching generated UDTF's outputSchema()).
@@ -1751,7 +1773,7 @@ class UDTFGenerator:
         # Parse registered schema from full_data_type or return_params
         try:
             registered_schema = self._extract_schema_from_function(registered_function)
-        except Exception as e:
+        except (AttributeError, KeyError, ValueError) as e:
             return False, f"Failed to extract schema from registered function: {e}"
 
         # Compare schemas
@@ -1789,7 +1811,7 @@ class UDTFGenerator:
 
                     type_data = json.loads(param.type_json)
                     nullable = type_data.get("nullable", True)
-                except Exception:
+                except (json.JSONDecodeError, KeyError, AttributeError):
                     pass
                 fields.append(StructField(param.name, spark_type, nullable=nullable))
         # Fallback: parse from full_data_type DDL string
@@ -2120,7 +2142,7 @@ class UDTFGenerator:
                         warehouse_id=warehouse_id,
                         debug=debug,
                     )
-                except Exception as e:
+                except (RuntimeError, ValueError) as e:
                     if debug:
                         print(f"[WARNING] Failed to register FK for {view_id}.{prop_name}: {e}")
             elif debug:

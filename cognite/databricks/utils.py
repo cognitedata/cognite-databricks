@@ -65,7 +65,15 @@ def inspect_function_parameters(
         print(f"\n{'=' * 60}\n")
 
     except Exception as e:
-        print(f"Error getting function {function_name}: {e}")
+        # Catch all exceptions for debugging utility - print error and continue
+        # This is a utility function for inspection, so we want to show any error
+        from databricks.sdk.errors import NotFound
+
+        if isinstance(e, NotFound):
+            print(f"Function '{function_name}' not found.")
+        else:
+            # For debugging utility, catch all but identify specific types
+            print(f"Error getting function {function_name}: {e} ({type(e).__name__})")
 
 
 def list_functions_in_schema(
@@ -92,7 +100,7 @@ def list_functions_in_schema(
                 functions.append(func.full_name)
             if len(functions) >= limit:
                 break
-    except Exception as e:
+    except (RuntimeError, ValueError) as e:
         print(f"Error listing functions: {e}")
 
     return functions
