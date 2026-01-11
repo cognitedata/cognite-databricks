@@ -567,7 +567,7 @@ class UDTFRegistry:
             if debug:
                 print(f"[DEBUG] Foreign key constraint '{constraint_name}' added successfully")
 
-        except Exception as e:
+        except (RuntimeError, ValueError) as e:
             # Foreign key constraints are informational - log but don't fail registration
             if debug:
                 print(f"[WARNING] Failed to add foreign key constraint '{constraint_name}': {e}")
