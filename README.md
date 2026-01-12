@@ -2,6 +2,8 @@
 
 A helper SDK for Databricks that provides UDTF registration utilities, Secret Manager integration, and Unity Catalog View generation for CDF Data Models.
 
+**Note**: This is the initial release (0.1.0) of cognite-databricks.
+
 ## Overview
 
 `cognite-databricks` is a **Databricks-specific helper SDK** that extends `pygen-spark` with Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities. It simplifies the process of registering CDF Data Models as discoverable Unity Catalog Views in Databricks.
