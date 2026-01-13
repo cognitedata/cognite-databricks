@@ -29,7 +29,6 @@ It provides high-level APIs for:
 - **One-Line Registration**: Generate and register UDTFs and Views with a single function call
 - **Secret Manager Integration**: Automatic credential management from TOML files
 - **Unity Catalog Integration**: Native support for Unity Catalog function and view registration
-- **DBR 18.1+ Support**: Custom dependency support for UDTFs
 - **Type Safety**: Full type hints and IDE support
 - **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 
@@ -63,7 +62,6 @@ generator = generate_udtf_notebook(
 # Scope name auto-generated from data model: cdf_{space}_{external_id}
 result = generator.register_udtfs_and_views(
     secret_scope=None,  # Auto-generated if None
-    dependencies=["cognite-sdk>=6.0.0"],
 )
 print(f"Registered {result.total_count} UDTF(s) including time series UDTFs")
 ```
@@ -102,18 +100,15 @@ generator.secret_helper.set_cdf_credentials(
 )
 
 # Register UDTFs and Views
-# For DBR 18.1+: dependencies are bundled with UDTF
-# For pre-DBR 18.1: set dependencies=None and pre-install packages on cluster
 registered = generator.register_udtfs_and_views(
     data_model=data_model_id,
     secret_scope=secret_scope,
-    dependencies=["cognite-sdk>=6.0.0"],  # DBR 18.1+ only
 )
 ```
 
 ## Session-Scoped UDTF Registration
 
-For development, testing, or DBR < 18.1 environments, you can register UDTFs for session-scoped use without Unity Catalog registration. This allows you to test UDTFs quickly using `%pip install cognite-sdk` in a notebook.
+For development and testing, you can register UDTFs for session-scoped use without Unity Catalog registration. This allows you to test UDTFs quickly using `%pip install cognite-sdk` in a notebook.
 
 ### Register All UDTFs (Recommended)
 
@@ -179,7 +174,7 @@ register_udtf_from_file(
 | Feature | Session-Scoped | Unity Catalog |
 |---------|---------------|---------------|
 | **Registration** | Per-session, temporary | Permanent, catalog-wide |
-| **Dependencies** | Install via `%pip` | Bundled (DBR 18.1+) or pre-installed |
+| **Dependencies** | Install via `%pip` | Pre-installed on cluster |
 | **Use Case** | Development, testing, prototyping | Production, governance, discovery |
 | **DBR Version** | All versions | All versions (with limitations) |
 | **Searchable** | No | Yes (via Databricks Search) |
@@ -197,8 +192,6 @@ register_udtf_from_file(
 - `cognite-pygen-spark` (PyPI package name; import: `cognite.pygen_spark`)
 - `cognite-sdk-python` (dependency)
 - `databricks-sdk` (dependency)
-- **Databricks Runtime 18.1+** (REQUIRED for `register_udtfs_and_views()`)
-  - **Pre-DBR 18.1**: Use `register_session_scoped_udtfs()` instead (see [Session-Scoped UDTF Registration](#session-scoped-udtf-registration) below)
 
 ## Package Structure
 
@@ -280,7 +273,6 @@ function_info = registry.register_udtf(
     udtf_code=udtf_code,
     input_params=[...],
     return_type="TABLE(...)",
-    dependencies=["cognite-sdk>=6.0.0"],  # DBR 18.1+
 )
 ```
 
@@ -331,36 +323,6 @@ pip install -e ".[dev]"
 pytest tests/
 ```
 
-## Pre-DBR 18.1 Usage
-
-For Databricks Runtime versions prior to 18.1, **`register_udtfs_and_views()` is not supported**. Use `register_session_scoped_udtfs()` instead, which works on all DBR versions:
-
-### Step 1: Install Packages on Cluster
-
-```bash
-# In a Databricks notebook cell
-%pip install cognite-sdk>=6.0.0 cognite-pygen-spark>=0.1.0
-```
-
-Or configure cluster libraries via the Databricks UI.
-
-### Step 2: Register UDTFs for Session-Scoped Use
-
-```python
-from cognite.client.data_classes.data_modeling.ids import DataModelId
-from cognite.databricks import generate_udtf_notebook
-from cognite.pygen import load_cognite_client_from_toml
-
-client = load_cognite_client_from_toml("config.toml")
-data_model_id = DataModelId(space="sp_pygen_power", external_id="WindTurbine", version="1")
-generator = generate_udtf_notebook(data_model_id, client)
-
-# Use register_session_scoped_udtfs() for pre-DBR 18.1
-registered = generator.register_session_scoped_udtfs()
-# Returns: {"WindTurbine": "wind_turbine_udtf", ...}
-```
-
-**Note:** Session-scoped UDTFs are temporary and only available in the current notebook session. For production use with Unity Catalog views, upgrade to DBR 18.1+ and use `register_udtfs_and_views()`.
 
 ## Related Packages
 

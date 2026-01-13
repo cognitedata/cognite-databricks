@@ -58,8 +58,7 @@ class UDTFRegistry:
         udtf_code: str,
         input_params: list[FunctionParameterInfo],
         return_type: str,
-        return_params: list[FunctionParameterInfo],  # NEW: Structured return columns
-        dependencies: list[str] | None = None,  # For DBR 18.1+ custom dependencies
+        return_params: list[FunctionParameterInfo] | None = None,  # Required: Structured return columns for UDTFs
         comment: str | None = None,
         if_exists: str = "skip",
         debug: bool = False,
@@ -75,9 +74,9 @@ class UDTFRegistry:
             return_type: Return type DDL string for the UDTF output schema.
                         Format: "TABLE(col1 TYPE, col2 TYPE, ...)"
                         Example: "TABLE(id INT, name STRING, score DOUBLE)"
-            return_params: Structured metadata for the UDTF output columns (required for TABLE_TYPE).
-            dependencies: Optional list of Python package dependencies (DBR 18.1+).
-                         If None, uses fallback mode for pre-DBR 18.1 (requires pre-installed packages).
+            return_params: Required structured metadata for the UDTF output columns.
+                        Unity Catalog requires return_params to be populated for UDTFs.
+                        If None or empty, a ValueError will be raised.
             comment: Function description
             if_exists: What to do if function already exists:
                       - "skip": Skip registration and return existing function (default)
@@ -92,9 +91,10 @@ class UDTFRegistry:
             For Python UDTFs registered via Unity Catalog API:
             - data_type must be TABLE_TYPE
             - full_data_type must be the DDL string like "TABLE(col1 TYPE, col2 TYPE, ...)"
-            - return_params MUST be provided as structured metadata even if also in full_data_type
+            - return_params is required and must be populated (Unity Catalog requirement)
             - routine_body must be EXTERNAL
             - external_language must be PYTHON
+            - Generated UDTFs use direct REST API calls (no external dependencies required)
         """
         from databricks.sdk.errors import NotFound, ResourceAlreadyExists
 
@@ -112,9 +112,12 @@ class UDTFRegistry:
                 print(f"    type_json='{p.type_json}'")
                 print(f"    parameter_mode={p.parameter_mode}")
                 print(f"    parameter_type={p.parameter_type}")
-            print(f"[DEBUG] Return columns ({len(return_params)}):")
-            for p in return_params:
-                print(f"  - name={p.name}, position={p.position}, type_text='{p.type_text}'")
+            if return_params:
+                print(f"[DEBUG] Return columns ({len(return_params)}):")
+                for p in return_params:
+                    print(f"  - name={p.name}, position={p.position}, type_text='{p.type_text}'")
+            else:
+                print("[DEBUG] Return columns: None (using full_data_type only)")
             print(f"[DEBUG] Return type (DDL): {return_type}")
             print(f"[DEBUG] UDTF code length: {len(udtf_code)} chars")
         try:
@@ -146,38 +149,82 @@ class UDTFRegistry:
         # Based on OpenAPI spec: CreateFunction requires separate catalog_name, schema_name, name
         # and input_params must be wrapped in FunctionParameterInfos
 
-        # Wrap input_params and return_params in FunctionParameterInfos structure
+        # Wrap input_params in FunctionParameterInfos structure
         input_params_wrapped = FunctionParameterInfos(parameters=input_params)
+        
+        # Validate and wrap return_params
+        # Unity Catalog requires return_params to be populated for UDTFs (cannot be None or empty)
+        if not return_params:
+            raise ValueError(
+                f"return_params is required for UDTF registration but was None or empty. "
+                f"This indicates a bug in the generator - return_params should always be parsed from the UDTF class or view."
+            )
         return_params_wrapped = FunctionParameterInfos(parameters=return_params)
 
         # For EXTERNAL functions (Python UDTFs):
-        # - return_params MUST be provided as structured metadata (since we use TABLE_TYPE)
+        # - return_params is required by Unity Catalog API (even if empty)
         # - data_type must be "TABLE_TYPE"
         # - full_data_type must be the DDL string: "TABLE(col1 TYPE, col2 TYPE, ...)"
         # - routine_body must be "EXTERNAL"
         # - external_language must be "PYTHON"
 
         # Build CreateFunction with all required fields for Python UDTF
-        create_function = CreateFunction(
-            name=function_name,
-            catalog_name=catalog,
-            schema_name=schema,
-            input_params=input_params_wrapped,
-            return_params=return_params_wrapped,  # Structured metadata for output columns
-            data_type=ColumnTypeName.TABLE_TYPE,
-            full_data_type=return_type,  # DDL string: "TABLE(col1 TYPE, col2 TYPE, ...)"
-            routine_body=CreateFunctionRoutineBody.EXTERNAL,
-            routine_definition=udtf_code,  # The Python class with eval() method
-            external_language="PYTHON",
-            is_deterministic=False,
-            comment=comment,
+        create_function_kwargs = {
+            "name": function_name,
+            "catalog_name": catalog,
+            "schema_name": schema,
+            "input_params": input_params_wrapped,
+            "return_params": return_params_wrapped,  # Always include (required by Unity Catalog API)
+            "data_type": ColumnTypeName.TABLE_TYPE,
+            "full_data_type": return_type,  # DDL string: "TABLE(col1 TYPE, col2 TYPE, ...)"
+            "routine_body": CreateFunctionRoutineBody.EXTERNAL,
+            "routine_definition": udtf_code,  # The Python class with eval() method
+            "external_language": "PYTHON",
+            "is_deterministic": False,
+            "comment": comment,
             # These 5 are required by some SDK version constructors:
-            parameter_style=CreateFunctionParameterStyle.S,
-            sql_data_access=CreateFunctionSqlDataAccess.NO_SQL,
-            is_null_call=False,
-            security_type=CreateFunctionSecurityType.DEFINER,
-            specific_name=function_name,
-        )
+            "parameter_style": CreateFunctionParameterStyle.S,
+            "sql_data_access": CreateFunctionSqlDataAccess.NO_SQL,
+            "is_null_call": False,
+            "security_type": CreateFunctionSecurityType.DEFINER,
+            "specific_name": function_name,
+        }
+        
+        # Patch as_dict() to ensure "parameters" field is always included in serialization
+        # (SDK returns {} when parameters=[], but Unity Catalog requires {"parameters": [...]})
+        original_as_dict = return_params_wrapped.as_dict
+        
+        def patched_as_dict() -> dict:
+            """Patched as_dict() that always includes 'parameters' field."""
+            result = original_as_dict()
+            # Ensure "parameters" field is always present (Unity Catalog requirement)
+            if "parameters" not in result:
+                result["parameters"] = [p.as_dict() if hasattr(p, 'as_dict') else p for p in return_params_wrapped.parameters]
+            return result
+        
+        return_params_wrapped.as_dict = patched_as_dict  # type: ignore[method-assign]
+        
+        # Debug output
+        if debug:
+            print(f"[DEBUG] Including {len(return_params)} return_params in CreateFunction")
+            # Debug: Check what will be serialized
+            return_params_dict = return_params_wrapped.as_dict()
+            print(f"[DEBUG] return_params_wrapped.as_dict() = {return_params_dict}")
+            print(f"[DEBUG] return_params_wrapped.parameters = {return_params_wrapped.parameters}")
+        
+        create_function = CreateFunction(**create_function_kwargs)
+        
+        # Debug: Check what CreateFunction will serialize
+        if debug:
+            create_function_dict = create_function.as_dict()
+            print(f"[DEBUG] CreateFunction.as_dict() includes return_params: {'return_params' in create_function_dict}")
+            if 'return_params' in create_function_dict:
+                print(f"[DEBUG] CreateFunction.as_dict()['return_params'] = {create_function_dict['return_params']}")
+            else:
+                print("[DEBUG] WARNING: return_params is missing from CreateFunction.as_dict()!")
+                print(f"[DEBUG] Full CreateFunction.as_dict() keys: {list(create_function_dict.keys())}")
+                print(f"[DEBUG] create_function.return_params object: {create_function.return_params}")
+                print(f"[DEBUG] create_function.return_params truthy? {bool(create_function.return_params)}")
 
         # The API expects CreateFunctionRequest with function_info field
         if debug:
@@ -372,10 +419,10 @@ class UDTFRegistry:
                                 print(f"[DEBUG] Could not get statement details: {get_error}")
                                 print(f"[DEBUG] get_statement error type: {type(get_error).__name__}")
 
-                # Check if error message indicates pre-DBR 18.1 empty response issue
+                # Check if error message indicates empty response issue
                 # Even if state is FAILED, verify if the view actually exists
                 # This handles cases where SECRET() causes a security warning but view is still created
-                # OR where pre-DBR 18.1 returns empty response but view is created
+                # OR where the API returns empty response but view is created
                 error_str = (error_message or "").lower()
                 is_empty_response_error = (
                     "end-of-input" in error_str
@@ -385,7 +432,7 @@ class UDTFRegistry:
 
                 if is_empty_response_error:
                     if debug:
-                        print("[DEBUG] Detected empty response error (likely pre-DBR 18.1 issue)")
+                        print("[DEBUG] Detected empty response error")
                         print("[DEBUG] Verifying if view was created despite error...")
 
                 try:
@@ -396,21 +443,13 @@ class UDTFRegistry:
                     existing_view = self.workspace_client.tables.get(full_view_name)
                     if existing_view and existing_view.table_type == "VIEW":
                         if debug:
-                            if is_empty_response_error:
-                                print(
-                                    "[DEBUG] View state was FAILED with empty response error but view exists - "
-                                    "treating as success (pre-DBR 18.1 workaround)"
-                                )
-                            else:
-                                print("[DEBUG] View state was FAILED but view exists - treating as success")
+                            print("[DEBUG] View state was FAILED but view exists - treating as success")
                             if error_message:
                                 print(f"[DEBUG] Error message (may be security warning): {error_message}")
                         return
                 except NotFound as view_check_error:
                     if debug:
                         print("[DEBUG] View does not exist (checked via tables.get)")
-                        if is_empty_response_error:
-                            print("[DEBUG] This may be a pre-DBR 18.1 compatibility issue")
                         print(f"[DEBUG] View check error: {view_check_error}")
                         print(f"[DEBUG] View check error type: {type(view_check_error).__name__}")
                     pass
@@ -422,11 +461,11 @@ class UDTFRegistry:
                 if statement_id:
                     error_msg += f" (Statement ID: {statement_id})"
 
-                # Add helpful message for pre-DBR 18.1 issues
+                # Add helpful message for empty response errors
                 if is_empty_response_error:
                     error_msg += (
-                        "\nThis may be a pre-DBR 18.1 compatibility issue. "
-                        "Try upgrading to DBR 18.1+ or verify the SQL statement manually."
+                        "\nThis may be a SQL statement execution API issue. "
+                        "Please verify the SQL statement manually or check Unity Catalog API status."
                     )
 
                 raise RuntimeError(f"Failed to create view {catalog}.{schema}.{view_name}: {error_msg}")

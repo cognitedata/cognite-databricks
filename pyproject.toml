@@ -23,9 +23,10 @@ classifiers = [
 ]
 
 dependencies = [
-    "cognite-pygen-spark>=0.1.0",
+    "cognite-pygen-spark>=0.0.0",
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
+    "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml
     # PySpark is provided by Databricks runtime - do not include as dependency
     # For local development, install with: pip install cognite-databricks[local]
 ]

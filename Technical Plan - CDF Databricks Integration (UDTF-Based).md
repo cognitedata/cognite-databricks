@@ -9,7 +9,7 @@
 | **Target Release** | Q1/Q2 2026 |
 | **Status** | **Draft** |
 | **Related PRD** | PRD - CDF Data Source v7.md |
-| **Databricks Runtime** | DBR 18.1+ (required for custom dependencies in UDTFs) |
+| **Databricks Runtime** | All versions (packages must be pre-installed on cluster) |
 
 ---
 
@@ -86,7 +86,7 @@ This phase occurs when developers generate UDTF definitions and Views from CDF D
 │  │      catalog="main",  # Unity Catalog catalog name      │  │
 │  │      schema=None,  # Auto-generated from data model     │  │
 │  │  )                                                       │  │
-│  │  generator.register_udtfs_and_views()                   │  │
+│  │  generator.register_udtfs_and_views()                        │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                           │                                     │
 │                           ▼                                     │
@@ -330,19 +330,19 @@ This phase occurs when users query the registered Views or call UDTFs directly:
 
 ---
 
-## **3. DBR 18.1 Requirements and Compatibility**
+## **3. Package Dependencies and Installation**
 
 ### **3.1 Overview**
 
-This solution leverages **Databricks Runtime 18.1+** for custom dependency support in Python UDTFs. This chapter details what functionality is blocked until DBR 18.1 is available and what workarounds exist for earlier versions.
+This solution requires all Python packages to be pre-installed on the Databricks cluster. Generated UDTFs use direct REST API calls and do not import `cognite-sdk-python`, so no external dependencies are required for the UDTF code itself. However, if you need to use the SDK in your notebooks or other code, you must install it separately.
 
-### **3.2 DBR 18.1 Requirement: Custom Dependencies**
+### **3.2 Package Installation Requirements**
 
-The primary feature requiring DBR 18.1 is the ability to bundle Python packages with UDTFs via the `routine_dependencies` parameter. This allows UDTFs to include `cognite-sdk-python` and other dependencies without requiring pre-installation on the cluster.
+All required packages must be pre-installed on the cluster. The generated UDTF code does not import `cognite-sdk-python` and uses direct REST API calls instead.
 
-#### **3.2.1 Current Implementation: `routine_dependencies` Limitation**
+#### **3.2.1 Current Implementation: No External Dependencies**
 
-**Note:** The current implementation sets `routine_dependencies=None` for all UDTFs because `DependencyList` in the Databricks SDK is designed for SQL object dependencies (tables, functions), not Python packages. For DBR 18.1+ Python package dependencies, a different mechanism may be needed (e.g., via `external_language` or a future SDK update).
+**Note:** The generated UDTF code uses direct REST API calls and does not import `cognite-sdk-python` or any other external packages. Therefore, no package dependencies need to be bundled with UDTFs.
 
 **Current Implementation in `cognite-databricks/cognite/databricks/udtf_registry.py`:**
 
@@ -387,26 +387,15 @@ Each return parameter must specify:
 - `type_json`: The Spark StructField JSON representation (e.g., `'{"name":"col","type":"string","nullable":true,"metadata":{}}'`).
 - `position`: The 0-based index of the column in the output table.
 
-**Impact:** Currently, Python packages cannot be bundled with UDTFs via `routine_dependencies`. All required packages must be pre-installed on the cluster, regardless of DBR version.
+**Impact:** Generated UDTF code does not require any external Python packages. All UDTFs use direct REST API calls.
 
-#### **3.2.2 Current Limitation: Dependency Bundling**
+#### **3.2.2 No Dependency Bundling Required**
 
-**Note:** The `dependencies` parameter is accepted but currently not fully implemented. The Databricks SDK's `DependencyList` is designed for SQL object dependencies, not Python packages. The parameter is stored for future use but does not currently bundle Python packages with UDTFs.
+**Note:** Since generated UDTFs use direct REST API calls and do not import `cognite-sdk-python`, no package dependencies need to be bundled with UDTFs. The `dependencies` parameter has been removed from the API.
 
-```python
-# The dependencies parameter is accepted but not yet fully functional
-generator.register_udtfs_and_views(
-    data_model=data_model_id,
-    secret_scope=secret_scope,
-    dependencies=["cognite-sdk>=7.90.1"],  # Accepted but not yet bundled
-)
-```
+### **3.3 Package Installation (Optional)**
 
-**Impact:** Currently, all required packages must be pre-installed on the cluster, regardless of DBR version. The `dependencies` parameter is reserved for future implementation when the Databricks SDK supports Python package dependencies in `routine_dependencies`.
-
-### **3.3 Current Implementation: Pre-Installation Required**
-
-**Current Status:** All DBR versions require pre-installed packages. The `dependencies` parameter is accepted but not yet functional.
+**Current Status:** Generated UDTF code does not require any external packages. If you need to use `cognite-sdk-python` in your notebooks or other code, install it separately.
 
 **Implementation:**
 ```python
@@ -419,70 +408,39 @@ create_function = CreateFunction(
 ```
 
 **Requirements:**
-1. Pre-install all required packages on the cluster (e.g., `cognite-sdk-python`, `cognite-pygen-spark`)
-2. The `dependencies` parameter can be provided but is currently not functional
-3. Ensure the cluster has all required packages before UDTF execution
+1. Generated UDTF code does not require any external packages (uses direct REST API calls)
+2. If you need `cognite-sdk-python` for notebooks or other code, install it separately:
+   ```bash
+   %pip install cognite-sdk>=7.90.1
+   ```
 
-### **3.4 What Works Without DBR 18.1**
+### **3.4 Supported Functionality**
 
 The following functionality works on all DBR versions:
 
 - ✅ **UDTF Code Generation**: All of `cognite.pygen_spark` functionality
 - ✅ **Secret Manager Integration**: Credential management works on all versions
 - ✅ **View SQL Generation**: SQL View generation is version-independent
-- ✅ **UDTF Registration**: UDTF registration works (without custom dependencies)
+- ✅ **Session-Scoped UDTF Registration**: `register_session_scoped_udtfs()` works on all DBR versions
+- ✅ **Unity Catalog Registration**: `register_udtfs_and_views()` works on all DBR versions
 - ✅ **All Other Functionality**: Code generation, templates, predicate pushdown, etc.
 
-### **3.5 Current Limitations**
-
-The following features are not yet implemented:
-
-- ❌ **Bundling Packages**: Cannot bundle `cognite-sdk-python` and other packages with UDTFs
-- ⚠️ **Dependencies Parameter**: The `dependencies` parameter in `register_udtfs_and_views()` is accepted but not yet functional
-- ❌ **`routine_dependencies` Field**: The `routine_dependencies` field in function registration does not support Python packages (only SQL object dependencies)
-
-### **3.6 Migration Path**
-
-**For Pre-DBR 18.1 Environments:**
-1. Install required packages on cluster:
-   ```bash
-   %pip install cognite-sdk>=7.90.1 cognite-pygen-spark>=0.1.0
-   ```
-2. Register UDTFs without dependencies:
-   ```python
-   generator.register_udtfs_and_views(
-       data_model=data_model_id,
-       secret_scope=secret_scope,
-       dependencies=None,  # Omit or set to None
-   )
-   ```
-
-**For All DBR Versions (Current Implementation):**
-1. Pre-install packages on cluster (required for all versions):
-   ```bash
-   %pip install cognite-sdk>=7.90.1 cognite-pygen-spark>=0.1.0
-   ```
-2. Register UDTFs (dependencies parameter accepted but not yet functional):
-   ```python
-   generator.register_udtfs_and_views(
-       data_model=data_model_id,
-       secret_scope=secret_scope,
-       dependencies=["cognite-sdk>=7.90.1"],  # Accepted but not yet bundled
-   )
-   ```
-
-### **3.7 Summary**
+### **3.5 Summary**
 
 | Feature | All DBR Versions |
 |---------|------------------|
 | UDTF Code Generation | ✅ Works |
 | Secret Manager | ✅ Works |
-| View Generation | ✅ Works |
-| UDTF Registration | ✅ Works (requires pre-installed packages) |
-| Custom Dependencies | ⚠️ Parameter accepted but not yet functional |
-| Package Bundling | ❌ Requires pre-install (not yet supported) |
+| View SQL Generation | ✅ Works |
+| Session-Scoped UDTF Registration | ✅ Works |
+| Unity Catalog UDTF Registration | ✅ Works |
+| Unity Catalog View Registration | ✅ Works |
+| Package Dependencies | ✅ Not required (UDTFs use direct REST API calls) |
 
-**Key Takeaway:** All functionality works on all DBR versions, but requires pre-installing packages on the cluster. The `dependencies` parameter is accepted for future use but does not currently bundle packages with UDTFs due to Databricks SDK limitations (`DependencyList` is for SQL objects, not Python packages).
+**Key Takeaway:** 
+- Generated UDTF code uses direct REST API calls and does not import `cognite-sdk-python`, so no external package dependencies are required.
+- Both **session-scoped registration** (`register_session_scoped_udtfs()`) and **Unity Catalog registration** (`register_udtfs_and_views()`) work on all DBR versions.
+- If you need `cognite-sdk-python` for notebooks or other code, install it separately via `%pip install`.
 
 ---
 
@@ -853,6 +811,7 @@ generator = generate_udtf_notebook(
 # Register UDTFs and Views in Unity Catalog
 # Catalog and schema are automatically created if they don't exist
 # Use data model-specific scope: cdf_{space}_{external_id}
+# Note: register_udtfs_and_views() requires DBR 18.1+
 secret_scope = f"cdf_{data_model_id.space}_{data_model_id.external_id.lower()}"
 generator.register_udtfs_and_views(secret_scope=secret_scope)
 ```
@@ -1592,7 +1551,6 @@ class UDTFRegistry:
         input_params: list[FunctionParameterInfo],
         return_type: str,
         return_params: list[FunctionParameterInfo],  # NEW: Structured return columns
-        dependencies: list[str] | None = None,  # For DBR 18.1+ custom dependencies
         comment: str | None = None,
     ) -> FunctionInfo:
         """Register a Python UDTF in Unity Catalog.
@@ -1605,7 +1563,6 @@ class UDTFRegistry:
             input_params: Function parameter definitions
             return_type: Return type DDL string (e.g., "TABLE(...)")
             return_params: Structured metadata for the UDTF output columns (required for TABLE_TYPE)
-            dependencies: Optional list of Python package dependencies (DBR 18.1+)
             comment: Function description
 
         Returns:
@@ -3031,7 +2988,6 @@ class UDTFGenerator:
         self,
         data_model: DataModel | None = None,
         secret_scope: str | None = None,
-        dependencies: list[str] | None = None,
     ) -> UDTFRegistrationResult:
         """Generate and register UDTFs and Views for a Data Model.
 
@@ -3040,8 +2996,6 @@ class UDTFGenerator:
                        If None, uses the data model from code_generator initialization.
             secret_scope: Secret Manager scope name. If None, auto-generates from data model:
                          `cdf_{space}_{external_id}` (e.g., "cdf_sp_pygen_power_windturbine")
-            dependencies: Optional Python package dependencies (DBR 18.1+)
-                Example: ["cognite-sdk>=7.90.1", "cognite-pygen>=1.2.29"]
 
         Returns:
             UDTFRegistrationResult with structured information about registered UDTFs and views.
@@ -3106,7 +3060,6 @@ class UDTFGenerator:
                 udtf_code=udtf_code,
                 input_params=input_params,
                 return_type=return_type,
-                dependencies=dependencies,  # DBR 18.1+ custom dependencies
                 comment=f"UDTF for {view_id} from CDF Data Model",
             )
 

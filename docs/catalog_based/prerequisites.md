@@ -1,18 +1,5 @@
 # Prerequisites
 
-## Databricks Runtime 18.1+ (REQUIRED)
-
-**`register_udtfs_and_views()` requires Databricks Runtime 18.1 or later.** This is because view registration via the SQL Statement Execution API requires DBR 18.1+.
-
-The function automatically detects your DBR version using multiple methods:
-1. Spark configuration (`spark.conf.get("spark.databricks.clusterUsageTags.sparkVersion")`)
-2. SQL query (`SELECT current_version().dbr_version`)
-3. Environment variable (`DATABRICKS_RUNTIME_VERSION`)
-
-If you're running on DBR < 18.1, you'll receive a clear error message directing you to use `register_session_scoped_udtfs()` instead.
-
-**For pre-DBR 18.1 environments**, use `register_session_scoped_udtfs()` instead, which works on all DBR versions and doesn't require Unity Catalog view registration.
-
 ## Unity Catalog Access
 
 You need permissions to create and manage Unity Catalog resources:
