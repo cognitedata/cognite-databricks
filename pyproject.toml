@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "cognite-pygen-spark>=0.0.0",
+    "cognite-pygen-spark==0.0.0",
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
     "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml

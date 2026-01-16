@@ -216,13 +216,13 @@ class ViewRegistrationResult(BaseModel):
     Args:
         registered_views: List of registered view results
         catalog: The catalog where views were registered
-        schema: The schema where views were registered
+        schema_name: The schema where views were registered
         total_count: Total number of view registration attempts
     """
 
     registered_views: list[RegisteredViewResult] = Field(default_factory=list)
     catalog: str
-    schema: str
+    schema_name: str  # Renamed from "schema" to avoid shadowing BaseModel.schema()
     total_count: int = Field(ge=0)
 
     @property
