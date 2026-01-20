@@ -1,34 +1,32 @@
 # cognite-databricks
 
-A helper SDK for Databricks that provides UDTF registration utilities, Secret Manager integration, and Unity Catalog View generation for CDF Data Models.
+A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration utilities, Secret Manager integration, and Databricks-specific tooling for scalar UDTFs.
 
 **Note**: This is the initial release (0.1.0) of cognite-databricks.
 
 ## Overview
 
-`cognite-databricks` is a **Databricks-specific helper SDK** that extends `pygen-spark` with Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities. It simplifies the process of registering CDF Data Models as discoverable Unity Catalog Views in Databricks.
+`cognite-databricks` is a **Databricks-specific helper SDK** that extends `pygen-spark` with Unity Catalog SQL registration, Secret Manager integration, and Databricks-specific utilities. It focuses on serverless-compatible scalar UDTF execution for SQL Warehouses.
 
 **Package Purpose:**
-- **Databricks-Specific Features**: Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities
+- **Databricks-Specific Features**: Unity Catalog SQL registration, Secret Manager integration, and Databricks-specific utilities
 - **Uses pygen-spark for Code Generation**: All UDTF code generation (both Data Model and Time Series UDTFs) is done by `pygen-spark` using template-based generation
 - **Generic Components**: Generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) are provided by `pygen-spark` and re-exported from `cognite.databricks` for backward compatibility
 - **Notebook-Friendly API**: Aligned with `cognite.pygen`'s notebook workflow
 
 It provides high-level APIs for:
 
-- **UDTF Registration**: Register Python UDTFs in Unity Catalog
+- **UDTF Registration**: Register persistent UDTFs in Unity Catalog via SQL
 - **Secret Manager Integration**: Manage OAuth2 credentials securely
-- **View Generation**: Create Unity Catalog Views with Secret injection
+- **SQL Usage**: Use UDTFs directly in SQL after registration
 - **Notebook-Friendly API**: Aligned with `cognite.pygen`'s notebook workflow
 
 ## Features
 
-- **Two Registration Modes**:
-  - **Unity Catalog**: Permanent, discoverable UDTFs with governance (production)
-  - **Session-Scoped**: Quick testing and development without Unity Catalog (development)
-- **One-Line Registration**: Generate and register UDTFs and Views with a single function call
+- **Unity Catalog SQL Registration**: Serverless-compatible UDTFs registered via `CREATE FUNCTION` statements
+- **One-Line Registration**: Generate and register UDTFs in a single call
 - **Secret Manager Integration**: Automatic credential management from TOML files
-- **Unity Catalog Integration**: Native support for Unity Catalog function and view registration
+- **Scalar-Only Execution**: Compatible with SQL Warehouses and serverless execution
 - **Type Safety**: Full type hints and IDE support
 - **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 
@@ -57,13 +55,12 @@ generator = generate_udtf_notebook(
     client,
 )
 
-# Register UDTFs and Views in Unity Catalog
-# Includes both data model UDTFs and time series UDTFs (all template-generated)
-# Scope name auto-generated from data model: cdf_{space}_{external_id}
-result = generator.register_udtfs_and_views(
-    secret_scope=None,  # Auto-generated if None
+# Register UDTFs in Unity Catalog (SQL registration)
+udtf_result = generator.register_udtfs(
+    secret_scope="cdf_sp_pygen_power_windturbine",
+    if_exists="replace",
 )
-print(f"Registered {result.total_count} UDTF(s) including time series UDTFs")
+print(f"Registered {udtf_result.total_count} UDTF(s)")
 ```
 
 ### Low-Level API
@@ -72,15 +69,12 @@ print(f"Registered {result.total_count} UDTF(s) including time series UDTFs")
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 from cognite.databricks import UDTFGenerator, SecretManagerHelper
 from cognite.pygen import load_cognite_client_from_toml
-from databricks.sdk import WorkspaceClient
 
 # Load client from TOML file
 client = load_cognite_client_from_toml("config.toml")
-workspace_client = WorkspaceClient()
 
 # Create generator
 generator = UDTFGenerator(
-    workspace_client=workspace_client,
     cognite_client=client,
     catalog="main",
     schema="cdf_models",
@@ -99,27 +93,20 @@ generator.secret_helper.set_cdf_credentials(
     tenant_id="...",  # from config.toml
 )
 
-# Register UDTFs and Views
-registered = generator.register_udtfs_and_views(
-    data_model=data_model_id,
-    secret_scope=secret_scope,
-)
+# Register UDTFs for catalog-based use (scalar-only)
+registered = generator.register_session_scoped_udtfs()
 ```
 
-## Session-Scoped UDTF Registration
+## Unity Catalog UDTF Registration
 
-For development and testing, you can register UDTFs for session-scoped use without Unity Catalog registration. This allows you to test UDTFs quickly using `%pip install cognite-sdk` in a notebook.
+Session-scoped registration is the primary mode for scalar-only UDTFs. Register functions in the current Spark session before running SQL queries.
 
 ### Register All UDTFs (Recommended)
 
 ```python
-from databricks.sdk import WorkspaceClient
 from cognite.databricks import generate_udtf_notebook
 from cognite.pygen import load_cognite_client_from_toml
 from cognite.client.data_classes.data_modeling.ids import DataModelId
-
-# Create WorkspaceClient (auto-detects credentials in Databricks)
-workspace_client = WorkspaceClient()
 
 # Load client and generate UDTFs
 client = load_cognite_client_from_toml("config.toml")
@@ -127,17 +114,14 @@ data_model_id = DataModelId(space="sailboat", external_id="sailboat", version="v
 generator = generate_udtf_notebook(
     data_model_id,
     client,
-    workspace_client=workspace_client,  # Include this for full functionality
     output_dir="/Workspace/Users/user@example.com/udtf",
-    # Note: catalog and schema parameters are only used for Unity Catalog registration,
-    # not for session-scoped UDTFs. They can be omitted for session-scoped use.
 )
 
 # Install dependencies (run in separate cell first)
 # %pip install cognite-sdk
 # (Restart kernel after installation)
 
-# Register all UDTFs for session-scoped use (includes time series UDTFs automatically)
+# Register all UDTFs for catalog-based use (includes time series UDTFs automatically)
 registered = generator.register_session_scoped_udtfs()
 # Returns: {"SmallBoat": "small_boat_udtf", "LargeBoat": "large_boat_udtf", 
 #           "time_series_datapoints": "time_series_datapoints_udtf", ...}
@@ -169,18 +153,9 @@ register_udtf_from_file(
 )
 ```
 
-### When to Use Session-Scoped vs Unity Catalog
+### Session Scope Notes
 
-| Feature | Session-Scoped | Unity Catalog |
-|---------|---------------|---------------|
-| **Registration** | Per-session, temporary | Permanent, catalog-wide |
-| **Dependencies** | Install via `%pip` | Pre-installed on cluster |
-| **Use Case** | Development, testing, prototyping | Production, governance, discovery |
-| **DBR Version** | All versions | All versions (with limitations) |
-| **Searchable** | No | Yes (via Databricks Search) |
-| **Permissions** | Session-level | Unity Catalog permissions |
-
-**Recommendation**: Use session-scoped registration for development and testing, then register in Unity Catalog for production use.
+Session-scoped registration is the supported mode for scalar-only UDTFs. Functions are temporary and must be registered at the start of each notebook/job before running SQL queries.
 
 ## Requirements
 
@@ -200,7 +175,7 @@ cognite-databricks/
 ├── cognite/
 │   └── databricks/
 │       ├── __init__.py            # Exports generate_udtf_notebook, UDTFGenerator, etc.
-│       ├── udtf_registry.py        # UDTF registration in Unity Catalog
+│       ├── udtf_registry.py        # UDTF registration helpers
 │       ├── secret_manager.py      # Secret Manager helpers
 │       ├── view_generator.py       # View generation and registration
 │       ├── generator.py            # generate_udtf_notebook helper function
@@ -242,12 +217,12 @@ generator = UDTFGenerator(
 ```
 
 **Key Methods:**
-- `register_udtfs_and_views()`: Register all UDTFs and Views in Unity Catalog (production)
-- `register_session_scoped_udtfs()`: Register UDTFs for session-scoped use (development/testing)
+- `register_session_scoped_udtfs()`: Register UDTFs for catalog-based use (scalar-only)
+- `register_udtf_from_file()`: Register a single generated UDTF file in the current session
 
 ### `register_udtf_from_file`
 
-Standalone function for registering a single UDTF from a generated Python file for session-scoped use:
+Standalone function for registering a single UDTF from a generated Python file for catalog-based use:
 
 ```python
 from cognite.databricks import register_udtf_from_file
@@ -258,27 +233,9 @@ register_udtf_from_file(
 )
 ```
 
-### `UDTFRegistry`
-
-Utility for registering Python UDTFs in Unity Catalog:
-
-```python
-from cognite.databricks import UDTFRegistry
-
-registry = UDTFRegistry(workspace_client)
-function_info = registry.register_udtf(
-    catalog="main",
-    schema="cdf",
-    function_name="pump_view_udtf",
-    udtf_code=udtf_code,
-    input_params=[...],
-    return_type="TABLE(...)",
-)
-```
-
 ### `register_udtf_from_file`
 
-Standalone function for registering a single UDTF from a generated Python file for session-scoped use. Useful when you only need to register one UDTF or want more control over the registration process.
+Standalone function for registering a single UDTF from a generated Python file for catalog-based use. Useful when you only need to register one UDTF or want more control over the registration process.
 
 ```python
 from cognite.databricks import register_udtf_from_file
@@ -348,9 +305,8 @@ from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_funct
 
 For detailed documentation, see:
 
-- **[Documentation Index](docs/index.md)**: Complete guide covering both session-scoped and catalog-based UDTF registration
-- **[Session-Scoped UDTF Registration](docs/session_scoped/index.md)**: Development and testing workflow
-- **[Catalog-Based UDTF Registration](docs/catalog_based/index.md)**: Production deployment with Unity Catalog
+- **[Documentation Index](docs/index.md)**: Complete guide for catalog-based scalar-only UDTF registration
+- **[Unity Catalog UDTF Registration](docs/session_scoped/index.md)**: Session-scoped workflow and SQL usage
 - **[Technical Plan - CDF Databricks Integration (UDTF-Based)](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md)**: Architecture and design details
 
 ## License

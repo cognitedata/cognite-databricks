@@ -120,6 +120,29 @@ class TestUDTFGeneratorAdvanced:
         assert isinstance(schema, StructType)
         assert len(schema.fields) > 0
 
+        # Verify space and external_id fields are included
+        field_names = [field.name for field in schema.fields]
+        assert "space" in field_names, "Schema must include 'space' field"
+        assert "external_id" in field_names, "Schema must include 'external_id' field"
+
+        # Verify space, external_id, and timestamp fields are at the end (matching template)
+        assert schema.fields[-5].name == "space", "space field must be in correct position"
+        assert schema.fields[-4].name == "external_id", "external_id field must be in correct position"
+        assert schema.fields[-3].name == "createdTime", "createdTime field must be in correct position"
+        assert schema.fields[-2].name == "lastUpdatedTime", "lastUpdatedTime field must be in correct position"
+        assert schema.fields[-1].name == "deletedTime", "deletedTime field must be last"
+
+        # Verify field types and nullability
+        from pyspark.sql.types import TimestampType
+        assert schema.fields[-5].nullable is False, "space field must be non-nullable"
+        assert schema.fields[-4].nullable is False, "external_id field must be non-nullable"
+        assert schema.fields[-3].nullable is True, "createdTime field must be nullable"
+        assert schema.fields[-2].nullable is True, "lastUpdatedTime field must be nullable"
+        assert schema.fields[-1].nullable is True, "deletedTime field must be nullable"
+        assert isinstance(schema.fields[-3].dataType, TimestampType), "createdTime must be TimestampType"
+        assert isinstance(schema.fields[-2].dataType, TimestampType), "lastUpdatedTime must be TimestampType"
+        assert isinstance(schema.fields[-1].dataType, TimestampType), "deletedTime must be TimestampType"
+
         # Test non-existent view
         with pytest.raises(ValueError, match="View 'NonExistent' not found"):
             generator._build_output_schema("NonExistent")

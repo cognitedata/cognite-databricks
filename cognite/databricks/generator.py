@@ -111,7 +111,6 @@ def register_udtf_from_file(
     # Import here to avoid requiring PySpark at module level
     try:
         from pyspark.sql import SparkSession  # type: ignore[import-not-found]
-        from pyspark.sql.functions import udtf  # type: ignore[import-not-found]
     except ImportError as e:
         raise ImportError(
             "PySpark is required for session-scoped UDTF registration. "
@@ -138,49 +137,84 @@ def register_udtf_from_file(
     with Path(udtf_file_path).open(encoding="utf-8") as f:
         udtf_code = f.read()
 
-    # Execute the code in a temporary namespace to get the UDTF class
+    # Execute the code in a temporary namespace to get the UDTF object
     namespace: dict[str, object] = {}
     exec(udtf_code, namespace)
 
-    # Find the UDTF class (it should be the only class defined in the file with eval and analyze methods)
-    udtf_classes = [
-        obj
-        for name, obj in namespace.items()
-        if isinstance(obj, type) and hasattr(obj, "eval") and hasattr(obj, "analyze")
-    ]
+    # Find the UDTF class name via AST, then fetch the object from the namespace.
+    # The generated template uses scalar mode only (no Arrow)
+    # is already decorated and ready to register.
+    import ast
 
-    if not udtf_classes:
+    try:
+        tree = ast.parse(udtf_code)
+    except SyntaxError as e:
+        raise ValueError(f"Invalid Python syntax in {udtf_file_path}: {e}") from e
+
+    udtf_class_name: str | None = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            has_eval = any(
+                isinstance(item, ast.FunctionDef) and item.name == "eval"
+                for item in node.body
+            )
+            if has_eval:
+                udtf_class_name = node.name
+                break
+
+    if not udtf_class_name:
         raise ValueError(
-            f"No UDTF class found in {udtf_file_path}. Expected a class with 'eval' and 'analyze' methods."
+            f"No UDTF class found in {udtf_file_path}. Expected a class with 'eval' method."
         )
 
-    if len(udtf_classes) > 1:
-        raise ValueError(f"Multiple UDTF classes found in {udtf_file_path}. Expected exactly one.")
+    if udtf_class_name not in namespace:
+        raise ValueError(f"UDTF class '{udtf_class_name}' not found in executed namespace for {udtf_file_path}.")
 
-    udtf_class = udtf_classes[0]
+    udtf_obj = namespace[udtf_class_name]
 
     # Determine function name
     if function_name is None:
         # Extract from class name: SmallboatUDTF -> small_boat_udtf
-        class_name = udtf_class.__name__
+        class_name = udtf_class_name
         # Remove "UDTF" suffix if present
         base_name = class_name[:-4] if class_name.endswith("UDTF") else class_name
         # Use pygen-main's to_snake for consistent conversion
         function_name = to_udtf_function_name(base_name)
 
-    # Verify analyze method exists
-    if not hasattr(udtf_class, "analyze"):
-        raise RuntimeError(f"analyze method not found in {udtf_class.__name__}! Required for PySpark Connect.")
-
-    # Wrap the class with udtf(useArrow=True) - DO NOT pass returnType when analyze method exists
-    # Arrow is enabled explicitly for session-scoped registration (Unity Catalog detects it automatically)
-    udtf_wrapped = udtf(useArrow=True)(udtf_class)  # type: ignore[arg-type]
-
-    # Register the wrapped version
-    spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined,union-attr]
+    # Register the UDTF object
+    # For session-scoped UDTFs, we avoid the @udtf decorator in the generated code
+    # to prevent PySpark Connect from importing pyspark.sql.connect.udtf during serialization,
+    # which triggers a circular import bug. Instead, we apply the decorator here at registration time.
+    if hasattr(udtf_obj, 'analyze'):
+        # UDTF has analyze method - register directly (PySpark Connect will use it)
+        # Note: This path should not be used for session-scoped UDTFs (analyze is disabled)
+        spark_session.udtf.register(function_name, udtf_obj)  # type: ignore[attr-defined,union-attr]
+    elif hasattr(udtf_obj, 'outputSchema'):
+        # UDTF doesn't have analyze method - use outputSchema for return type
+        # Apply @udtf decorator here at registration time to avoid circular import during serialization
+        # Import udtf lazily to minimize chance of triggering circular import
+        try:
+            # Try importing from non-Connect module first
+            import sys
+            if 'pyspark.sql.functions' in sys.modules:
+                udtf_func = sys.modules['pyspark.sql.functions'].udtf
+            else:
+                from pyspark.sql.functions import udtf as udtf_func  # type: ignore[import-not-found]
+            output_schema = udtf_obj.outputSchema()
+            udtf_wrapped = udtf_func(returnType=output_schema)(udtf_obj)
+            spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined,union-attr]
+        except Exception as e:
+            # If registration fails, try without decorator (some PySpark versions may support this)
+            print(f"Warning: Failed to apply @udtf decorator: {e}")
+            print(f"Attempting registration without decorator...")
+            spark_session.udtf.register(function_name, udtf_obj)  # type: ignore[attr-defined,union-attr]
+    else:
+        raise ValueError(
+            f"UDTF class '{udtf_class_name}' must have either 'analyze' method or 'outputSchema' method."
+        )
 
     print(f"✓ UDTF registered successfully: {function_name}")
-    print(f"✓ Class: {udtf_class.__name__}")
+    print(f"✓ Class: {udtf_class_name}")
     print(f"✓ File: {udtf_file_path}")
 
     return function_name
@@ -864,76 +898,37 @@ class UDTFGenerator:
         if_exists: str,
         debug: bool,
     ) -> RegisteredUDTFResult:
-        """Register a single UDTF only (without view).
+        """Register a single UDTF only (without view) using SQL registration."""
+        if not self.workspace_client:
+            raise ValueError("WorkspaceClient must be set before SQL registration")
 
-        UNIFIED APPROACH: Parses ALL UDTFs (data model and time series) from the class in the file.
-        This works for both types without special handling.
-
-        Args:
-            view_id: View external_id (or UDTF name for time series)
-            udtf_file: Path to the generated UDTF Python file
-            if_exists: What to do if UDTF already exists
-            debug: Enable debug output
-
-        Returns:
-            RegisteredUDTFResult for this view (with view_registered=False)
-        """
+        function_name = to_udtf_function_name(view_id)
         udtf_code = udtf_file.read_text()
-
-        # UNIFIED: Extract UDTF class using AST parsing (pygen-main style)
-        # This works for both data model UDTFs and time series UDTFs
         udtf_class = self._extract_udtf_class_from_ast(udtf_code, udtf_file)
 
-        # Parse from class (works for both data model and time series UDTFs)
-        input_params = self._parse_udtf_params_from_class(udtf_class, debug=debug)
-        return_type = self._parse_return_type_from_class(udtf_class)
-        # Always parse return_params - Unity Catalog requires it for UDTFs
-        return_params = self._parse_return_params_from_class(udtf_class, debug=debug)
+        input_params = self._parse_udtf_params(view_id, debug=debug, udtf_file=udtf_file)
+        return_type = self._parse_return_type(view_id, udtf_file=udtf_file, debug=debug)
 
-        # CRITICAL: Inject returnType into the decorator to satisfy PySpark validation
-        # This allows Arrow mode without requiring analyze() method
-        udtf_code = self._inject_return_type_into_decorator(udtf_code, udtf_class, debug=debug)
-
-        # Remove @udtf decorator from code for catalog registration
-        # Unity Catalog uses SQL RETURNS TABLE, so decorator is not needed
-        # The decorator causes ImportError when Unity Catalog executes the UDTF
-        udtf_code = self._remove_udtf_decorator(udtf_code)
-
-        comment = f"Auto-generated UDTF for {udtf_class.__name__}"
-
-        if debug:
-            print(f"\n[DEBUG] Registering {view_id}: return_type={return_type}, return_params={len(return_params) if return_params else 0} columns")
-
-        # Use SQL-based registration to bypass Unity Catalog introspection
-        # This avoids the "end-of-input" JSON parsing errors
         self.udtf_registry.register_udtf_via_sql(
             catalog=self.catalog,
             schema=self.schema,
-            function_name=to_udtf_function_name(view_id),
+            function_name=function_name,
             udtf_code=udtf_code,
             input_params=input_params,
             return_type=return_type,
-            warehouse_id=None,  # Will use default
-            comment=comment,
+            handler_name=udtf_class.__name__,
+            warehouse_id=None,
+            comment=f"Auto-generated UDTF for {view_id}",
             if_exists=if_exists,
             debug=debug,
         )
 
-        # Get the registered function info for the result
-        # This allows us to return the same structure as before
         try:
             function_info = self.udtf_registry.workspace_client.functions.get(
-                f"{self.catalog}.{self.schema}.{to_udtf_function_name(view_id)}"
+                f"{self.catalog}.{self.schema}.{function_name}"
             )
-        except Exception as e:
-            if debug:
-                print(f"[DEBUG] Could not retrieve function info after registration: {e}")
-            # Create a minimal FunctionInfo-like object if we can't retrieve it
-            # This shouldn't happen, but handle gracefully
+        except Exception:
             function_info = None
-
-        if function_info is None:
-            raise ValueError(f"Failed to register UDTF for view {view_id}")
 
         return RegisteredUDTFResult(
             view_id=view_id,
@@ -942,92 +937,6 @@ class UDTFGenerator:
             udtf_file_path=udtf_file,
             view_registered=False,
         )
-
-    def _register_single_udtf_only(
-        self,
-        view_id: str,
-        udtf_file: Path,
-        if_exists: str,
-        debug: bool,
-    ) -> RegisteredUDTFResult:
-        """Register a single UDTF only (without view).
-
-        UNIFIED APPROACH: Parses ALL UDTFs (data model and time series) from the class in the file.
-        This works for both types without special handling.
-
-        Args:
-            view_id: View external_id (or UDTF name for time series)
-            udtf_file: Path to the generated UDTF Python file
-            if_exists: What to do if UDTF already exists
-            debug: Enable debug output
-
-        Returns:
-            RegisteredUDTFResult for this view (with view_registered=False)
-        """
-        udtf_code = udtf_file.read_text()
-
-        # UNIFIED: Extract UDTF class using AST parsing (pygen-main style)
-        # This works for both data model UDTFs and time series UDTFs
-        udtf_class = self._extract_udtf_class_from_ast(udtf_code, udtf_file)
-
-        # Parse from class (works for both data model and time series UDTFs)
-        input_params = self._parse_udtf_params_from_class(udtf_class, debug=debug)
-        return_type = self._parse_return_type_from_class(udtf_class)
-        # Always parse return_params - Unity Catalog requires it for UDTFs
-        return_params = self._parse_return_params_from_class(udtf_class, debug=debug)
-
-        # CRITICAL: Inject returnType into the decorator to satisfy PySpark validation
-        # This allows Arrow mode without requiring analyze() method
-        udtf_code = self._inject_return_type_into_decorator(udtf_code, udtf_class, debug=debug)
-
-        # Remove @udtf decorator from code for catalog registration
-        # Unity Catalog uses SQL RETURNS TABLE, so decorator is not needed
-        # The decorator causes ImportError when Unity Catalog executes the UDTF
-        udtf_code = self._remove_udtf_decorator(udtf_code)
-
-        comment = f"Auto-generated UDTF for {udtf_class.__name__}"
-
-        if debug:
-            print(f"\n[DEBUG] Registering {view_id}: return_type={return_type}, return_params={len(return_params) if return_params else 0} columns")
-
-        # Use SQL-based registration to bypass Unity Catalog introspection
-        # This avoids the "end-of-input" JSON parsing errors
-        self.udtf_registry.register_udtf_via_sql(
-            catalog=self.catalog,
-            schema=self.schema,
-            function_name=to_udtf_function_name(view_id),
-            udtf_code=udtf_code,
-            input_params=input_params,
-            return_type=return_type,
-            warehouse_id=None,  # Will use default
-            comment=comment,
-            if_exists=if_exists,
-            debug=debug,
-        )
-
-        # Get the registered function info for the result
-        # This allows us to return the same structure as before
-        try:
-            function_info = self.udtf_registry.workspace_client.functions.get(
-                f"{self.catalog}.{self.schema}.{to_udtf_function_name(view_id)}"
-            )
-        except Exception as e:
-            if debug:
-                print(f"[DEBUG] Could not retrieve function info after registration: {e}")
-            # Create a minimal FunctionInfo-like object if we can't retrieve it
-            # This shouldn't happen, but handle gracefully
-            function_info = None
-
-        if function_info is None:
-            raise ValueError(f"Failed to register UDTF for view {view_id}")
-
-        return RegisteredUDTFResult(
-            view_id=view_id,
-            function_info=function_info,
-            view_name=None,
-            udtf_file_path=udtf_file,
-            view_registered=False,
-            )
 
     def _register_single_udtf_and_view_impl(
         self,
@@ -1039,169 +948,53 @@ class UDTFGenerator:
         if_exists: str,
         debug: bool,
     ) -> RegisteredUDTFResult:
-        """Implementation of single UDTF registration (without rate limiter)."""
-        udtf_code = udtf_file.read_text()
+        """Implementation of single UDTF registration (SQL/UC)."""
+        if not self.workspace_client:
+            raise ValueError("WorkspaceClient must be set before SQL registration")
 
-        # UNIFIED: Extract UDTF class using AST parsing (pygen-main style)
-        # This works for both data model UDTFs and time series UDTFs
+        function_name = to_udtf_function_name(view_id)
+        udtf_code = udtf_file.read_text()
         udtf_class = self._extract_udtf_class_from_ast(udtf_code, udtf_file)
 
-        # Parse from class (works for both data model and time series UDTFs)
-        input_params = self._parse_udtf_params_from_class(udtf_class, debug=debug)
-        return_type = self._parse_return_type_from_class(udtf_class)
-        # Always parse return_params - Unity Catalog requires it for UDTFs
-        return_params = self._parse_return_params_from_class(udtf_class, debug=debug)
+        input_params = self._parse_udtf_params(view_id, debug=debug, udtf_file=udtf_file)
+        return_type = self._parse_return_type(view_id, udtf_file=udtf_file, debug=debug)
 
-        # CRITICAL: Inject returnType into the decorator to satisfy PySpark validation
-        # This allows Arrow mode without requiring analyze() method
-        udtf_code = self._inject_return_type_into_decorator(udtf_code, udtf_class, debug=debug)
-
-        comment = f"Auto-generated UDTF for {udtf_class.__name__}"
-
-        # Check if this is a time series UDTF (for view validation only)
-        from cognite.databricks.models import time_series_udtf_registry
-        udtf_name = view_id if view_id.endswith("_udtf") else f"{view_id}_udtf"
-        is_time_series_udtf = time_series_udtf_registry.get_config(udtf_name) is not None
-
-        if debug:
-            print(f"\n[DEBUG] Registering {view_id}: return_type={return_type}, return_params={len(return_params) if return_params else 0} columns")
-
-        # Use SQL-based registration to bypass Unity Catalog introspection
-        # This avoids the "end-of-input" JSON parsing errors
         self.udtf_registry.register_udtf_via_sql(
             catalog=self.catalog,
             schema=self.schema,
-            function_name=to_udtf_function_name(view_id),
+            function_name=function_name,
             udtf_code=udtf_code,
             input_params=input_params,
             return_type=return_type,
-            warehouse_id=warehouse_id,  # Use provided warehouse_id or None (will use default)
-            comment=comment,
+            handler_name=udtf_class.__name__,
+            warehouse_id=warehouse_id,
+            comment=f"Auto-generated UDTF for {view_id}",
             if_exists=if_exists,
             debug=debug,
         )
 
-        # Get the registered function info for the result
-        # This allows us to return the same structure as before
+        function_info = None
         try:
             function_info = self.udtf_registry.workspace_client.functions.get(
-                f"{self.catalog}.{self.schema}.{to_udtf_function_name(view_id)}"
+                f"{self.catalog}.{self.schema}.{function_name}"
             )
-        except Exception as e:
-            if debug:
-                print(f"[DEBUG] Could not retrieve function info after registration: {e}")
-            # Create a minimal FunctionInfo-like object if we can't retrieve it
-            # This shouldn't happen, but handle gracefully
-            function_info = None
+        except Exception:
+            pass
 
-        # Track view registration status
         view_registered = False
         view_name = None
-
-        # Only create result if function_info is not None (skipped functions return None)
-        if function_info is not None:
-            # Wait for Unity Catalog to propagate function metadata before creating view
-            # This is especially important in serverless compute environments
-            import time
-            if debug:
-                print(f"[DEBUG] Waiting for Unity Catalog to propagate UDTF metadata for {view_id}...")
-            
-            # Wait and verify UDTF is available before creating view
-            from databricks.sdk.errors import DatabricksError, NotFound
-
-            max_retries = 5
-            retry_delay = 1.0  # seconds
-            udtf_available = False
-            
-            for attempt in range(max_retries):
-                try:
-                    # Verify UDTF exists in Unity Catalog
-                    full_function_name = f"{self.catalog}.{self.schema}.{to_udtf_function_name(view_id)}"
-                    if self.workspace_client:
-                        try:
-                            existing_func = self.workspace_client.functions.get(full_function_name)
-                            if existing_func:
-                                udtf_available = True
-                                if debug:
-                                    print(f"[DEBUG] ✓ UDTF {full_function_name} is available in Unity Catalog")
-                                break
-                        except (NotFound, DatabricksError):
-                            pass  # Function not found yet, will retry
-                    
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 1.5  # Exponential backoff
-                except (NotFound, DatabricksError, RuntimeError, ValueError) as e:
-                    if debug:
-                        print(f"[DEBUG] Error verifying UDTF availability (attempt {attempt + 1}/{max_retries}): {e}")
-                    if attempt < max_retries - 1:
-                        time.sleep(retry_delay)
-                        retry_delay *= 1.5
-            
-            if not udtf_available and debug:
-                print(f"[DEBUG] ⚠ UDTF {full_function_name} may not be fully propagated, but proceeding with view creation...")
-
-            # Validate schema consistency (optional, but recommended)
-            # Skip for time series UDTFs (they don't have views to validate against)
-            if debug and not is_time_series_udtf:
-                is_consistent, error_msg = self.validate_schema_consistency(view_id, function_info)
-                if is_consistent:
-                    print(f"[DEBUG] Schema validation passed for {view_id}")
-                else:
-                    print(f"[WARNING] Schema validation failed for {view_id}: {error_msg}")
-
-            # Register View (for both Data Model views and time series UDTF views)
-            if view_sql:
-                # View SQL should already have catalog and schema from generate_views
-                # But if placeholders are still present, replace them as fallback
-                if "{{ catalog }}" in view_sql or "{{ schema }}" in view_sql:
-                    view_sql = view_sql.replace("{{ catalog }}", self.catalog).replace("{{ schema }}", self.schema)
-
-                try:
-                    # For time series UDTFs, use the view name from the Pydantic registry
-                    if is_time_series_udtf:
-                        config = time_series_udtf_registry.get_config(view_id)
-                        if config:
-                            actual_view_name = config.view_name
-                            view_comment = f"Auto-generated View for {actual_view_name} (Time Series Datapoints)"
-                        else:
-                            actual_view_name = view_id
-                            view_comment = f"Auto-generated View for {view_id} (Time Series Datapoints)"
-                    else:
-                        actual_view_name = view_id
-                        view_comment = f"Auto-generated View for {view_id}"
-
-                    self.udtf_registry.register_view(
-                        catalog=self.catalog,
-                        schema=self.schema,
-                        view_name=actual_view_name,
-                        view_sql=view_sql,
-                        comment=view_comment,
-                        warehouse_id=warehouse_id,
-                        debug=debug,
-                    )
-                    view_registered = True
-                    view_name = f"{self.catalog}.{self.schema}.{actual_view_name}"
-                except (RuntimeError, ValueError) as e:
-                    if debug:
-                        print(f"[DEBUG] Failed to register view {view_id}: {e}")
-
-                # Register foreign key constraints for relationship properties (only for Data Model views)
-                if not is_time_series_udtf:
-                    if debug:
-                        print(f"[DEBUG] Extracting foreign key relationships for {view_id}")
-                    try:
-                        self._extract_and_register_foreign_keys(
-                            view_id=view_id,
-                            warehouse_id=warehouse_id,
-                            debug=debug,
-                        )
-                    except (RuntimeError, ValueError, AttributeError) as e:
-                        if debug:
-                            print(f"[DEBUG] Failed to register foreign keys for {view_id}: {e}")
-
-        if function_info is None:
-            raise ValueError(f"Failed to register UDTF for view {view_id}")
+        if view_sql:
+            try:
+                self.udtf_registry.register_view(
+                    catalog=self.catalog,
+                    schema=self.schema,
+                    view_name=view_id,
+                    view_sql=view_sql,
+                )
+                view_registered = True
+                view_name = f"{self.catalog}.{self.schema}.{view_id}"
+            except Exception:
+                view_registered = False
 
         return RegisteredUDTFResult(
             view_id=view_id,
@@ -1245,98 +1038,7 @@ class UDTFGenerator:
         Raises:
             ValueError: If PySpark version is less than 4.0.0 (required for vectorized UDTFs).
         """
-        if not self.workspace_client:
-            raise ValueError("WorkspaceClient must be set before registration")
-
-        # Check PySpark version - register_udtfs requires PySpark 4.0.0+ for vectorized UDTFs
-        def _check_pyspark_version() -> None:
-            """Check that PySpark version is 4.0.0 or higher."""
-            import sys
-            import importlib
-            
-            try:
-                import pyspark
-            except ImportError:
-                raise ImportError(
-                    "PySpark is required but not available. "
-                    "Please ensure PySpark 4.0.0+ is installed in your environment. "
-                    "On Databricks, PySpark is provided by the runtime (DBR 15.0+)."
-                ) from None
-
-            # Check if pyspark is a mock object (from previous registration that didn't clean up)
-            # Mock objects created with type(sys)("pyspark") won't have __version__
-            if not hasattr(pyspark, "__version__"):
-                # Try to restore the real pyspark module
-                if "pyspark" in sys.modules:
-                    # Check if it's our mock by checking if it has the mock structure
-                    current_pyspark = sys.modules["pyspark"]
-                    # Our mocks are created with type(sys)("pyspark"), which are module-like but not real modules
-                    # Real pyspark modules have __version__ and other attributes
-                    if not hasattr(current_pyspark, "__version__"):
-                        # This is likely a mock - try to re-import the real module
-                        # Remove from sys.modules to force re-import
-                        del sys.modules["pyspark"]
-                        # Also remove submodules that might be mocked
-                        for module_name in ["pyspark.sql", "pyspark.sql.functions", "pyspark.sql.connect", 
-                                           "pyspark.sql.connect.udtf", "pyspark.sql.udtf"]:
-                            if module_name in sys.modules:
-                                # Check if it's a mock (doesn't have expected attributes)
-                                mod = sys.modules[module_name]
-                                # Real pyspark.sql has __file__ or __path__ attribute
-                                if not (hasattr(mod, "__file__") or hasattr(mod, "__path__")):
-                                    del sys.modules[module_name]
-                        
-                        # Re-import the real pyspark
-                        pyspark = importlib.import_module("pyspark")
-                        sys.modules["pyspark"] = pyspark
-                
-                # Check again after restoration attempt
-                if not hasattr(pyspark, "__version__"):
-                    raise RuntimeError(
-                        "PySpark module appears to be corrupted (missing __version__ attribute). "
-                        "This may be due to incomplete cleanup from a previous UDTF registration. "
-                        "Please restart the Python kernel to restore the PySpark module."
-                    )
-
-            version_str = pyspark.__version__
-            try:
-                from packaging import version
-
-                pyspark_version = version.parse(version_str)
-                min_version = version.parse("4.0.0")
-
-                if pyspark_version < min_version:
-                    raise RuntimeError(
-                        f"register_udtfs() requires PySpark 4.0.0+ for vectorized UDTF support, "
-                        f"but version {version_str} is installed. "
-                        f"Please upgrade to PySpark 4.0.0 or higher. "
-                        f"On Databricks, use Databricks Runtime 15.0+ (first DBR with Spark 4.0). "
-                        f"Alternatively, use register_session_scoped_udtfs() for pre-Spark 4.0 environments."
-                    )
-            except ImportError:
-                # Fallback if packaging is not available - do simple string comparison
-                major_minor = version_str.split(".")[:2]
-                if len(major_minor) >= 2:
-                    try:
-                        major = int(major_minor[0])
-                        minor = int(major_minor[1])
-                        if major < 4 or (major == 4 and minor < 0):
-                            raise RuntimeError(
-                                f"register_udtfs() requires PySpark 4.0.0+ for vectorized UDTF support, "
-                                f"but version {version_str} is installed. "
-                                f"Please upgrade to PySpark 4.0.0 or higher. "
-                                f"On Databricks, use Databricks Runtime 15.0+ (first DBR with Spark 4.0). "
-                                f"Alternatively, use register_session_scoped_udtfs() for pre-Spark 4.0 environments."
-                            )
-                    except (ValueError, IndexError):
-                        pass
-
-        # Check PySpark version
-        try:
-            _check_pyspark_version()
-        except (ImportError, RuntimeError) as e:
-            raise ValueError(str(e)) from e
-
+        # Scalar-only SQL registration does not require PySpark.
         # Ensure schema exists before registering functions
         self._ensure_schema_exists()
 
@@ -1359,7 +1061,7 @@ class UDTFGenerator:
 
         if debug:
             print(f"\n{'=' * 60}")
-            print("[DEBUG] Starting UDTF registration (no views)")
+            print("[DEBUG] Starting UDTF registration (Unity Catalog SQL)")
             print(f"[DEBUG] Catalog: {self.catalog}")
             print(f"[DEBUG] Schema: {self.schema}")
             print(f"[DEBUG] Secret scope: {secret_scope}")
@@ -1452,13 +1154,18 @@ class UDTFGenerator:
     ) -> ViewRegistrationResult:
         """Register views for previously registered UDTFs.
 
-        Generates view SQL based on UDTF files in output_dir, not from data model.
-        For time series UDTFs, generates view SQL from the UDTF class and registry.
-        For data model UDTFs, generates view SQL from the data model if available.
+        Generates view SQL based on UDTFs registered in Unity Catalog that are part of the schema
+        created from the data model. Creates views for:
+        - Data model UDTFs (from data model views)
+        - Time series UDTFs (generated as part of the schema)
 
-        **CRITICAL**: This method performs a pre-test validation to ensure all required
-        UDTFs exist in Unity Catalog before attempting to create views. If any required
-        UDTF is missing, a ValueError is raised with a clear error message.
+        Excludes any other UDTFs that might be registered in the same schema.
+
+        Views pass secrets (via SECRET() calls) and parameters (view properties as NULL) to UDTFs.
+
+        **CRITICAL**: This method queries Unity Catalog to find registered UDTFs, filters to only
+        include data model and time series UDTFs, and creates views for them. It performs a pre-test
+        validation to ensure all required UDTFs exist in Unity Catalog before attempting to create views.
 
         This method is designed to be called in a separate notebook cell after
         register_udtfs() has completed successfully.
@@ -1510,13 +1217,95 @@ class UDTFGenerator:
                 else:
                     raise ValueError("secret_scope must be provided if data_model is None and code_generator has no data_model")
 
-        # Generate View SQL from UDTF files in output_dir
-        # This is file-based: views are generated from whatever UDTF files exist
-            udtf_files = self._find_generated_udtf_files()
+        # Query Unity Catalog to find registered UDTFs
+        # We'll filter to only include data model and time series UDTFs
+        registered_udtf_names: dict[str, str] = {}  # view_id -> full_udtf_name
+        time_series_udtf_names: dict[str, str] = {}  # view_id -> full_udtf_name
+        
+        try:
+            from cognite.databricks.models import time_series_udtf_registry
+            
+            if debug:
+                print(f"[DEBUG] Querying Unity Catalog for registered UDTFs in {self.catalog}.{self.schema}...")
+            
+            # Collect all functions first for debugging
+            all_functions = list(self.workspace_client.functions.list(
+                catalog_name=self.catalog,
+                schema_name=self.schema,
+            ))
+            
+            if debug:
+                print(f"[DEBUG] Total functions returned from Unity Catalog: {len(all_functions)}")
+                time_series_funcs = [f for f in all_functions if hasattr(f, 'name') and f.name and 'time_series' in f.name]
+                print(f"[DEBUG] Functions with 'time_series' in name: {[f.name for f in time_series_funcs]}")
+            
+            for func in all_functions:
+                func_name = func.name if hasattr(func, "name") and func.name else None
+                
+                if debug and func_name and 'time_series' in func_name:
+                    print(f"[DEBUG] Processing function: {func_name}")
+                    print(f"[DEBUG]   - ends with '_udtf': {func_name.endswith('_udtf') if func_name else False}")
+                    print(f"[DEBUG]   - hasattr(func, 'name'): {hasattr(func, 'name')}")
+                    if hasattr(func, 'name'):
+                        print(f"[DEBUG]   - func.name: {func.name}")
+                
+                if func_name and func_name.endswith("_udtf"):
+                    # Extract view_id by removing _udtf suffix
+                    view_id = func_name[:-5]  # Remove "_udtf" suffix
+                    
+                    if debug and func_name and 'time_series' in func_name:
+                        print(f"[DEBUG]   - Extracted view_id: {view_id}")
+                        print(f"[DEBUG]   - Calling time_series_udtf_registry.get_config('{func_name}')...")
+                    
+                    # Check if this is a time series UDTF
+                    config = time_series_udtf_registry.get_config(func_name)
+                    
+                    if debug and func_name and 'time_series' in func_name:
+                        print(f"[DEBUG]   - get_config() returned: {config}")
+                        print(f"[DEBUG]   - config is None: {config is None}")
+                        if config:
+                            print(f"[DEBUG]   - Config details: udtf_name={config.udtf_name}, view_name={config.view_name}")
+                    
+                    if config:
+                        # This is a time series UDTF - include it
+                        time_series_udtf_names[view_id] = func_name
+                        if debug:
+                            print(f"[DEBUG] ✓ Found time series UDTF: {func_name} -> view_id: {view_id}")
+                    else:
+                        # This might be a data model UDTF - we'll verify later when generating view SQL
+                        registered_udtf_names[view_id] = func_name
+                        if debug and func_name and 'time_series' in func_name:
+                            print(f"[DEBUG] ⚠ Time series function '{func_name}' NOT matched by registry!")
+                    
+            if debug:
+                print(f"[DEBUG] Found {len(registered_udtf_names)} potential data model UDTF(s): {list(registered_udtf_names.keys())}")
+                print(f"[DEBUG] Found {len(time_series_udtf_names)} time series UDTF(s): {list(time_series_udtf_names.keys())}")
+                if time_series_udtf_names:
+                    print(f"[DEBUG] Time series UDTF details: {time_series_udtf_names}")
+                
+        except (RuntimeError, ValueError, AttributeError, ImportError) as e:
+            if debug:
+                print(f"[WARNING] Failed to query Unity Catalog for UDTFs: {e}")
+            registered_udtf_names = {}
+            time_series_udtf_names = {}
+        
+        if not registered_udtf_names and not time_series_udtf_names:
+            if debug:
+                print("[WARNING] No data model or time series UDTFs found in Unity Catalog. Cannot create views.")
+            return ViewRegistrationResult(
+                registered_views=[],
+                catalog=self.catalog,
+                schema_name=self.schema,
+                total_count=0,
+            )
+        
         view_sqls: dict[str, str] = {}
 
-        # First, try to generate view SQL for data model UDTFs if data_model is available
+        # Generate view SQL for data model UDTFs
+        # Only include views for UDTFs that have matching view SQL from the data model
         if data_model:
+            if debug:
+                print(f"[DEBUG] === BRANCH: Using data_model parameter ===")
             try:
                 view_sql_result = self.code_generator.generate_views(
                     data_model=data_model,
@@ -1524,42 +1313,98 @@ class UDTFGenerator:
                     catalog=self.catalog,
                     schema=self.schema,
                 )
-                # Only include views for UDTF files that actually exist
+                if debug:
+                    print(f"[DEBUG] generate_views() returned {len(view_sql_result.view_sqls)} view SQL(s)")
+                    if view_sql_result.view_sqls:
+                        sample_view_ids = list(view_sql_result.view_sqls.keys())[:5]
+                        print(f"[DEBUG] Sample view_ids from generate_views(): {sample_view_ids}")
+                
+                # Only include views for registered UDTFs that have matching view SQL from data model
+                # Note: view_id from generate_views is PascalCase (e.g., "SmallBoat"), but registered_udtf_names
+                # uses snake_case (e.g., "small_boat"), so we need to convert for matching
+                matched_count = 0
                 for view_id, view_sql in view_sql_result.view_sqls.items():
-                    if view_id in udtf_files:
+                    # Convert PascalCase view_id to snake_case to match registered_udtf_names
+                    # to_udtf_function_name converts "SmallBoat" -> "small_boat_udtf", so remove "_udtf" suffix
+                    udtf_name = to_udtf_function_name(view_id)  # e.g., "small_boat_udtf"
+                    snake_case_view_id = udtf_name[:-5]  # Remove "_udtf" suffix -> "small_boat"
+                    
+                    if debug and matched_count < 3:
+                        print(f"[DEBUG] Conversion: '{view_id}' -> '{udtf_name}' -> '{snake_case_view_id}'")
+                        print(f"[DEBUG] Checking if '{snake_case_view_id}' in registered_udtf_names: {snake_case_view_id in registered_udtf_names}")
+                    
+                    if snake_case_view_id in registered_udtf_names:
                         view_sqls[view_id] = view_sql
+                        matched_count += 1
+                        if debug:
+                            print(f"[DEBUG] ✓ Matched data model UDTF: {view_id} (snake_case: {snake_case_view_id})")
+                
+                if debug:
+                    print(f"[DEBUG] Total matched data model views: {matched_count} out of {len(view_sql_result.view_sqls)}")
             except (ValueError, AttributeError, KeyError) as e:
                 if debug:
                     print(f"[WARNING] Failed to generate data model view SQL: {e}")
-        elif hasattr(self.code_generator, "data_model") and self.code_generator.data_model:
+                    import traceback
+                    traceback.print_exc()
+        else:
             # Try to use data model from code_generator initialization
+            # generate_views() will use self._data_model internally if data_model=None
+            if debug:
+                print(f"[DEBUG] === BRANCH: Trying code_generator.generate_views(data_model=None) ===")
             try:
                 view_sql_result = self.code_generator.generate_views(
-                    data_model=None,  # Use the one from __init__
+                    data_model=None,  # Use the one from __init__ (stored in _data_model)
                     secret_scope=secret_scope,
                     catalog=self.catalog,
                     schema=self.schema,
                 )
-                # Only include views for UDTF files that actually exist
+                if debug:
+                    print(f"[DEBUG] generate_views() returned {len(view_sql_result.view_sqls)} view SQL(s)")
+                    if view_sql_result.view_sqls:
+                        sample_view_ids = list(view_sql_result.view_sqls.keys())[:5]
+                        print(f"[DEBUG] Sample view_ids from generate_views(): {sample_view_ids}")
+                
+                # Only include views for registered UDTFs that have matching view SQL from data model
+                # Note: view_id from generate_views is PascalCase (e.g., "SmallBoat"), but registered_udtf_names
+                # uses snake_case (e.g., "small_boat"), so we need to convert for matching
+                matched_count = 0
                 for view_id, view_sql in view_sql_result.view_sqls.items():
-                    if view_id in udtf_files:
+                    # Convert PascalCase view_id to snake_case to match registered_udtf_names
+                    # to_udtf_function_name converts "SmallBoat" -> "small_boat_udtf", so remove "_udtf" suffix
+                    udtf_name = to_udtf_function_name(view_id)  # e.g., "small_boat_udtf"
+                    snake_case_view_id = udtf_name[:-5]  # Remove "_udtf" suffix -> "small_boat"
+                    
+                    if debug and matched_count < 3:
+                        print(f"[DEBUG] Conversion: '{view_id}' -> '{udtf_name}' -> '{snake_case_view_id}'")
+                        print(f"[DEBUG] Checking if '{snake_case_view_id}' in registered_udtf_names: {snake_case_view_id in registered_udtf_names}")
+                    
+                    if snake_case_view_id in registered_udtf_names:
                         view_sqls[view_id] = view_sql
+                        matched_count += 1
+                        if debug:
+                            print(f"[DEBUG] ✓ Matched data model UDTF: {view_id} (snake_case: {snake_case_view_id})")
+                
+                if debug:
+                    print(f"[DEBUG] Total matched data model views: {matched_count} out of {len(view_sql_result.view_sqls)}")
             except (ValueError, AttributeError, KeyError) as e:
                 if debug:
                     print(f"[WARNING] Failed to generate data model view SQL: {e}")
+                    import traceback
+                    traceback.print_exc()
+                # If generate_views fails, it means no data model is available
+                if debug:
+                    print("[WARNING] No data model available. Cannot generate view SQL for data model UDTFs.")
 
-        # Generate view SQL for time series UDTFs from files
+        # Generate view SQL for time series UDTFs
         try:
+            # time_series_udtf_registry is already imported above, but import again for safety
             from cognite.databricks.models import time_series_udtf_registry
 
-            for view_id, udtf_file in udtf_files.items():
-                # Check if this is a time series UDTF by checking the registry
-                # Registry uses UDTF names with _udtf suffix, but view_id might not have it
-                udtf_name = view_id if view_id.endswith("_udtf") else f"{view_id}_udtf"
+            for view_id, udtf_name in time_series_udtf_names.items():
                 config = time_series_udtf_registry.get_config(udtf_name)
-
                 if config:
                     # This is a time series UDTF - generate view SQL
+                    # generate_time_series_udtf_view_sql is in the same module, call directly
                     view_sql = generate_time_series_udtf_view_sql(
                         udtf_name=udtf_name,
                         view_name=config.view_name,
@@ -1570,11 +1415,14 @@ class UDTFGenerator:
                     )
                     # Use view_id (without _udtf) as the key to match UDTF registration
                     view_sqls[view_id] = view_sql
+                    if debug:
+                        print(f"[DEBUG] Generated view SQL for time series UDTF: {view_id}")
         except (ValueError, AttributeError, KeyError, ImportError) as e:
             if debug:
                 print(f"[WARNING] Failed to generate time series UDTF view SQL: {e}")
 
         # MANDATORY: Pre-test validation - verify all required UDTFs exist
+        # Since we queried Unity Catalog, they should all exist, but verify anyway
         view_ids = list(view_sqls.keys())
         if view_ids:
             if debug:
@@ -1593,6 +1441,8 @@ class UDTFGenerator:
             print(f"[DEBUG] Secret scope: {secret_scope}")
             print(f"[DEBUG] if_exists: {if_exists}")
             print(f"[DEBUG] Max workers: {max_workers}")
+            print(f"[DEBUG] Data model UDTFs: {list(registered_udtf_names.keys())}")
+            print(f"[DEBUG] Time series UDTFs: {list(time_series_udtf_names.keys())}")
             print(f"[DEBUG] Views to register: {list(view_sqls.keys())}")
             print(f"{'=' * 60}\n")
 
@@ -1818,31 +1668,8 @@ class UDTFGenerator:
             max_parallel_requests=max_parallel_requests,
         )
 
-        # Wait for Unity Catalog propagation
-        import time
-
         if debug:
-            print("[DEBUG] Waiting for Unity Catalog to propagate UDTF metadata...")
-        time.sleep(5.0)  # Minimum wait time
-
-        # Register views (with automatic pre-test validation)
-        view_result = self.register_views(
-            data_model=data_model,
-            secret_scope=secret_scope,
-            warehouse_id=warehouse_id,
-            if_exists=if_exists,
-            debug=debug,
-            max_workers=max_workers,
-            max_parallel_requests=max_parallel_requests,
-        )
-
-        # Combine results
-        # Update udtf_result with view registration status
-        for udtf_res in udtf_result.registered_udtfs:
-            view_res = view_result.get(udtf_res.view_id)
-            if view_res:
-                udtf_res.view_name = view_res.view_name
-                udtf_res.view_registered = view_res.view_registered
+            print("[DEBUG] Skipping view registration: session-scoped UDTFs are not available in Unity Catalog")
 
         return udtf_result
 
@@ -2320,7 +2147,8 @@ class UDTFGenerator:
     def _inject_return_type_into_decorator(self, udtf_code: str, udtf_class: type, debug: bool = False) -> str:
         """Inject returnType into @udtf decorator to satisfy PySpark validation.
 
-        This allows Arrow mode without requiring analyze() method, breaking the dependency loop.
+        This method is no longer used since we removed Arrow mode.
+        Kept for backward compatibility but does nothing.
 
         Args:
             udtf_code: Original UDTF Python code
@@ -2328,32 +2156,10 @@ class UDTFGenerator:
             debug: Enable debug output
 
         Returns:
-            Modified UDTF code with returnType injected into decorator
+            Unmodified UDTF code (scalar mode doesn't need decorator injection)
         """
-        # Get the StructType from the class's outputSchema() method
-        struct_type = udtf_class.outputSchema()
-        
-        # Generate StructType construction code
-        # Format: StructType([StructField("name", StringType(), nullable=True), ...])
-        struct_fields = []
-        for field in struct_type.fields:
-            field_type_str = self._spark_type_to_code_string(field.dataType)
-            nullable_str = "True" if field.nullable else "False"
-            struct_fields.append(f'StructField("{field.name}", {field_type_str}, nullable={nullable_str})')
-        
-        struct_type_code = f"StructType([{', '.join(struct_fields)}])"
-        
-        # Replace @udtf(useArrow=True) with @udtf(returnType=..., useArrow=True)
-        import re
-        # Match the decorator line (handle potential whitespace variations)
-        decorator_pattern = r'@udtf\(useArrow=True\)'
-        replacement = f'@udtf(returnType={struct_type_code}, useArrow=True)'
-        modified_code = re.sub(decorator_pattern, replacement, udtf_code)
-        
-        if debug:
-            print(f"[DEBUG] Injected returnType into decorator: {struct_type_code[:100]}...")
-        
-        return modified_code
+        # Scalar mode doesn't need decorator injection - return as-is
+        return udtf_code
 
     def _remove_udtf_decorator(self, udtf_code: str) -> str:
         """Remove @udtf decorator from code for catalog registration.
@@ -2413,11 +2219,9 @@ class UDTFGenerator:
         if hasattr(udtf_class, "analyze"):
             method = udtf_class.analyze
             method_sig = inspect.signature(method)
-            use_arrow_types = False
         elif hasattr(udtf_class, "eval"):
             method = udtf_class.eval
             method_sig = inspect.signature(method)
-            use_arrow_types = True
         else:
             raise ValueError(
                 f"UDTF class {udtf_class.__name__} must have either an analyze() or eval() method"
@@ -2477,26 +2281,25 @@ class UDTFGenerator:
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else None
             default_value = param.default if param.default != inspect.Parameter.empty else None
 
-            # Handle Arrow types (pa.Array | None) - extract underlying type or default to STRING
-            if use_arrow_types:
-                # For eval() with Arrow types, we can't determine the underlying type from pa.Array
-                # Default to STRING for all non-secret parameters
+            # Special handling for timestamp parameters (start, end, before) - register as TIMESTAMP
+            # These accept SQL TIMESTAMP, relative time strings, ISO 8601, or milliseconds
+            if param_name in ("start", "end", "before"):
+                from pyspark.sql.types import TimestampType
+                param_spark_type = TimestampType()
+            # For scalar mode, infer type from annotation or default to STRING
+            elif param_type is None or param_type is type(None):
                 param_spark_type = StringType()
-            else:
-                # For analyze() without type hints, default to STRING
-                if param_type is None or param_type is type(None):
-                    param_spark_type = StringType()
-                elif hasattr(param_type, "__origin__"):  # Union types like str | None
-                    # Extract the non-None type
-                    args = getattr(param_type, "__args__", ())
-                    non_none_types = [a for a in args if a is not type(None)]
-                    if non_none_types:
-                        param_type = non_none_types[0]
-                    else:
-                        param_type = str
-                    param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
+            elif hasattr(param_type, "__origin__"):  # Union types like str | None
+                # Extract the non-None type
+                args = getattr(param_type, "__args__", ())
+                non_none_types = [a for a in args if a is not type(None)]
+                if non_none_types:
+                    param_type = non_none_types[0]
                 else:
-                    param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
+                    param_type = str
+                param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
+            else:
+                param_spark_type = TypeConverter.python_type_to_spark(param_type)  # type: ignore[assignment]
 
             # Convert PySpark type to SQL type info
             sql_type, type_name = TypeConverter.spark_to_sql_type_info(param_spark_type)
@@ -2517,7 +2320,7 @@ class UDTFGenerator:
                     position=position,
                     parameter_mode=FunctionParameterMode.IN,
                     parameter_type=FunctionParameterType.PARAM,
-                    parameter_default="NULL" if default_value is None else None,
+                    parameter_default="NULL",  # Make all non-secret params optional in SQL
                 )
             )
             position += 1
@@ -2599,7 +2402,12 @@ class UDTFGenerator:
 
         return return_params
 
-    def _parse_udtf_params(self, view_id: str, debug: bool = False) -> list[FunctionParameterInfo]:
+    def _parse_udtf_params(
+        self,
+        view_id: str,
+        debug: bool = False,
+        udtf_file: Path | None = None,
+    ) -> list[FunctionParameterInfo]:
         """Parse UDTF function parameters.
 
         The UDTF function signature includes:
@@ -2618,7 +2426,11 @@ class UDTFGenerator:
         view = self._get_view_by_id(view_id)
 
         if not view:
-            raise ValueError(f"View '{view_id}' not found in data model")
+            if udtf_file is None:
+                raise ValueError(f"View '{view_id}' not found in data model")
+            udtf_code = udtf_file.read_text()
+            udtf_class = self._extract_udtf_class_from_ast(udtf_code, udtf_file)
+            return self._parse_udtf_params_from_class(udtf_class, debug=debug)
 
         input_params: list[FunctionParameterInfo] = []
         position = 0
@@ -2673,28 +2485,18 @@ class UDTFGenerator:
             property_type, is_relationship, is_multi = self._get_property_type(prop)
 
             if is_relationship:
-                if is_multi:
-                    # TODO: MultiReverseDirectRelation (ARRAY<STRING>) support is temporarily disabled
-                    # The Databricks API rejects all array type_json formats we've tried.
-                    # Skipping these properties for now until we find the correct format.
-                    if debug:
-                        print(
-                            f"  [SKIP] {prop_name}: MultiReverseDirectRelation - "
-                            f"skipping (ARRAY type_json format not supported by API yet)"
-                        )
-                    continue
-                else:
-                    # DirectRelation or SingleReverseDirectRelation: STRING (single external_id reference)
-                    sql_type = "STRING"
-                    type_name = ColumnTypeName.STRING
-                    spark_type = StringType()
-                    # Unity Catalog expects DataType JSON, not StructField JSON
-                    type_json_value = TypeConverter.spark_to_datatype_json(spark_type)
-                    if debug:
-                        print(
-                            f"  [{position}] {prop_name}: type_text='STRING', "
-                            f"type_name=ColumnTypeName.STRING (single relationship - external_id reference)"
-                        )
+                # Represent relationships as STRING (external_id or JSON list for multi).
+                sql_type = "STRING"
+                type_name = ColumnTypeName.STRING
+                spark_type = StringType()
+                # Unity Catalog expects DataType JSON, not StructField JSON
+                type_json_value = TypeConverter.spark_to_datatype_json(spark_type)
+                if debug:
+                    relation_kind = "multi relation (JSON list)" if is_multi else "single relation (external_id)"
+                    print(
+                        f"  [{position}] {prop_name}: type_text='STRING', "
+                        f"type_name=ColumnTypeName.STRING ({relation_kind})"
+                    )
             else:
                 # Use PySpark as source of truth - build Spark type first, then derive SQL type
                 prop_spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
@@ -2840,7 +2642,7 @@ class UDTFGenerator:
             # Default fallback
             return "string"
 
-    def _build_output_schema(self, view_id: str) -> StructType:
+    def _build_output_schema(self, view_id: str, debug: bool = False) -> StructType:
         """Build the output schema StructType (matching generated UDTF's outputSchema()).
 
         This creates the exact same StructType that the generated UDTF code uses,
@@ -2849,6 +2651,7 @@ class UDTFGenerator:
 
         Args:
             view_id: View external_id
+            debug: If True, includes debug columns in the schema (matching template behavior)
 
         Returns:
             PySpark StructType matching the UDTF's outputSchema()
@@ -2877,6 +2680,42 @@ class UDTFGenerator:
                 field_spark_type = TypeConverter.cdf_to_spark(property_type, is_array=is_multi)  # type: ignore[assignment]
 
             fields.append(StructField(udtf_field.name, field_spark_type, nullable=udtf_field.nullable))
+
+        # Add space and external_id fields (matching template outputSchema)
+        fields.append(StructField("space", StringType(), nullable=False))
+        fields.append(StructField("external_id", StringType(), nullable=False))
+
+        # Add timestamp fields (matching template outputSchema)
+        from pyspark.sql.types import TimestampType
+        fields.append(StructField("createdTime", TimestampType(), nullable=True))
+        fields.append(StructField("lastUpdatedTime", TimestampType(), nullable=True))
+        fields.append(StructField("deletedTime", TimestampType(), nullable=True))
+
+        # Add debug columns when debug=True (matching template outputSchema)
+        if debug:
+            from pyspark.sql.types import LongType
+            fields.extend(
+                [
+                    StructField("_debug_auth_status", StringType(), nullable=True),
+                    StructField("_debug_api_status", StringType(), nullable=True),
+                    StructField("_debug_api_items_count", LongType(), nullable=True),
+                    StructField("_debug_execution_mode", StringType(), nullable=True),
+                    StructField("_debug_rows_yielded", LongType(), nullable=True),
+                    StructField("_debug_error", StringType(), nullable=True),
+                    StructField("_debug_schema_info", StringType(), nullable=True),
+                    StructField("_debug_column_count", LongType(), nullable=True),
+                    StructField("_debug_column_names", StringType(), nullable=True),
+                    # Array processing debug columns
+                    StructField("_debug_tags_raw", StringType(), nullable=True),
+                    StructField("_debug_tags_extracted", StringType(), nullable=True),
+                    StructField("_debug_tags_normalized", StringType(), nullable=True),
+                    StructField("_debug_tags_types", StringType(), nullable=True),
+                    StructField("_debug_aliases_raw", StringType(), nullable=True),
+                    StructField("_debug_aliases_extracted", StringType(), nullable=True),
+                    StructField("_debug_aliases_normalized", StringType(), nullable=True),
+                    StructField("_debug_aliases_types", StringType(), nullable=True),
+                ]
+            )
 
         return StructType(fields)
 
@@ -3121,7 +2960,7 @@ class UDTFGenerator:
         # Use PySpark's type equality
         return bool(type1 == type2)  # type: ignore[no-any-return]
 
-    def _parse_return_type(self, view_id: str) -> str:
+    def _parse_return_type(self, view_id: str, udtf_file: Path | None = None, debug: bool = False) -> str:
         """Parse UDTF return type using PySpark StructType.
 
         Builds the same StructType as the generated UDTF's outputSchema() and converts
@@ -3129,13 +2968,22 @@ class UDTFGenerator:
 
         Args:
             view_id: View external_id
+            udtf_file: Optional UDTF file path (used when view not found in data model)
+            debug: If True, includes debug columns in the schema
 
         Returns:
             SQL return type string (e.g., "TABLE(col1 STRING, col2 INT, col3 ARRAY<STRING>)")
         """
         # Build StructType (same as generated UDTF's outputSchema())
-        struct_type = self._build_output_schema(view_id)
-        # Convert to SQL DDL
+        view = self._get_view_by_id(view_id)
+        if view is None:
+            if udtf_file is None:
+                raise ValueError(f"View '{view_id}' not found in data model")
+            udtf_code = udtf_file.read_text()
+            udtf_class = self._extract_udtf_class_from_ast(udtf_code, udtf_file)
+            return self._parse_return_type_from_class(udtf_class)
+
+        struct_type = self._build_output_schema(view_id, debug=debug)
         return str(TypeConverter.struct_type_to_ddl(struct_type))  # type: ignore[no-any-return]
 
     def _parse_return_params(self, view_id: str, debug: bool = False) -> list[FunctionParameterInfo]:
@@ -3147,13 +2995,13 @@ class UDTFGenerator:
 
         Args:
             view_id: View external_id
-            debug: If True, prints parameter details
+            debug: If True, includes debug columns and prints parameter details
 
         Returns:
             List of FunctionParameterInfo objects for the UDTF return columns
         """
         # Build StructType (same as generated UDTF's outputSchema())
-        struct_type = self._build_output_schema(view_id)
+        struct_type = self._build_output_schema(view_id, debug=debug)
 
         return_params: list[FunctionParameterInfo] = []
 

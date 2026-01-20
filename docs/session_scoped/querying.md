@@ -2,36 +2,89 @@
 
 ## Basic SQL Queries
 
-Once registered, UDTFs can be queried using standard SQL:
+Once registered, UDTFs can be queried using standard SQL. **For Unity Catalog registered UDTFs, all parameters must be explicitly provided.**
+
+### Complete Example (All Parameters Required for Unity Catalog)
 
 ```sql
--- Query a Data Model UDTF
-SELECT * FROM small_boat_udtf(
-    SECRET('cdf_sailboat_sailboat', 'client_id'),
-    SECRET('cdf_sailboat_sailboat', 'client_secret'),
-    SECRET('cdf_sailboat_sailboat', 'tenant_id'),
-    SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
-    SECRET('cdf_sailboat_sailboat', 'project'),
-    NULL,  -- name filter
-    NULL,  -- description filter
-    ...
-) LIMIT 10;
+-- Complete query with all parameters (REQUIRED for Unity Catalog registered UDTFs)
+SELECT *
+FROM f0connectortest.sailboat_sailboat_v1.small_boat_udtf(
+  client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
+  client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+  tenant_id     => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+  cdf_cluster   => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+  project       => SECRET('cdf_sailboat_sailboat', 'project'),
+  name          => NULL,
+  description   => NULL,
+  tags          => NULL,
+  aliases       => NULL,
+  sourceId      => NULL,
+  sourceContext => NULL,
+  source        => NULL,
+  sourceCreatedTime => NULL,
+  sourceUpdatedTime => NULL,
+  sourceCreatedUser => NULL,
+  sourceUpdatedUser => NULL,
+  asset         => NULL,
+  serialNumber  => NULL,
+  manufacturer  => NULL,
+  equipmentType => NULL,
+  files         => NULL,
+  activities    => NULL,
+  timeSeries    => NULL,
+  mmsi_country  => NULL,
+  boat_guid     => NULL,
+  mmsi          => NULL,
+  small_boat_guid => NULL
+)
+LIMIT 10;
 ```
+
+### Expected Output Columns
+
+The UDTF returns 27 columns:
+- **22 view property columns**: All properties from the data model view
+- **space** (StringType, non-nullable): The space of the instance
+- **external_id** (StringType, non-nullable): The external ID of the instance
+- **createdTime** (TimestampType, nullable): When the instance was created in CDF
+- **lastUpdatedTime** (TimestampType, nullable): When the instance was last updated in CDF
+- **deletedTime** (TimestampType, nullable): When the instance was deleted (NULL if not deleted)
 
 ## Named Parameters
 
-UDTFs support named parameters for cleaner SQL:
+UDTFs support named parameters. **For Unity Catalog registered UDTFs, all parameters must be explicitly provided:**
 
 ```sql
--- Using named parameters (recommended)
-SELECT * FROM small_boat_udtf(
+-- Using named parameters (all parameters required for Unity Catalog)
+SELECT * FROM f0connectortest.sailboat_sailboat_v1.small_boat_udtf(
     client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
     client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
     tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
     cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
     project => SECRET('cdf_sailboat_sailboat', 'project'),
     name => 'MyBoat',
-    description => NULL
+    description => NULL,
+    tags => NULL,
+    aliases => NULL,
+    sourceId => NULL,
+    sourceContext => NULL,
+    source => NULL,
+    sourceCreatedTime => NULL,
+    sourceUpdatedTime => NULL,
+    sourceCreatedUser => NULL,
+    sourceUpdatedUser => NULL,
+    asset => NULL,
+    serialNumber => NULL,
+    manufacturer => NULL,
+    equipmentType => NULL,
+    files => NULL,
+    activities => NULL,
+    timeSeries => NULL,
+    mmsi_country => NULL,
+    boat_guid => NULL,
+    mmsi => NULL,
+    small_boat_guid => NULL
 ) LIMIT 10;
 ```
 
@@ -45,6 +98,28 @@ SECRET('cdf_sailboat_sailboat', 'client_id')
 ```
 
 **Important**: All UDTF SELECT statements must use SECRET() for credential parameters. Never use direct string literals for credentials in production code.
+
+## Important Notes
+
+### Unity Catalog Parameter Requirement
+
+⚠️ **Unity Catalog requires ALL parameters to be explicitly provided in SQL queries**, even if they have default values in the Python code. Unity Catalog validates function calls at the SQL level and does not recognize Python default values or `parameter_default="NULL"` settings.
+
+**Error if parameters are missing:**
+```
+[REQUIRED_PARAMETER_NOT_FOUND] Cannot invoke routine `catalog`.`schema`.`small_boat_udtf` 
+because the parameter named `name` is required, but the routine call did not supply a value.
+```
+
+**Solution**: Always provide all parameters when querying Unity Catalog registered UDTFs directly. Use the complete query format shown above.
+
+### Pagination
+
+The UDTF automatically handles pagination using `nextCursor` to fetch all pages of results from the CDF API. You don't need to handle pagination manually.
+
+### Timestamp Fields
+
+The `createdTime`, `lastUpdatedTime`, and `deletedTime` fields are automatically converted from milliseconds (CDF API format) to datetime objects (PySpark TimestampType).
 
 ## Time Series UDTF Queries
 

@@ -136,6 +136,16 @@ def _create_default_time_series_configs() -> dict[str, TimeSeriesUDTFConfig]:
             view_name="time_series_datapoints",
             parameters=["instance_id", "start", "end", "aggregates", "granularity"],
         ),
+        "time_series_datapoints_detailed_udtf": TimeSeriesUDTFConfig(
+            udtf_name="time_series_datapoints_detailed_udtf",
+            view_name="time_series_datapoints_detailed",
+            parameters=["instance_id", "start", "end", "aggregates", "granularity"],
+        ),
+        "time_series_datapoints_multi_udtf": TimeSeriesUDTFConfig(
+            udtf_name="time_series_datapoints_multi_udtf",
+            view_name="time_series_datapoints_multi",
+            parameters=["instance_ids", "start", "end", "aggregates", "granularity", "include_aggregate_name"],
+        ),
         "time_series_datapoints_long_udtf": TimeSeriesUDTFConfig(
             udtf_name="time_series_datapoints_long_udtf",
             view_name="time_series_datapoints_long",
