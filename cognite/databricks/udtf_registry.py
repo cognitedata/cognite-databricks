@@ -19,6 +19,12 @@ from databricks.sdk.service.catalog import (
     FunctionParameterInfos,
 )
 
+# UpdateFunction may not be in all SDK versions - use CreateFunction as fallback
+try:
+    from databricks.sdk.service.catalog import UpdateFunction  # type: ignore[attr-defined]
+except ImportError:
+    UpdateFunction = CreateFunction  # type: ignore[assignment,misc]
+
 if TYPE_CHECKING:
     pass
 
@@ -61,8 +67,12 @@ class UDTFRegistry:
             ColumnTypeName,
             FunctionParameterInfo,
             FunctionParameterInfos,
-            UpdateFunction,
         )
+        # UpdateFunction may not be in all SDK versions - use CreateFunction as fallback
+        try:
+            from databricks.sdk.service.catalog import UpdateFunction  # type: ignore[attr-defined]
+        except ImportError:
+            UpdateFunction = CreateFunction  # type: ignore[assignment,misc]
 
         try:
             # Get the function (metadata is retrievable via SDK even if Spark fails)
@@ -141,7 +151,7 @@ class UDTFRegistry:
             )
             self.workspace_client.functions.update(
                 name=full_function_name,
-                function_info=update_function,
+                function_info=update_function,  # type: ignore[call-arg]
             )
 
             if debug:
@@ -226,7 +236,13 @@ class UDTFRegistry:
         start_time = time.time()
         timeout_seconds = 300
         while True:
+            if statement_id is None:
+                raise ValueError("statement_id cannot be None")
             result = self.workspace_client.statement_execution.get_statement(statement_id)
+            if result is None:
+                raise ValueError("get_statement returned None")
+            if result.status is None:
+                raise ValueError("result.status is None")
             state = result.status.state
             state_str = str(state).upper() if state is not None else ""
             if debug:
@@ -302,7 +318,13 @@ class UDTFRegistry:
         start_time = time.time()
         timeout_seconds = 300
         while True:
+            if statement_id is None:
+                raise ValueError("statement_id cannot be None")
             result = self.workspace_client.statement_execution.get_statement(statement_id)
+            if result is None:
+                raise ValueError("get_statement returned None")
+            if result.status is None:
+                raise ValueError("result.status is None")
             state = result.status.state
             state_str = str(state).upper() if state is not None else ""
             if debug:
@@ -495,7 +517,7 @@ class UDTFRegistry:
             print(f"[DEBUG] return_params_wrapped.as_dict() = {return_params_dict}")
             print(f"[DEBUG] return_params_wrapped.parameters = {return_params_wrapped.parameters}")
 
-        create_function = CreateFunction(**create_function_kwargs)  # type: ignore[call-overload]
+        create_function = CreateFunction(**create_function_kwargs)  # type: ignore[call-overload,arg-type]
 
         # Debug: Check what CreateFunction will serialize
         if debug:
@@ -514,7 +536,7 @@ class UDTFRegistry:
             print("[DEBUG] CreateFunction object built, calling workspace_client.functions.create()...")
 
         try:
-            result = self.workspace_client.functions.create(function_info=create_function)
+            result = self.workspace_client.functions.create(function_info=create_function)  # type: ignore[call-arg]
             if debug:
                 print(f"[DEBUG] UDTF '{full_function_name}' registered successfully!")
             return result

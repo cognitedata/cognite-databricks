@@ -1356,7 +1356,8 @@ class UDTFGenerator:
 
                 if debug:
                     print(
-                        f"[DEBUG] Total matched data model views: {matched_count} out of {len(view_sql_result.view_sqls)}"
+                        f"[DEBUG] Total matched data model views: {matched_count} out of "
+                        f"{len(view_sql_result.view_sqls)}"
                     )
             except (ValueError, AttributeError, KeyError) as e:
                 if debug:
@@ -1407,7 +1408,8 @@ class UDTFGenerator:
 
                 if debug:
                     print(
-                        f"[DEBUG] Total matched data model views: {matched_count} out of {len(view_sql_result.view_sqls)}"
+                        f"[DEBUG] Total matched data model views: {matched_count} out of "
+                        f"{len(view_sql_result.view_sqls)}"
                     )
             except (ValueError, AttributeError, KeyError) as e:
                 if debug:
@@ -1830,7 +1832,8 @@ class UDTFGenerator:
             udtf_dir = self.code_generator.output_dir / self.code_generator.top_level_package
             if not udtf_dir.exists():
                 raise FileNotFoundError(
-                    f"UDTF directory not found: {catalog_dir} or {udtf_dir}. Make sure generate_udtfs() was called first."
+                    f"UDTF directory not found: {catalog_dir} or {udtf_dir}. "
+                    "Make sure generate_udtfs() was called first."
                 )
 
         # Find all *_udtf.py files
@@ -1967,10 +1970,10 @@ class UDTFGenerator:
 
         # Execute code WITHOUT decorator to get the class (pygen-main style: execute but control environment)
         # Create a mock udtf decorator that returns the class unchanged
-        def _mock_udtf(*args, **kwargs):
+        def _mock_udtf(*args: object, **kwargs: dict[str, object]) -> object:
             """Mock udtf decorator that returns the class unchanged."""
 
-            def decorator(cls):
+            def decorator(cls: type) -> type:
                 return cls
 
             return decorator
@@ -2008,24 +2011,24 @@ class UDTFGenerator:
             """Mock _create_py_udtf that bypasses validation."""
             return cls
 
-        mock_connect_udtf._create_py_udtf = _mock_create_py_udtf
-        mock_connect.udtf = mock_connect_udtf
-        mock_sql.connect = mock_connect
+        mock_connect_udtf._create_py_udtf = _mock_create_py_udtf  # type: ignore[attr-defined]
+        mock_connect.udtf = mock_connect_udtf  # type: ignore[attr-defined]
+        mock_sql.connect = mock_connect  # type: ignore[attr-defined]
 
         # Also mock pyspark.sql.udtf (the module containing _validate_udtf_handler)
         # This is critical - _validate_udtf_handler is called during UserDefinedTableFunction.__init__
         mock_pyspark_sql_udtf = type(sys)("udtf")
 
         # Mock _validate_udtf_handler to do nothing (bypass validation)
-        def _mock_validate_udtf_handler(func, returnType):
+        def _mock_validate_udtf_handler(func: object, returnType: object) -> None:
             """Mock _validate_udtf_handler that bypasses validation."""
             pass  # Do nothing, bypass validation
 
-        mock_pyspark_sql_udtf._validate_udtf_handler = _mock_validate_udtf_handler
-        mock_sql.udtf = mock_pyspark_sql_udtf  # Inject into pyspark.sql
+        mock_pyspark_sql_udtf._validate_udtf_handler = _mock_validate_udtf_handler  # type: ignore[attr-defined]
+        mock_sql.udtf = mock_pyspark_sql_udtf  # type: ignore[attr-defined]  # Inject into pyspark.sql
 
         mock_pyspark = type(sys)("pyspark")
-        mock_pyspark.sql = mock_sql
+        mock_pyspark.sql = mock_sql  # type: ignore[attr-defined]
 
         # Store original modules (if they exist) to restore later
         original_modules = {}
@@ -2226,7 +2229,7 @@ class UDTFGenerator:
         result_lines = []
         skip_next_empty = False
 
-        for i, line in enumerate(lines):
+        for _i, line in enumerate(lines):
             # Skip lines containing @udtf decorator
             if "@udtf(" in line or line.strip().startswith("@udtf"):
                 skip_next_empty = True
@@ -2333,7 +2336,7 @@ class UDTFGenerator:
             if param_name in ("start", "end", "before"):
                 from pyspark.sql.types import TimestampType
 
-                param_spark_type = TimestampType()
+                param_spark_type: DataType = TimestampType()
             # For scalar mode, infer type from annotation or default to STRING
             elif param_type is None or param_type is type(None):
                 param_spark_type = StringType()
