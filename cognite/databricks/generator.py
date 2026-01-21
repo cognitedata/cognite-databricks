@@ -1087,7 +1087,7 @@ class UDTFGenerator:
         # Scalar-only SQL registration does not require PySpark.
         # Check DBR version before proceeding
         self._check_dbr_version()
-        
+
         # Ensure schema exists before registering functions
         self._ensure_schema_exists()
 
