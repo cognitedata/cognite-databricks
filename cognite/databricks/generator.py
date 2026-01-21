@@ -24,8 +24,6 @@ from cognite.client.data_classes.data_modeling.views import (
     SingleReverseDirectRelation,
     ViewProperty,
 )
-from cognite.pygen_spark import SparkUDTFGenerator
-from cognite.pygen_spark.fields import UDTFField
 
 from cognite.databricks.models import (
     RegisteredUDTFResult,
@@ -37,6 +35,8 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 from cognite.databricks.type_converter import TypeConverter
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
+from cognite.pygen_spark import SparkUDTFGenerator
+from cognite.pygen_spark.fields import UDTFField
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
