@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from cognite.pygen_spark.utils import to_udtf_function_name
+
 from databricks.sdk import WorkspaceClient
 
 # Re-export for backward compatibility

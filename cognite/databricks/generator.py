@@ -2664,7 +2664,7 @@ class UDTFGenerator:
                         match = re.search(r"DBR:(\d+\.\d+\.\d+)", tags)
                         if match:
                             dbr_version = match.group(1)
-                    
+
                     # Also check if conf.get returns a version string directly (for testing/mocking)
                     # Try common conf keys that might contain DBR version
                     if not dbr_version:
