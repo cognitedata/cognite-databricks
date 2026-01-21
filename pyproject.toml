@@ -41,7 +41,7 @@ dev = [
     "pytest-rerunfailures>=14.0",
     "pytest-icdiff>=0.8",
     "black>=24.4.2",
-    "ruff>=0.1.0",
+    "ruff==0.6.2",  # Match pre-commit hook version (ruff-pre-commit v0.6.2)
     "mypy>=1.5.0",
     "pre-commit>=4.0.0",
     "pandas>=1.5.3",  # Required by cognite-pygen._build (via cognite-pygen-spark)
