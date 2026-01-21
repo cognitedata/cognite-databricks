@@ -46,7 +46,7 @@ class TypeConverter(BaseTypeConverter):
 
         if isinstance(spark_type, StringType):
             return ("STRING", ColumnTypeName.STRING)
-        elif isinstance(spark_type, (LongType, IntegerType)):
+        elif isinstance(spark_type, LongType | IntegerType):
             return ("INT", ColumnTypeName.INT)
         elif isinstance(spark_type, DoubleType):
             return ("DOUBLE", ColumnTypeName.DOUBLE)
@@ -84,7 +84,7 @@ class TypeConverter(BaseTypeConverter):
 
         if isinstance(spark_type, StringType):
             return '"string"'
-        elif isinstance(spark_type, (LongType, IntegerType)):
+        elif isinstance(spark_type, LongType | IntegerType):
             return '"long"'
         elif isinstance(spark_type, DoubleType):
             return '"double"'

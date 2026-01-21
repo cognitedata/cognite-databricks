@@ -199,10 +199,12 @@ def register_udtf_from_file(
             # Try importing from non-Connect module first
             import sys
 
+            # Initialize udtf_func to avoid mypy redefinition error
             if "pyspark.sql.functions" in sys.modules:
                 udtf_func = sys.modules["pyspark.sql.functions"].udtf
             else:
                 from pyspark.sql.functions import udtf as udtf_func  # type: ignore[import-not-found]
+
             output_schema = udtf_obj.outputSchema()
             udtf_wrapped = udtf_func(returnType=output_schema)(udtf_obj)
             spark_session.udtf.register(function_name, udtf_wrapped)  # type: ignore[attr-defined,union-attr]
