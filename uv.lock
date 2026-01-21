@@ -306,7 +306,7 @@ local = [
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
-    { name = "cognite-pygen-spark", specifier = ">=0.0.0" },
+    { name = "cognite-pygen-spark", specifier = ">=0.2.0" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
     { name = "marko", marker = "extra == 'dev'", specifier = ">=2.1.0,<3.0.0" },
@@ -346,16 +346,19 @@ wheels = [
 
 [[package]]
 name = "cognite-pygen-spark"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cognite-pygen" },
     { name = "cognite-sdk" },
     { name = "jinja2" },
+    { name = "protobuf" },
+    { name = "requests" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/7a/5d0abdd5e5ebb108e4fde7d1fbe69a2158e4b3a98a1c62e4ec808fbf12d5/cognite_pygen_spark-0.1.0.tar.gz", hash = "sha256:ebfd46241445e8735efa026e8e1fd1b3c48f2c2cc96d9143275e202bc310f1c0", size = 29114, upload-time = "2026-01-10T13:11:07.158Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b4/75/3654fcccad2baa7a46539589b07b5f5847f9092cba7b62eec38f71a51ace/cognite_pygen_spark-0.2.0.tar.gz", hash = "sha256:f781d61b0fa9243639a42ce004f9a7358665a079b2c1b5f104c0fc403d128424", size = 38440, upload-time = "2026-01-21T09:49:27.196Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/69/fc1e5383ac520e851a8b43ed56afa5e1ca4aa9c235ca1bd32557a032f69f/cognite_pygen_spark-0.1.0-py3-none-any.whl", hash = "sha256:73c3f895092ffeca1295bf4cc095e797a421b52c009d8dc484d135a517c255d5", size = 44688, upload-time = "2026-01-10T13:11:05.284Z" },
+    { url = "https://files.pythonhosted.org/packages/00/c2/138a7bb04d3aec5b9128f5cf6ac25fe247195e4e4ae924906a0ac2f6a876/cognite_pygen_spark-0.2.0-py3-none-any.whl", hash = "sha256:35d08e1f6b3152ee497fceee97fabcedc4a078d9afe0281be16e37daa5d2edac", size = 53119, upload-time = "2026-01-21T09:49:26.317Z" },
 ]
 
 [[package]]

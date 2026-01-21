@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING
 
 from databricks.sdk import WorkspaceClient
@@ -41,42 +42,39 @@ class UDTFRegistry:
         debug: bool = False,
     ) -> bool:
         """Repair corrupted type_json metadata for a UDTF that was registered via SQL.
-        
+
         This function fixes the "Zombie Metadata" issue where SQL registration
         generates empty/corrupt type_json, causing "end-of-input" errors.
-        
+
         Args:
             full_function_name: Full function name (catalog.schema.function)
             input_params: Original input parameters (to get type_text)
             return_type: Return type DDL string (e.g., "TABLE(col1 STRING, ...)")
             debug: If True, prints detailed information
-            
+
         Returns:
             True if repair succeeded, False otherwise
         """
         import json
+
         from databricks.sdk.service.catalog import (
-            UpdateFunction,
-            FunctionParameterInfos,
-            FunctionParameterInfo,
             ColumnTypeName,
+            FunctionParameterInfo,
+            FunctionParameterInfos,
+            UpdateFunction,
         )
-        
+
         try:
             # Get the function (metadata is retrievable via SDK even if Spark fails)
             func = self.workspace_client.functions.get(full_function_name)
-            
+
             # Helper to map SQL types to valid DataType JSON strings
             def get_clean_json(param_type_text: str) -> str:
                 """Convert SQL type text to DataType JSON format."""
                 pt = param_type_text.upper()
                 if "ARRAY" in pt:
                     # Generic Array<String> JSON
-                    return json.dumps({
-                        "type": "array",
-                        "elementType": "string",
-                        "containsNull": True
-                    })
+                    return json.dumps({"type": "array", "elementType": "string", "containsNull": True})
                 elif "STRING" in pt:
                     return '"string"'
                 elif "INT" in pt or "INTEGER" in pt:
@@ -95,40 +93,44 @@ class UDTFRegistry:
 
             # Rebuild Inputs - use original input_params to preserve parameter_default values
             fixed_inputs: list[FunctionParameterInfo] = []
-            
+
             # Create a lookup map from the function's current parameters (for reference)
             func_param_map = {}
             if func.input_params and func.input_params.parameters:
                 for p in func.input_params.parameters:
                     func_param_map[p.name] = p
-            
+
             # Use original input_params to preserve parameter_default and other metadata
             for orig_param in input_params:
                 # Use original parameter but fix type_json if needed
-                fixed_inputs.append(FunctionParameterInfo(
-                    name=orig_param.name,
-                    type_name=orig_param.type_name,
-                    type_text=orig_param.type_text,
-                    type_json=get_clean_json(orig_param.type_text),  # Fix type_json
-                    position=orig_param.position,
-                    parameter_mode=orig_param.parameter_mode,
-                    parameter_type=orig_param.parameter_type,
-                    parameter_default=orig_param.parameter_default,  # CRITICAL: Preserve default value
-                ))
+                fixed_inputs.append(
+                    FunctionParameterInfo(
+                        name=orig_param.name,
+                        type_name=orig_param.type_name,
+                        type_text=orig_param.type_text,
+                        type_json=get_clean_json(orig_param.type_text),  # Fix type_json
+                        position=orig_param.position,
+                        parameter_mode=orig_param.parameter_mode,
+                        parameter_type=orig_param.parameter_type,
+                        parameter_default=orig_param.parameter_default,  # CRITICAL: Preserve default value
+                    )
+                )
 
             # Rebuild Returns
             fixed_returns: list[FunctionParameterInfo] = []
             if func.return_params and func.return_params.parameters:
                 for p in func.return_params.parameters:
-                    fixed_returns.append(FunctionParameterInfo(
-                        name=p.name,
-                        type_name=p.type_name or ColumnTypeName.STRING,
-                        type_text=p.type_text or "STRING",
-                        type_json=get_clean_json(p.type_text or "STRING"),
-                        position=p.position,
-                        parameter_mode=p.parameter_mode,
-                        parameter_type=p.parameter_type,
-                    ))
+                    fixed_returns.append(
+                        FunctionParameterInfo(
+                            name=p.name,
+                            type_name=p.type_name or ColumnTypeName.STRING,
+                            type_text=p.type_text or "STRING",
+                            type_json=get_clean_json(p.type_text or "STRING"),
+                            position=p.position,
+                            parameter_mode=p.parameter_mode,
+                            parameter_type=p.parameter_type,
+                        )
+                    )
 
             # Push Update
             function_name_only = full_function_name.split(".")[-1]  # Just function name, not full name
@@ -141,11 +143,11 @@ class UDTFRegistry:
                 name=full_function_name,
                 function_info=update_function,
             )
-            
+
             if debug:
                 print(f"[DEBUG] ✓ Metadata repaired for {full_function_name}")
             return True
-            
+
         except Exception as e:
             if debug:
                 print(f"[DEBUG] ⚠ Failed to repair metadata for {full_function_name}: {e}")
@@ -187,7 +189,6 @@ class UDTFRegistry:
         This method is serverless-compatible and registers a persistent UDTF
         via the SQL Statement Execution API.
         """
-        import time
 
         full_function_name = f"{catalog}.{schema}.{function_name}"
         warehouse_id = warehouse_id or self._get_default_warehouse_id()
@@ -408,8 +409,6 @@ class UDTFRegistry:
                 self.workspace_client.functions.delete(full_function_name)
                 # Wait a brief moment to ensure deletion is complete
                 # This prevents race conditions where the function might still exist during creation
-                import time
-
                 time.sleep(0.5)
             elif if_exists == "error":
                 # Raise error immediately if function exists
@@ -429,13 +428,14 @@ class UDTFRegistry:
 
         # Wrap input_params in FunctionParameterInfos structure
         input_params_wrapped = FunctionParameterInfos(parameters=input_params)
-        
+
         # Validate and wrap return_params
         # Unity Catalog requires return_params to be populated for UDTFs (cannot be None or empty)
         if not return_params:
             raise ValueError(
-                f"return_params is required for UDTF registration but was None or empty. "
-                f"This indicates a bug in the generator - return_params should always be parsed from the UDTF class or view."
+                "return_params is required for UDTF registration but was None or empty. "
+                "This indicates a bug in the generator - return_params should always be "
+                "parsed from the UDTF class or view."
             )
         return_params_wrapped = FunctionParameterInfos(parameters=return_params)
 
@@ -467,21 +467,26 @@ class UDTFRegistry:
             "security_type": CreateFunctionSecurityType.DEFINER,
             "specific_name": function_name,
         }
-        
+
         # Patch as_dict() to ensure "parameters" field is always included in serialization
         # (SDK returns {} when parameters=[], but Unity Catalog requires {"parameters": [...]})
         original_as_dict = return_params_wrapped.as_dict
-        
+
         def patched_as_dict() -> dict:
             """Patched as_dict() that always includes 'parameters' field."""
             result = original_as_dict()
             # Ensure "parameters" field is always present (Unity Catalog requirement)
             if "parameters" not in result:
-                result["parameters"] = [p.as_dict() if hasattr(p, 'as_dict') else p for p in return_params_wrapped.parameters]
+                if return_params_wrapped.parameters is not None:
+                    result["parameters"] = [
+                        p.as_dict() if hasattr(p, "as_dict") else p for p in return_params_wrapped.parameters
+                    ]
+                else:
+                    result["parameters"] = []
             return result
-        
+
         return_params_wrapped.as_dict = patched_as_dict  # type: ignore[method-assign]
-        
+
         # Debug output
         if debug:
             print(f"[DEBUG] Including {len(return_params)} return_params in CreateFunction")
@@ -489,14 +494,14 @@ class UDTFRegistry:
             return_params_dict = return_params_wrapped.as_dict()
             print(f"[DEBUG] return_params_wrapped.as_dict() = {return_params_dict}")
             print(f"[DEBUG] return_params_wrapped.parameters = {return_params_wrapped.parameters}")
-        
-        create_function = CreateFunction(**create_function_kwargs)
-        
+
+        create_function = CreateFunction(**create_function_kwargs)  # type: ignore[call-overload]
+
         # Debug: Check what CreateFunction will serialize
         if debug:
             create_function_dict = create_function.as_dict()
             print(f"[DEBUG] CreateFunction.as_dict() includes return_params: {'return_params' in create_function_dict}")
-            if 'return_params' in create_function_dict:
+            if "return_params" in create_function_dict:
                 print(f"[DEBUG] CreateFunction.as_dict()['return_params'] = {create_function_dict['return_params']}")
             else:
                 print("[DEBUG] WARNING: return_params is missing from CreateFunction.as_dict()!")
@@ -787,8 +792,6 @@ class UDTFRegistry:
 
                 # View doesn't exist - this is a real error
                 # Wait briefly in case view creation is still in progress
-                import time
-
                 time.sleep(0.5)
 
                 # Check one more time

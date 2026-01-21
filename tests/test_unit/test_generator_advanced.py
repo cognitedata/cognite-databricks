@@ -134,6 +134,7 @@ class TestUDTFGeneratorAdvanced:
 
         # Verify field types and nullability
         from pyspark.sql.types import TimestampType
+
         assert schema.fields[-5].nullable is False, "space field must be non-nullable"
         assert schema.fields[-4].nullable is False, "external_id field must be non-nullable"
         assert schema.fields[-3].nullable is True, "createdTime field must be nullable"

@@ -1,4 +1,5 @@
 """Update build timestamp in _version.py before building."""
+
 from datetime import datetime
 from pathlib import Path
 
@@ -9,7 +10,7 @@ def update_build_timestamp() -> None:
     """Update __build_timestamp__ in _version.py with current datetime."""
     content = VERSION_FILE.read_text()
     timestamp = datetime.now().isoformat()
-    
+
     # Simple replacement: find the line and replace it
     lines = content.splitlines()
     new_lines = []
@@ -20,7 +21,7 @@ def update_build_timestamp() -> None:
             found = True
         else:
             new_lines.append(line)
-    
+
     # If not found, add it after __version__
     if not found:
         new_lines = []
@@ -28,7 +29,7 @@ def update_build_timestamp() -> None:
             new_lines.append(line)
             if line.strip().startswith("__version__"):
                 new_lines.append(f'__build_timestamp__ = "{timestamp}"  # Set during build')
-    
+
     VERSION_FILE.write_text("\n".join(new_lines) + "\n")
     print(f"Updated build timestamp to: {timestamp}")
 

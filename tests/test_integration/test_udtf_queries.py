@@ -99,6 +99,7 @@ class TestDataModelUdtfQueries:
                 # Verify named parameter support (Python keyword arguments)
                 assert "def" in code or "class" in code
 
+
 @pytest.mark.integration
 class TestTimeSeriesUdtfQueries:
     """Integration tests for Time Series UDTF queries from notebook."""
