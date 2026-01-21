@@ -16,9 +16,6 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install cognite-pygen-spark from git
-        run: |
-          uv pip install git+https://github.com/cognitedata/pygen-spark.git@main
       - name: Install required dependencies
         run: |
           uv sync --all-extras
@@ -41,9 +38,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install cognite-pygen-spark from git
-        run: |
-          uv pip install git+https://github.com/cognitedata/pygen-spark.git@main
       - run: uv sync --all-extras
 
       - name: Test
@@ -62,9 +56,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install cognite-pygen-spark from git
-        run: |
-          uv pip install git+https://github.com/cognitedata/pygen-spark.git@main
       - name: Install dependencies
         run: uv sync --all-extras
 
