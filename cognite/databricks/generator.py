@@ -24,6 +24,8 @@ from cognite.client.data_classes.data_modeling.views import (
     SingleReverseDirectRelation,
     ViewProperty,
 )
+from cognite.pygen_spark import SparkUDTFGenerator
+from cognite.pygen_spark.fields import UDTFField
 
 from cognite.databricks.models import (
     RegisteredUDTFResult,
@@ -35,8 +37,6 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 from cognite.databricks.type_converter import TypeConverter
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
-from cognite.pygen_spark import SparkUDTFGenerator
-from cognite.pygen_spark.fields import UDTFField
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -2664,6 +2664,25 @@ class UDTFGenerator:
                         match = re.search(r"DBR:(\d+\.\d+\.\d+)", tags)
                         if match:
                             dbr_version = match.group(1)
+                    
+                    # Also check if conf.get returns a version string directly (for testing/mocking)
+                    # Try common conf keys that might contain DBR version
+                    if not dbr_version:
+                        for key in [
+                            "spark.databricks.clusterUsageTags.clusterAllTags",
+                            "spark.databricks.clusterUsageTags.sparkVersion",
+                            "spark.databricks.clusterUsageTags.runtimeVersion",
+                        ]:
+                            try:
+                                value = spark.conf.get(key, "")
+                                if value:
+                                    # Check if it looks like a version string (e.g., "17.3.5-scala2.12" or "17.3.x")
+                                    version_match = re.match(r"(\d+\.\d+(?:\.\d+)?(?:\.x)?)", value)
+                                    if version_match:
+                                        dbr_version = version_match.group(1)
+                                        break
+                            except Exception:
+                                continue
                 except Exception:
                     # conf.get failed, will try SQL query next
                     pass
