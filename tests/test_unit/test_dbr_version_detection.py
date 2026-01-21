@@ -46,6 +46,9 @@ class TestDBRVersionDetection:
         mock_spark_session = MagicMock()
         mock_spark_session.getActiveSession.return_value = mock_spark
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         with patch("pyspark.sql.SparkSession", mock_spark_session):
             # This will call _get_dbr_version internally
             # We can't directly test the private method, so we test via register_udtfs_and_views
@@ -93,6 +96,9 @@ class TestDBRVersionDetection:
         mock_result.collect.return_value = [mock_row]
         mock_spark.sql.return_value = mock_result
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         mock_spark_session = MagicMock()
         mock_spark_session.getActiveSession.return_value = mock_spark
 
@@ -136,6 +142,9 @@ class TestDBRVersionDetection:
         mock_spark.conf.get.side_effect = Exception("Config not available")
         mock_spark.sql.side_effect = Exception("SQL query failed")
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         mock_spark_session = MagicMock()
         mock_spark_session.getActiveSession.return_value = mock_spark
 
@@ -178,6 +187,9 @@ class TestDBRVersionDetection:
         mock_spark.conf.get.side_effect = Exception("Config not available")
         mock_spark.sql.side_effect = Exception("SQL query failed")
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         mock_spark_session = MagicMock()
         mock_spark_session.getActiveSession.return_value = mock_spark
 
@@ -216,6 +228,9 @@ class TestDBRVersionDetection:
             code_generator=code_generator,
         )
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         # Mock Spark session with DBR 17.3 (too old)
         mock_spark = MagicMock()
         mock_spark.conf.get.return_value = "17.3.5-scala2.12"
@@ -253,6 +268,9 @@ class TestDBRVersionDetection:
             schema="test_schema",
             code_generator=code_generator,
         )
+
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
 
         # Mock Spark session with non-DBR version string
         mock_spark = MagicMock()
@@ -305,6 +323,9 @@ class TestDBRVersionDetection:
         mock_result.collect.return_value = [mock_row]
         mock_spark.sql.return_value = mock_result
 
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
+
         mock_spark_session = MagicMock()
         mock_spark_session.getActiveSession.return_value = mock_spark
 
@@ -342,6 +363,9 @@ class TestDBRVersionDetection:
             schema="test_schema",
             code_generator=code_generator,
         )
+
+        # Generate UDTFs first
+        code_generator.generate_udtfs()
 
         # Mock Spark session with DBR version "17.3.x" (should be normalized to "17.3" and raise error)
         mock_spark = MagicMock()

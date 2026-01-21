@@ -307,7 +307,7 @@ local = [
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
-    { name = "cognite-pygen-spark", specifier = ">=0.0.0" },
+    { name = "cognite-pygen-spark", specifier = ">=0.2.1" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
     { name = "marko", marker = "extra == 'dev'", specifier = ">=2.1.0,<3.0.0" },
@@ -348,7 +348,7 @@ wheels = [
 
 [[package]]
 name = "cognite-pygen-spark"
-version = "0.2.0"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cognite-pygen" },
@@ -358,9 +358,9 @@ dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/75/3654fcccad2baa7a46539589b07b5f5847f9092cba7b62eec38f71a51ace/cognite_pygen_spark-0.2.0.tar.gz", hash = "sha256:f781d61b0fa9243639a42ce004f9a7358665a079b2c1b5f104c0fc403d128424", size = 38440, upload-time = "2026-01-21T09:49:27.196Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2e/e5/c0013663ba4d23b8557c557f09b323fda194c13f12251184e71c68507d7b/cognite_pygen_spark-0.2.1.tar.gz", hash = "sha256:d2594a4b40cb41e488d486a00f715c15ed931e21f7966089ae944198ec58053f", size = 47690, upload-time = "2026-01-21T13:59:42.115Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/c2/138a7bb04d3aec5b9128f5cf6ac25fe247195e4e4ae924906a0ac2f6a876/cognite_pygen_spark-0.2.0-py3-none-any.whl", hash = "sha256:35d08e1f6b3152ee497fceee97fabcedc4a078d9afe0281be16e37daa5d2edac", size = 53119, upload-time = "2026-01-21T09:49:26.317Z" },
+    { url = "https://files.pythonhosted.org/packages/66/8a/3919aa4b39d9268b58a290b00778b76200d7c1e75ffe0c90ed16baa9dd24/cognite_pygen_spark-0.2.1-py3-none-any.whl", hash = "sha256:a2988bbe5ed4e12eb8ace68086e82c296fb1a755b04fd36acf0f6878a8897f2d", size = 60888, upload-time = "2026-01-21T13:59:41.149Z" },
 ]
 
 [[package]]

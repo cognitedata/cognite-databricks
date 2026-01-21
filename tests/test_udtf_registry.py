@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from databricks.sdk.errors import NotFound
-from databricks.sdk.service.catalog import FunctionInfo
+from databricks.sdk.service.catalog import ColumnTypeName, FunctionInfo, FunctionParameterInfo
 
 from cognite.databricks.udtf_registry import UDTFRegistry
 
@@ -33,6 +33,17 @@ def test_register_udtf(
     )
     mock_workspace_client.functions.create.return_value = created_function
 
+    # Create return_params for the return columns
+    return_params = [
+        FunctionParameterInfo(
+            name="id",
+            type_name=ColumnTypeName.INT,
+            type_text="INT",
+            type_json='{"type": "integer"}',
+            position=0,
+        )
+    ]
+
     result = udtf_registry.register_udtf(
         catalog="test_catalog",
         schema="test_schema",
@@ -40,7 +51,7 @@ def test_register_udtf(
         udtf_code="class TestUDTF: pass",
         input_params=[],
         return_type="TABLE(id INT)",
-        return_params=[],
+        return_params=return_params,
     )
 
     assert result == created_function

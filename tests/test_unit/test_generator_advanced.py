@@ -244,7 +244,7 @@ class TestUDTFGeneratorAdvanced:
         class NoAnalyze:
             pass
 
-        with pytest.raises(ValueError, match="must have an analyze\\(\\) method"):
+        with pytest.raises(ValueError, match="must have either an analyze\\(\\) or eval\\(\\) method"):
             generator._parse_udtf_params_from_class(NoAnalyze)
 
     def test_parse_return_type_from_class(

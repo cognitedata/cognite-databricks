@@ -68,6 +68,7 @@ class UDTFRegistry:
             FunctionParameterInfo,
             FunctionParameterInfos,
         )
+
         # UpdateFunction may not be in all SDK versions - use CreateFunction as fallback
         try:
             from databricks.sdk.service.catalog import UpdateFunction  # type: ignore[attr-defined]

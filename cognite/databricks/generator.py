@@ -151,16 +151,23 @@ def register_udtf_from_file(
     except SyntaxError as e:
         raise ValueError(f"Invalid Python syntax in {udtf_file_path}: {e}") from e
 
-    udtf_class_name: str | None = None
+    udtf_class_names: list[str] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef):
             has_eval = any(isinstance(item, ast.FunctionDef) and item.name == "eval" for item in node.body)
             if has_eval:
-                udtf_class_name = node.name
-                break
+                udtf_class_names.append(node.name)
 
-    if not udtf_class_name:
+    if len(udtf_class_names) == 0:
         raise ValueError(f"No UDTF class found in {udtf_file_path}. Expected a class with 'eval' method.")
+
+    if len(udtf_class_names) > 1:
+        raise ValueError(
+            f"Multiple UDTF classes found in {udtf_file_path}: {', '.join(udtf_class_names)}. "
+            "Expected exactly one UDTF class with 'eval' method."
+        )
+
+    udtf_class_name = udtf_class_names[0]
 
     if udtf_class_name not in namespace:
         raise ValueError(f"UDTF class '{udtf_class_name}' not found in executed namespace for {udtf_file_path}.")

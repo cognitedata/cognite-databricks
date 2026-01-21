@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from databricks.sdk.service.catalog import FunctionInfo
+from databricks.sdk.service.catalog import ColumnTypeName, FunctionInfo, FunctionParameterInfo
 from databricks.sdk.service.sql import StatementState
 
 from cognite.databricks.udtf_registry import UDTFRegistry
@@ -45,6 +45,17 @@ class TestUDTFRegistry:
         )
         mock_workspace_client.functions.get.return_value = existing_function
 
+        # Create return_params for the return columns
+        return_params = [
+            FunctionParameterInfo(
+                name="id",
+                type_name=ColumnTypeName.INT,
+                type_text="INT",
+                type_json='{"type": "integer"}',
+                position=0,
+            )
+        ]
+
         result = udtf_registry.register_udtf(
             catalog="test_catalog",
             schema="test_schema",
@@ -52,7 +63,7 @@ class TestUDTFRegistry:
             udtf_code="class TestUDTF: pass",
             input_params=[],
             return_type="TABLE(id INT)",
-            return_params=[],
+            return_params=return_params,
             if_exists="skip",
         )
 
@@ -81,6 +92,17 @@ class TestUDTFRegistry:
         )
         mock_workspace_client.functions.create.return_value = new_function
 
+        # Create return_params for the return columns
+        return_params = [
+            FunctionParameterInfo(
+                name="id",
+                type_name=ColumnTypeName.INT,
+                type_text="INT",
+                type_json='{"type": "integer"}',
+                position=0,
+            )
+        ]
+
         result = udtf_registry.register_udtf(
             catalog="test_catalog",
             schema="test_schema",
@@ -88,7 +110,7 @@ class TestUDTFRegistry:
             udtf_code="class TestUDTF: pass",
             input_params=[],
             return_type="TABLE(id INT)",
-            return_params=[],
+            return_params=return_params,
             if_exists="replace",
         )
 
@@ -115,6 +137,17 @@ class TestUDTFRegistry:
         )
         mock_workspace_client.functions.create.return_value = new_function
 
+        # Create return_params for the return columns
+        return_params = [
+            FunctionParameterInfo(
+                name="id",
+                type_name=ColumnTypeName.INT,
+                type_text="INT",
+                type_json='{"type": "integer"}',
+                position=0,
+            )
+        ]
+
         result = udtf_registry.register_udtf(
             catalog="test_catalog",
             schema="test_schema",
@@ -122,7 +155,7 @@ class TestUDTFRegistry:
             udtf_code="class TestUDTF: pass",
             input_params=[],
             return_type="TABLE(id INT)",
-            return_params=[],
+            return_params=return_params,
         )
 
         mock_workspace_client.functions.create.assert_called_once()
