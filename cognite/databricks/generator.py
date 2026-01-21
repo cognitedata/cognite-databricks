@@ -2657,6 +2657,7 @@ class UDTFGenerator:
             if spark:
                 try:
                     # Try to get DBR version from cluster tags
+                    # Note: This may raise an exception if conf.get is not available
                     tags = spark.conf.get("spark.databricks.clusterUsageTags.clusterAllTags", "")
                     if tags:
                         # Look for DBR version in tags (format: "DBR:18.1.5-scala2.12")
@@ -2664,8 +2665,10 @@ class UDTFGenerator:
                         if match:
                             dbr_version = match.group(1)
                 except Exception:
+                    # conf.get failed, will try SQL query next
                     pass
         except (ImportError, AttributeError, Exception):
+            # SparkSession not available, will try SQL query next
             pass
 
         # Method 2: Try SQL query
