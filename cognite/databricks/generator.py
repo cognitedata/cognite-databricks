@@ -808,6 +808,9 @@ class UDTFGenerator:
         required UDTF is missing, a ValueError is raised with a clear message listing
         all missing UDTFs.
 
+        Uses retry logic with exponential backoff to handle Unity Catalog propagation
+        delays, especially in serverless environments.
+
         Args:
             view_ids: List of view IDs (UDTF names derived from these)
             debug: Enable debug output
@@ -815,38 +818,67 @@ class UDTFGenerator:
         Raises:
             ValueError: If any required UDTF is missing, with detailed error message
         """
+        import time
+
         from databricks.sdk.errors import DatabricksError, NotFound
 
-        missing_udtfs: list[str] = []
+        if self.workspace_client is None:
+            raise RuntimeError("workspace_client is required for UDTF verification")
 
-        # Collect all UDTF names that are required
+        # Build dictionary of UDTFs to check
+        udtfs_to_check: dict[str, str] = {}
         for view_id in view_ids:
             udtf_name = to_udtf_function_name(view_id)
             full_function_name = f"{self.catalog}.{self.schema}.{udtf_name}"
+            udtfs_to_check[view_id] = full_function_name
 
-            # Check if function exists in Unity Catalog
-            if self.workspace_client is None:
-                raise RuntimeError("workspace_client is required for UDTF verification")
-            try:
-                function_info = self.workspace_client.functions.get(full_function_name)
-                if function_info:
+        missing_udtfs = list(udtfs_to_check.values())
+        max_retries = 5
+        retry_delay = 1.0  # seconds
+
+        # Retry loop with exponential backoff
+        for attempt in range(max_retries):
+            if not missing_udtfs:
+                break
+
+            found_this_round: list[str] = []
+            for full_function_name in missing_udtfs:
+                try:
+                    function_info = self.workspace_client.functions.get(full_function_name)
+                    if function_info:
+                        if debug:
+                            print(f"[DEBUG] ✓ UDTF {full_function_name} verified")
+                        found_this_round.append(full_function_name)
+                    else:
+                        # Function returned None, will retry
+                        pass
+                except NotFound:
+                    # Function not found, will retry
+                    pass
+                except DatabricksError as e:
+                    # For other Databricks SDK errors, log but will retry
                     if debug:
-                        print(f"[DEBUG] ✓ UDTF {full_function_name} verified")
-                else:
-                    missing_udtfs.append(full_function_name)
-            except NotFound:
-                missing_udtfs.append(full_function_name)
-            except DatabricksError as e:
-                # For other Databricks SDK errors, also consider it missing
-                if debug:
-                    print(f"[DEBUG] Error checking UDTF {full_function_name}: {e}")
-                missing_udtfs.append(full_function_name)
+                        print(f"[DEBUG] Error checking UDTF {full_function_name}: {e}")
 
-        # If any UDTFs are missing, raise error with clear message
+            # Remove found UDTFs from missing list
+            missing_udtfs = [name for name in missing_udtfs if name not in found_this_round]
+
+            # If still missing and not last attempt, wait before retry
+            if missing_udtfs and attempt < max_retries - 1:
+                if debug:
+                    print(
+                        f"[DEBUG] {len(missing_udtfs)} UDTF(s) not found. Retrying in {retry_delay:.1f}s... "
+                        f"(attempt {attempt + 1}/{max_retries})"
+                    )
+                time.sleep(retry_delay)
+                retry_delay *= 1.5  # Exponential backoff
+
+        # If any UDTFs are still missing, raise error with clear message
         if missing_udtfs:
-            missing_list = "\n  ".join(missing_udtfs)
+            missing_list = "\n  ".join(sorted(missing_udtfs))
             raise ValueError(
-                f"Cannot create views: The following UDTFs are required but not found in Unity Catalog:\n"
+                f"Cannot create views: The following UDTFs are required but not found in Unity Catalog "
+                f"after {max_retries} attempts:\n"
                 f"  {missing_list}\n\n"
                 f"Please run register_udtfs() first in a separate notebook cell to register all UDTFs.\n"
                 f"After UDTF registration completes successfully, you can then run register_views() in a new cell."
