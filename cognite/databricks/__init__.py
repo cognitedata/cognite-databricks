@@ -1,10 +1,5 @@
 """Helper SDK for Databricks UDTF registration and Unity Catalog integration."""
 
-from cognite.pygen_spark.time_series_udtfs import (
-    TimeSeriesDatapointsUDTF,
-    TimeSeriesLatestDatapointsUDTF,
-)
-
 from cognite.databricks._version import __version__
 from cognite.databricks.generator import (
     UDTFGenerator,
@@ -30,6 +25,10 @@ from cognite.databricks.utils import (
     inspect_recently_created_udtf,
     list_functions_in_schema,
     to_udtf_function_name,
+)
+from cognite.pygen_spark.time_series_udtfs import (
+    TimeSeriesDatapointsUDTF,
+    TimeSeriesLatestDatapointsUDTF,
 )
 
 __all__ = [
