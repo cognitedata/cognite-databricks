@@ -23,10 +23,12 @@ classifiers = [
 ]
 
 dependencies = [
-    # Note: cognite-pygen-spark is not yet published to PyPI (version 0.0.0 is placeholder)
+    # Note: cognite-pygen-spark is not yet published to PyPI
+    # For CI/CD: Installed from git in workflow before uv sync (see .github/workflows/build.yml)
     # For local development: Install from local path: uv pip install -e ../pygen-spark
-    # For CI/CD: Install from git before running uv sync (see .github/workflows/build.yml)
     # Once published, this will be: "cognite-pygen-spark>=0.1.0"
+    # Temporarily using git URL until published (uv will handle this)
+    "cognite-pygen-spark @ git+https://github.com/cognitedata/pygen-spark.git@main",
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
     "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml
