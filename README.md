@@ -2,7 +2,7 @@
 
 A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration utilities, Secret Manager integration, and Databricks-specific tooling for scalar UDTFs.
 
-**Note**: This is the initial release (0.1.0) of cognite-databricks.
+**Note**: This package provides Databricks-specific utilities for Unity Catalog UDTF registration and Secret Manager integration.
 
 ## Overview
 
