@@ -73,31 +73,6 @@ result = generator.register_udtfs_and_views(
 )
 ```
 
-### Issue: "register_udtfs_and_views() requires Databricks Runtime 18.1 or later"
-
-**Error Message:**
-```
-ValueError: register_udtfs_and_views() requires Databricks Runtime 18.1 or later. 
-Current version: 17.3.x. Please upgrade to DBR 18.1+ or use register_session_scoped_udtfs() 
-for pre-DBR 18.1 environments.
-```
-
-**Solution**: You have two options:
-
-1. **Upgrade to DBR 18.1+** (recommended for production):
-   - Upgrade your cluster to Databricks Runtime 18.1 or later
-   - Then use `register_udtfs_and_views()` as normal
-
-2. **Use Session-Scoped Registration** (for development/testing):
-   ```python
-   # Use register_session_scoped_udtfs() instead
-   registered = generator.register_session_scoped_udtfs()
-   ```
-   This works on all DBR versions and doesn't require Unity Catalog view registration.
-
-**Why this requirement?**
-View registration via the SQL Statement Execution API requires DBR 18.1+. The function automatically detects your DBR version using multiple fallback methods to ensure accurate version detection.
-
 ### Issue: View creation fails with "end-of-input" error
 
 **Solution**: This is often a false positive. The view may still be created successfully. Verify the view exists:

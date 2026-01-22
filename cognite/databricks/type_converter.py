@@ -14,6 +14,7 @@ from pyspark.sql.types import (  # type: ignore[import-not-found]
     DataType,
     DateType,
     DoubleType,
+    IntegerType,
     LongType,
     StringType,
     TimestampType,
@@ -46,7 +47,7 @@ class TypeConverter(BaseTypeConverter):
 
         if isinstance(spark_type, StringType):
             return ("STRING", ColumnTypeName.STRING)
-        elif isinstance(spark_type, LongType):
+        elif isinstance(spark_type, LongType | IntegerType):
             return ("INT", ColumnTypeName.INT)
         elif isinstance(spark_type, DoubleType):
             return ("DOUBLE", ColumnTypeName.DOUBLE)
@@ -64,3 +65,47 @@ class TypeConverter(BaseTypeConverter):
             return (sql_type, ColumnTypeName.STRING)
         else:
             return ("STRING", ColumnTypeName.STRING)  # Default fallback
+
+    @staticmethod
+    def spark_to_datatype_json(spark_type: DataType) -> str:
+        """Convert PySpark DataType to DataType JSON string (for Unity Catalog type_json).
+
+        Unity Catalog's type_json field expects DataType JSON, not StructField JSON.
+
+        For simple types: Returns quoted string (e.g., '"string"', '"long"')
+        For complex types: Returns JSON object (e.g., '{"type":"array","elementType":"string","containsNull":true}')
+
+        Args:
+            spark_type: PySpark DataType
+
+        Returns:
+            JSON string representing the DataType (not StructField)
+        """
+        import json
+
+        if isinstance(spark_type, StringType):
+            return '"string"'
+        elif isinstance(spark_type, LongType | IntegerType):
+            return '"long"'
+        elif isinstance(spark_type, DoubleType):
+            return '"double"'
+        elif isinstance(spark_type, BooleanType):
+            return '"boolean"'
+        elif isinstance(spark_type, DateType):
+            return '"date"'
+        elif isinstance(spark_type, TimestampType):
+            return '"timestamp"'
+        elif isinstance(spark_type, ArrayType):
+            # For arrays, return the DataType JSON object
+            element_json = TypeConverter.spark_to_datatype_json(spark_type.elementType)
+            # element_json is a quoted string like '"string"', we need to unquote it
+            element_type_str = json.loads(element_json) if element_json.startswith('"') else element_json
+
+            array_json = {
+                "type": "array",
+                "elementType": element_type_str,
+                "containsNull": spark_type.containsNull,
+            }
+            return json.dumps(array_json)
+        else:
+            return '"string"'  # Default fallback

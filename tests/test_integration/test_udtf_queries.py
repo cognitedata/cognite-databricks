@@ -38,15 +38,11 @@ class TestUdtfRegistration:
         assert result is not None
         assert result.total_count > 0
 
-        # Register UDTFs - mock SparkSession for session-scoped registration
-        mock_spark_session = MagicMock()
-        with patch("pyspark.sql.SparkSession.getActiveSession", return_value=mock_spark_session):
-            registered = udtf_generator.register_session_scoped_udtfs(spark_session=mock_spark_session)
+        # Register UDTFs via SQL registration (Unity Catalog)
+        with patch.object(udtf_generator.udtf_registry, "register_udtf_via_sql", return_value=None):
+            registered = udtf_generator.register_udtfs(secret_scope="cdf_sailboat_sailboat", if_exists="replace")
         assert registered is not None
-        assert len(registered) > 0
-
-        # Verify registration was called (session-scoped uses spark_session.udtf.register, not workspace client)
-        assert mock_spark_session.udtf.register.called
+        assert len(registered.registered_udtfs) > 0
 
     def test_register_with_secret_scope(
         self,
@@ -58,12 +54,11 @@ class TestUdtfRegistration:
         mock_workspace_client.secrets.list_scopes.return_value = []
         mock_workspace_client.secrets.create_scope.return_value = None
 
-        # Generate and register - mock SparkSession
-        mock_spark_session = MagicMock()
+        # Generate and register via SQL registration
         if udtf_generator.code_generator:
             _ = udtf_generator.code_generator.generate_udtfs()
-        with patch("pyspark.sql.SparkSession.getActiveSession", return_value=mock_spark_session):
-            registered = udtf_generator.register_session_scoped_udtfs(spark_session=mock_spark_session)
+        with patch.object(udtf_generator.udtf_registry, "register_udtf_via_sql", return_value=None):
+            registered = udtf_generator.register_udtfs(secret_scope="cdf_sailboat_sailboat", if_exists="replace")
 
         assert registered is not None
 

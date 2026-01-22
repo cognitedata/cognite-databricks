@@ -6,7 +6,7 @@ repos:
     hooks:
       - id: uv-lock
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     hooks:
       - id: ruff
         args:

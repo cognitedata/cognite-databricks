@@ -95,7 +95,16 @@ class UDTFRegistrationResult(BaseModel):
 
 # Re-export CDFConnectionConfig from pygen-spark for backward compatibility
 # The actual implementation is in cognite.pygen_spark.config
-__all__ = ["CDFConnectionConfig"]
+__all__ = [
+    "CDFConnectionConfig",
+    "RegisteredUDTFResult",
+    "RegisteredViewResult",
+    "TimeSeriesUDTFConfig",
+    "TimeSeriesUDTFRegistry",
+    "UDTFRegistrationResult",
+    "ViewRegistrationResult",
+    "time_series_udtf_registry",
+]
 
 
 class TimeSeriesUDTFConfig(BaseModel):
@@ -125,17 +134,17 @@ def _create_default_time_series_configs() -> dict[str, TimeSeriesUDTFConfig]:
         "time_series_datapoints_udtf": TimeSeriesUDTFConfig(
             udtf_name="time_series_datapoints_udtf",
             view_name="time_series_datapoints",
-            parameters=["space", "external_id", "start", "end", "aggregates", "granularity"],
+            parameters=["instance_id", "start", "end", "aggregates", "granularity"],
         ),
-        "time_series_datapoints_long_udtf": TimeSeriesUDTFConfig(
-            udtf_name="time_series_datapoints_long_udtf",
-            view_name="time_series_datapoints_long",
-            parameters=["space", "external_ids", "start", "end", "aggregates", "granularity", "include_aggregate_name"],
+        "time_series_datapoints_detailed_udtf": TimeSeriesUDTFConfig(
+            udtf_name="time_series_datapoints_detailed_udtf",
+            view_name="time_series_datapoints_detailed",
+            parameters=["instance_id", "start", "end", "aggregates", "granularity"],
         ),
         "time_series_latest_datapoints_udtf": TimeSeriesUDTFConfig(
             udtf_name="time_series_latest_datapoints_udtf",
             view_name="time_series_latest_datapoints",
-            parameters=["space", "external_ids", "before", "include_status"],
+            parameters=["instance_ids", "before", "include_status"],
         ),
     }
 
@@ -177,3 +186,61 @@ class TimeSeriesUDTFRegistry(BaseModel):
 
 # Global registry instance (similar to pygen-main's global_config pattern)
 time_series_udtf_registry = TimeSeriesUDTFRegistry()
+
+
+class RegisteredViewResult(BaseModel):
+    """Result for a single view registration.
+
+    Args:
+        view_id: The external_id of the view
+        view_name: The full name of the registered view (if registered)
+        view_registered: Whether the view was successfully registered
+        error_message: Error message if registration failed
+    """
+
+    view_id: str
+    view_name: str | None = None
+    view_registered: bool = False
+    error_message: str | None = None
+
+
+class ViewRegistrationResult(BaseModel):
+    """Complete result of view registration operation.
+
+    Returns structured data instead of a dictionary, providing:
+    - Type safety with Pydantic validation
+    - Better IDE autocomplete support
+    - Self-documenting structure
+    - Convenience properties for access
+
+    Args:
+        registered_views: List of registered view results
+        catalog: The catalog where views were registered
+        schema_name: The schema where views were registered
+        total_count: Total number of view registration attempts
+    """
+
+    registered_views: list[RegisteredViewResult] = Field(default_factory=list)
+    catalog: str
+    schema_name: str  # Renamed from "schema" to avoid shadowing BaseModel.schema()
+    total_count: int = Field(ge=0)
+
+    @property
+    def by_view_id(self) -> dict[str, RegisteredViewResult]:
+        """Convenience property for dict-like access.
+
+        Returns:
+            Dictionary mapping view_id to RegisteredViewResult
+        """
+        return {r.view_id: r for r in self.registered_views}
+
+    def get(self, view_id: str) -> RegisteredViewResult | None:
+        """Get result for specific view_id.
+
+        Args:
+            view_id: The external_id of the view
+
+        Returns:
+            RegisteredViewResult if found, None otherwise
+        """
+        return self.by_view_id.get(view_id)

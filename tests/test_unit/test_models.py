@@ -168,7 +168,7 @@ class TestTimeSeriesUDTFRegistry:
         names = registry.get_all_udtf_names()
         assert len(names) == 3
         assert "time_series_datapoints_udtf" in names
-        assert "time_series_datapoints_long_udtf" in names
+        assert "time_series_datapoints_detailed_udtf" in names
         assert "time_series_latest_datapoints_udtf" in names
 
 
@@ -181,7 +181,7 @@ class TestCreateDefaultTimeSeriesConfigs:
 
         assert len(configs) == 3
         assert "time_series_datapoints_udtf" in configs
-        assert "time_series_datapoints_long_udtf" in configs
+        assert "time_series_datapoints_detailed_udtf" in configs
         assert "time_series_latest_datapoints_udtf" in configs
 
     def test_time_series_datapoints_udtf_config(self) -> None:

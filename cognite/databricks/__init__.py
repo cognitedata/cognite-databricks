@@ -27,7 +27,6 @@ from cognite.databricks.utils import (
     to_udtf_function_name,
 )
 from cognite.pygen_spark.time_series_udtfs import (
-    TimeSeriesDatapointsLongUDTF,
     TimeSeriesDatapointsUDTF,
     TimeSeriesLatestDatapointsUDTF,
 )
@@ -36,7 +35,6 @@ __all__ = [
     "CDFConnectionConfig",
     "RegisteredUDTFResult",
     "SecretManagerHelper",
-    "TimeSeriesDatapointsLongUDTF",
     "TimeSeriesDatapointsUDTF",
     "TimeSeriesLatestDatapointsUDTF",
     "TimeSeriesUDTFConfig",

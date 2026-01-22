@@ -13,7 +13,7 @@
 
 - ✅ **Developing and Testing**: Quickly test UDTFs before committing to Unity Catalog
 - ✅ **Prototyping**: Experiment with different configurations and queries
-- ✅ **DBR < 18.1**: Using Databricks Runtime versions that support `%pip` installations
+- ✅ **Development**: Quick setup for testing and development
 - ✅ **Temporary Analysis**: Running ad-hoc queries without permanent registration
 - ✅ **Learning**: Getting familiar with UDTFs and CDF data access patterns
 
@@ -31,7 +31,7 @@
 - ✅ **Access Control**: Need fine-grained permissions (GRANT/REVOKE)
 - ✅ **Enterprise Security**: Credentials stored securely in Databricks Secret Manager
 - ✅ **Team Collaboration**: Shared, discoverable data assets across teams
-- ✅ **DBR 18.1+**: Using Databricks Runtime 18.1+ with custom dependency support
+- ✅ **Production**: Using Unity Catalog for permanent, discoverable data assets
 
 **Key Characteristics:**
 - UDTFs and Views registered in Unity Catalog
