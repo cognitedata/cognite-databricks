@@ -6,7 +6,7 @@ Session-scoped UDTF registration allows you to register and use User-Defined Tab
 
 - **Development and Testing**: Quickly test UDTFs before committing to Unity Catalog registration
 - **Prototyping**: Experiment with different UDTF configurations and queries
-- **DBR < 18.1 Environments**: Use UDTFs in environments where custom dependencies can be installed via `%pip`
+- **Quick Setup**: Use UDTFs in environments where custom dependencies can be installed via `%pip`
 - **Temporary Analysis**: Run ad-hoc queries without permanent catalog registration
 
 Session-scoped UDTFs are registered using PySpark Connect and are only available within the current Spark session. They are automatically cleaned up when the session ends.

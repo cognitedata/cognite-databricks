@@ -13,7 +13,7 @@
 
 - ✅ **Developing and Testing**: Quickly test UDTFs before committing to Unity Catalog
 - ✅ **Prototyping**: Experiment with different configurations and queries
-- ✅ **Development**: Using Databricks Runtime versions that support `%pip` installations
+- ✅ **Development**: Quick setup for testing and development
 - ✅ **Temporary Analysis**: Running ad-hoc queries without permanent registration
 - ✅ **Learning**: Getting familiar with UDTFs and CDF data access patterns
 

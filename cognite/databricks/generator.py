@@ -1085,9 +1085,6 @@ class UDTFGenerator:
             ValueError: If PySpark version is less than 4.0.0 (required for vectorized UDTFs).
         """
         # Scalar-only SQL registration does not require PySpark.
-        # Check DBR version before proceeding
-        self._check_dbr_version()
-
         # Ensure schema exists before registering functions
         self._ensure_schema_exists()
 
@@ -2630,106 +2627,6 @@ class UDTFGenerator:
             print(f"[DEBUG] Total parameters: {len(input_params)}")
 
         return input_params
-
-    def _check_dbr_version(self) -> None:
-        """Check Databricks Runtime version and raise error if too old.
-
-        Requires DBR 18.1 or later for Unity Catalog UDTF support.
-
-        Tries multiple methods to detect DBR version:
-        1. Spark conf: spark.conf.get("spark.databricks.clusterUsageTags.clusterAllTags")
-        2. SQL query: SELECT current_version().dbr_version
-        3. Environment variable: DATABRICKS_RUNTIME_VERSION
-
-        Raises:
-            ValueError: If DBR version is less than 18.1
-        """
-        import os
-        import re
-
-        dbr_version: str | None = None
-
-        # Method 1: Try Spark conf
-        try:
-            from pyspark.sql import SparkSession  # type: ignore[import-not-found]
-
-            spark = SparkSession.getActiveSession()
-            if spark:
-                try:
-                    # Try to get DBR version from cluster tags
-                    # Note: This may raise an exception if conf.get is not available
-                    tags = spark.conf.get("spark.databricks.clusterUsageTags.clusterAllTags", "")
-                    if tags:
-                        # Look for DBR version in tags (format: "DBR:18.1.5-scala2.12")
-                        match = re.search(r"DBR:(\d+\.\d+\.\d+)", tags)
-                        if match:
-                            dbr_version = match.group(1)
-
-                    # Also check if conf.get returns a version string directly (for testing/mocking)
-                    # Try common conf keys that might contain DBR version
-                    if not dbr_version:
-                        for key in [
-                            "spark.databricks.clusterUsageTags.clusterAllTags",
-                            "spark.databricks.clusterUsageTags.sparkVersion",
-                            "spark.databricks.clusterUsageTags.runtimeVersion",
-                        ]:
-                            try:
-                                value = spark.conf.get(key, "")
-                                if value:
-                                    # Check if it looks like a version string (e.g., "17.3.5-scala2.12" or "17.3.x")
-                                    version_match = re.match(r"(\d+\.\d+(?:\.\d+)?(?:\.x)?)", value)
-                                    if version_match:
-                                        dbr_version = version_match.group(1)
-                                        break
-                            except Exception:
-                                continue
-                except Exception:
-                    # conf.get failed, will try SQL query next
-                    pass
-        except (ImportError, AttributeError, Exception):
-            # SparkSession not available, will try SQL query next
-            pass
-
-        # Method 2: Try SQL query
-        if not dbr_version:
-            try:
-                from pyspark.sql import SparkSession  # type: ignore[import-not-found]
-
-                spark = SparkSession.getActiveSession()
-                if spark:
-                    try:
-                        result = spark.sql("SELECT current_version().dbr_version AS dbr_version").collect()
-                        if result and len(result) > 0:
-                            dbr_version = result[0]["dbr_version"]
-                    except Exception:
-                        pass
-            except (ImportError, AttributeError, Exception):
-                pass
-
-        # Method 3: Try environment variable
-        if not dbr_version:
-            dbr_version = os.environ.get("DATABRICKS_RUNTIME_VERSION")
-
-        # Normalize version (remove .x suffix, extract major.minor)
-        if dbr_version:
-            # Remove .x suffix (e.g., "17.3.x" -> "17.3")
-            dbr_version = re.sub(r"\.x$", "", dbr_version)
-            # Extract major.minor (e.g., "18.1.5-scala2.12" -> "18.1")
-            match = re.match(r"(\d+)\.(\d+)", dbr_version)
-            if match:
-                major = int(match.group(1))
-                minor = int(match.group(2))
-                # Check if version is >= 18.1
-                if major < 18 or (major == 18 and minor < 1):
-                    raise ValueError(
-                        f"Databricks Runtime {dbr_version} is not supported. "
-                        "This package requires Databricks Runtime 18.1 or later."
-                    )
-                # Version is acceptable, return
-                return
-
-        # If we couldn't detect version, assume it's OK (don't block registration)
-        # This allows the code to work in environments where version detection isn't possible
 
     def _get_view_by_id(self, view_id: str) -> dm.View | None:
         """Get view from code_generator's data model by external_id."""
