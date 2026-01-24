@@ -146,6 +146,11 @@ def _create_default_time_series_configs() -> dict[str, TimeSeriesUDTFConfig]:
             view_name="time_series_latest_datapoints",
             parameters=["instance_ids", "before", "include_status"],
         ),
+        "time_series_sql_udtf": TimeSeriesUDTFConfig(
+            udtf_name="time_series_sql_udtf",
+            view_name="time_series_sql",
+            parameters=["instance_ids", "start_hint", "end_hint", "aggregate_hint", "granularity_hint"],
+        ),
     }
 
 
