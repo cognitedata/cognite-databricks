@@ -2,6 +2,8 @@
 
 A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration utilities, Secret Manager integration, and Databricks-specific tooling for scalar UDTFs.
 
+**Latest Release:** Version 0.2.1 adds SQL-native time series UDTF support with predicate pushdown hints and SQL query analyzer for extracting pushdown hints from SQL queries.
+
 **Note**: This package provides Databricks-specific utilities for Unity Catalog UDTF registration and Secret Manager integration.
 
 ## Overview
