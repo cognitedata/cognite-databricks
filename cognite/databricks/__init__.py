@@ -5,7 +5,11 @@ try:
         TimeSeriesDatapointsUDTF,
         TimeSeriesLatestDatapointsUDTF,
     )
-except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - fallback for environments without PySpark
+except (
+    ImportError,
+    ModuleNotFoundError,
+    AttributeError,
+):  # pragma: no cover - fallback for environments without PySpark
     TimeSeriesDatapointsUDTF = None  # type: ignore[assignment,misc]
     TimeSeriesLatestDatapointsUDTF = None  # type: ignore[assignment,misc]
 
@@ -20,7 +24,11 @@ try:
         generate_udtf_sql_query,
         register_udtf_from_file,
     )
-except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - fallback for environments without PySpark
+except (
+    ImportError,
+    ModuleNotFoundError,
+    AttributeError,
+):  # pragma: no cover - fallback for environments without PySpark
     UDTFGenerator = None  # type: ignore[assignment,misc]
     generate_session_scoped_notebook_code = None  # type: ignore[assignment,misc]
     generate_time_series_udtf_view_sql = None  # type: ignore[assignment,misc]
@@ -39,7 +47,11 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 
 try:
     from cognite.databricks.type_converter import TypeConverter
-except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - fallback for environments without PySpark
+except (
+    ImportError,
+    ModuleNotFoundError,
+    AttributeError,
+):  # pragma: no cover - fallback for environments without PySpark
     TypeConverter = None  # type: ignore[assignment,misc]
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import (
