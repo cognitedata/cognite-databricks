@@ -24,8 +24,9 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 6. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
 7. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
 8. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
-9. **[Governance](./governance.md)**: Set up Unity Catalog permissions
-10. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
+9. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
+10. **[Governance](./governance.md)**: Set up Unity Catalog permissions
+11. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
 ## Quick Links
 

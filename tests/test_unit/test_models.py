@@ -166,23 +166,25 @@ class TestTimeSeriesUDTFRegistry:
         registry = TimeSeriesUDTFRegistry()
 
         names = registry.get_all_udtf_names()
-        assert len(names) == 3
+        assert len(names) == 4
         assert "time_series_datapoints_udtf" in names
         assert "time_series_datapoints_detailed_udtf" in names
         assert "time_series_latest_datapoints_udtf" in names
+        assert "time_series_sql_udtf" in names
 
 
 class TestCreateDefaultTimeSeriesConfigs:
     """Tests for _create_default_time_series_configs function."""
 
     def test_create_default_configs(self) -> None:
-        """Test _create_default_time_series_configs returns all three UDTFs."""
+        """Test _create_default_time_series_configs returns all UDTFs."""
         configs = _create_default_time_series_configs()
 
-        assert len(configs) == 3
+        assert len(configs) == 4
         assert "time_series_datapoints_udtf" in configs
         assert "time_series_datapoints_detailed_udtf" in configs
         assert "time_series_latest_datapoints_udtf" in configs
+        assert "time_series_sql_udtf" in configs
 
     def test_time_series_datapoints_udtf_config(self) -> None:
         """Test time_series_datapoints_udtf configuration."""
@@ -198,4 +200,4 @@ class TestCreateDefaultTimeSeriesConfigs:
     def test_global_registry(self) -> None:
         """Test global time_series_udtf_registry instance."""
         assert isinstance(time_series_udtf_registry, TimeSeriesUDTFRegistry)
-        assert len(time_series_udtf_registry.get_all_udtf_names()) == 3
+        assert len(time_series_udtf_registry.get_all_udtf_names()) == 4

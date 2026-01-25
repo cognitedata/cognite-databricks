@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -11,6 +12,28 @@ from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from cognite.client.testing import monkeypatch_cognite_client
 from databricks.sdk import WorkspaceClient
+
+if os.name == "nt":
+    collect_ignore_glob = ["test_integration/*"]
+
+
+def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
+    """Skip integration tests on Windows to avoid PySpark Unix-only imports."""
+    if os.name == "nt" and "test_integration" in str(collection_path):
+        return True
+    if os.name == "nt":
+        windows_skip = {
+            "test_generator.py",
+            "test_generator_advanced.py",
+            "test_generator_functions.py",
+            "test_generator_methods.py",
+            "test_sql_analyzer.py",
+            "test_type_converter_databricks.py",
+            "test_udtf_registry.py",
+        }
+        if collection_path.name in windows_skip:
+            return True
+    return False
 
 
 @pytest.fixture()

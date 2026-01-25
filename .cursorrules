@@ -5,6 +5,8 @@
 1. **Use Pydantic to the highest degree possible**: Prefer Pydantic `BaseModel` over dictionaries, dataclasses, or untyped data structures
 2. **Use PySpark when possible**: PySpark DataTypes are the source of truth for all type conversions
 3. **Follow pygen-main style**: Code should look like it was written by the same developer as pygen-main
+4. **Testing and release process**: Follow `release.md` in the workspace root for test expectations and release workflow guidance
+5. **Review automation feedback**: Check Gemini Code Assist comments and GitHub PR checks for relevant PRs
 
 ## Type Safety & Data Structures
 

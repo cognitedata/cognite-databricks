@@ -104,6 +104,17 @@ class TestDataModelUdtfQueries:
 class TestTimeSeriesUdtfQueries:
     """Integration tests for Time Series UDTF queries from notebook."""
 
+    def test_time_series_sql_udtf_generation(self, udtf_generator: UDTFGenerator) -> None:
+        """Test SQL-native time series UDTF generation."""
+        if udtf_generator.code_generator:
+            result = udtf_generator.code_generator.generate_time_series_udtfs()
+            sql_udtf_file = result.get_file("time_series_sql_udtf")
+            if sql_udtf_file is None:
+                pytest.skip("time_series_sql_udtf template not available in installed cognite-pygen-spark")
+            assert sql_udtf_file.exists()
+            code = sql_udtf_file.read_text()
+            assert "TimeSeriesSqlUDTF" in code
+
     def test_single_time_series_instance_id_parsing(self) -> None:
         """Test single time series instance_id parsing (Cell 17)."""
         from cognite.pygen_spark.utils import parse_instance_id

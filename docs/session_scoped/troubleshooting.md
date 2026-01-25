@@ -74,6 +74,48 @@ print("Registered functions:", registered)
 # ) LIMIT 10;
 ```
 
+### Issue: "[NOT_A_SCALAR_FUNCTION] ... appears as a scalar expression here"
+
+**Cause**: UDTFs are table functions. The SQL syntax differs between notebook `%sql` and SQL Warehouse.
+
+**Solution**: Use the table-function syntax for your environment:
+
+**Notebook `%sql` (cluster-backed):**
+```sql
+SELECT *
+FROM time_series_datapoints_detailed_udtf(
+  client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
+  client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+  tenant_id     => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+  cdf_cluster   => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+  project       => SECRET('cdf_sailboat_sailboat', 'project'),
+  instance_ids  => 'space1:ts1,space1:ts2',
+  start         => current_timestamp() - INTERVAL 52 WEEKS,
+  end           => current_timestamp() - INTERVAL 51 WEEKS,
+  aggregates    => 'average',
+  granularity   => '2h'
+) AS t;
+```
+
+**SQL Warehouse (Databricks SQL):**
+```sql
+SELECT *
+FROM TABLE(
+  time_series_datapoints_detailed_udtf(
+    client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id     => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster   => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project       => SECRET('cdf_sailboat_sailboat', 'project'),
+    instance_ids  => 'space1:ts1,space1:ts2',
+    start         => current_timestamp() - INTERVAL 52 WEEKS,
+    end           => current_timestamp() - INTERVAL 51 WEEKS,
+    aggregates    => 'average',
+    granularity   => '2h'
+  )
+);
+```
+
 ### Issue: Time Series UDTF returns NULL values
 
 **Possible Causes:**

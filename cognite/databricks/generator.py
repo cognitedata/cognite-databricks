@@ -323,6 +323,79 @@ def generate_time_series_udtf_view_sql(
     return "\n".join(sql_lines)
 
 
+def generate_time_series_sql_view(
+    secret_scope: str,
+    catalog: str | None = None,
+    schema: str | None = None,
+    view_name: str | None = None,
+    instance_ids: str | None = None,
+    start_hint: str | None = None,
+    end_hint: str | None = None,
+    aggregate_hint: str | None = None,
+    granularity_hint: str | None = None,
+    udtf_name: str = "time_series_sql_udtf",
+) -> str:
+    """Generate SQL CREATE VIEW statement for SQL-native time series UDTF.
+
+    Args:
+        secret_scope: Databricks Secret Manager scope name
+        catalog: Optional catalog name. If None, uses placeholder "{{ catalog }}"
+        schema: Optional schema name. If None, uses placeholder "{{ schema }}"
+        view_name: Optional view name. If None, uses default from TimeSeriesUDTFRegistry
+        instance_ids: Optional instance IDs (format: "space1:ext1,space2:ext2")
+        start_hint: Optional start timestamp hint
+        end_hint: Optional end timestamp hint
+        aggregate_hint: Optional aggregate hint (e.g., "average", "sum")
+        granularity_hint: Optional granularity hint (e.g., "14d", "1h")
+        udtf_name: UDTF function name (defaults to "time_series_sql_udtf")
+
+    Returns:
+        SQL CREATE VIEW statement
+    """
+    from cognite.databricks.models import time_series_udtf_registry
+
+    config = time_series_udtf_registry.get_config(udtf_name)
+    if config is None:
+        available_udtfs = time_series_udtf_registry.get_all_udtf_names()
+        raise ValueError(f"Unknown time series UDTF: {udtf_name}. Available UDTFs: {available_udtfs}")
+
+    if catalog and schema:
+        catalog_schema_prefix = f"{catalog}.{schema}."
+    elif catalog:
+        catalog_schema_prefix = f"{catalog}.{{{{ schema }}}}."
+    elif schema:
+        catalog_schema_prefix = f"{{{{ catalog }}}}.{schema}."
+    else:
+        catalog_schema_prefix = "{{ catalog }}.{{ schema }}."
+
+    if view_name is None:
+        view_name = config.view_name
+
+    def _sql_literal(value: str | None) -> str:
+        if value is None:
+            return "NULL"
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+
+    sql_lines = [
+        f"CREATE OR REPLACE VIEW {catalog_schema_prefix}{view_name} AS",
+        f"SELECT * FROM {catalog_schema_prefix}{udtf_name}(",
+        f"    client_id       => SECRET('{secret_scope}', 'client_id'),",
+        f"    client_secret   => SECRET('{secret_scope}', 'client_secret'),",
+        f"    tenant_id       => SECRET('{secret_scope}', 'tenant_id'),",
+        f"    cdf_cluster     => SECRET('{secret_scope}', 'cdf_cluster'),",
+        f"    project         => SECRET('{secret_scope}', 'project'),",
+        f"    instance_ids    => {_sql_literal(instance_ids)},",
+        f"    start_hint      => {_sql_literal(start_hint)},",
+        f"    end_hint        => {_sql_literal(end_hint)},",
+        f"    aggregate_hint  => {_sql_literal(aggregate_hint)},",
+        f"    granularity_hint => {_sql_literal(granularity_hint)}",
+        ")",
+    ]
+
+    return "\n".join(sql_lines)
+
+
 def generate_udtf_sql_query(
     catalog: str,
     schema: str,

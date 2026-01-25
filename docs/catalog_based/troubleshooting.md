@@ -87,6 +87,48 @@ if view and view.table_type == "VIEW":
     print("✓ View exists despite error message")
 ```
 
+### Issue: "[NOT_A_SCALAR_FUNCTION] ... appears as a scalar expression here"
+
+**Cause**: UDTFs are table functions. The SQL syntax differs between notebook `%sql` and SQL Warehouse.
+
+**Solution**: Use the table-function syntax for your environment:
+
+**Notebook `%sql` (cluster-backed):**
+```sql
+SELECT *
+FROM main.cdf_models.time_series_datapoints_detailed_udtf(
+  client_id     => SECRET('cdf_scope', 'client_id'),
+  client_secret => SECRET('cdf_scope', 'client_secret'),
+  tenant_id     => SECRET('cdf_scope', 'tenant_id'),
+  cdf_cluster   => SECRET('cdf_scope', 'cdf_cluster'),
+  project       => SECRET('cdf_scope', 'project'),
+  instance_ids  => 'space1:ts1,space1:ts2',
+  start         => current_timestamp() - INTERVAL 52 WEEKS,
+  end           => current_timestamp() - INTERVAL 51 WEEKS,
+  aggregates    => 'average',
+  granularity   => '2h'
+) AS t;
+```
+
+**SQL Warehouse (Databricks SQL):**
+```sql
+SELECT *
+FROM TABLE(
+  main.cdf_models.time_series_datapoints_detailed_udtf(
+    client_id     => SECRET('cdf_scope', 'client_id'),
+    client_secret => SECRET('cdf_scope', 'client_secret'),
+    tenant_id     => SECRET('cdf_scope', 'tenant_id'),
+    cdf_cluster   => SECRET('cdf_scope', 'cdf_cluster'),
+    project       => SECRET('cdf_scope', 'project'),
+    instance_ids  => 'space1:ts1,space1:ts2',
+    start         => current_timestamp() - INTERVAL 52 WEEKS,
+    end           => current_timestamp() - INTERVAL 51 WEEKS,
+    aggregates    => 'average',
+    granularity   => '2h'
+  )
+);
+```
+
 ## Getting Help
 
 If you encounter issues not covered here:
