@@ -23,8 +23,8 @@ classifiers = [
 ]
 
 dependencies = [
-    # Note: For local builds, use >=0.0.0 to allow 0.0.0 wheels. For releases, update to >=0.2.1
-    "cognite-pygen-spark>=0.0.0",  # Use >=0.0.0 for local builds, >=0.2.1 for releases
+    # Note: For local builds, use >=0.0.0 to allow 0.0.0 wheels. For releases, update to >=0.2.2
+    "cognite-pygen-spark>=0.2.2",  # Use >=0.0.0 for local builds, >=0.2.2 for releases
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
     "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml
