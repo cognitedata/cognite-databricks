@@ -64,6 +64,18 @@ registry.register_view(
 The SQL-native time series UDTF (`time_series_sql_udtf`) is **alpha** and not fully tested. Expect changes. See
 [SQL-Native Time Series](./time_series_sql.md) for details and usage.
 
+## Detailed vs SQL-Native UDTFs
+
+**`time_series_datapoints_detailed_udtf`**:
+- Flexible: supports raw datapoints or aggregates (aggregates/granularity optional).
+- Returns status metadata (`status_code`, `status_symbol`) for datapoints.
+- Best for debugging or when you need status info.
+
+**`time_series_sql_udtf`**:
+- Requires aggregate + granularity hints (pushdown enforced).
+- Returns aggregated datapoints only (no status columns).
+- Best for SQL-native analytics and pushdown performance.
+
 ## Table Function Syntax (Notebook vs SQL Warehouse)
 
 Time series UDTFs are table functions. Use the syntax that matches your environment:

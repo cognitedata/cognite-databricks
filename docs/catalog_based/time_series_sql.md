@@ -14,6 +14,18 @@ The SQL-native UDTF uses **pushdown hints** for:
 
 These hints are required to avoid raw datapoint retrieval.
 
+## Detailed vs SQL-Native UDTFs
+
+**`time_series_datapoints_detailed_udtf`**:
+- Flexible: supports raw datapoints or aggregates (aggregates/granularity optional).
+- Returns status metadata (`status_code`, `status_symbol`) for datapoints.
+- Best for debugging or when you need status info.
+
+**`time_series_sql_udtf`** (this guide):
+- Requires aggregate + granularity hints (pushdown enforced).
+- Returns aggregated datapoints only (no status columns).
+- Best for SQL-native analytics and pushdown performance.
+
 ## UDTF Name
 
 `time_series_sql_udtf`

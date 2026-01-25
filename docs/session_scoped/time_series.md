@@ -42,6 +42,18 @@ See the [Querying](./querying.md) section for detailed examples of querying time
 - Multiple time series (long format)
 - Latest datapoints
 
+## Detailed vs SQL-Native UDTFs
+
+**`time_series_datapoints_detailed_udtf`**:
+- Flexible: supports raw datapoints or aggregates (aggregates/granularity optional).
+- Returns status metadata (`status_code`, `status_symbol`) for datapoints.
+- Best for debugging or when you need status info.
+
+**`time_series_sql_udtf`** (catalog-based):
+- Requires aggregate + granularity hints (pushdown enforced).
+- Returns aggregated datapoints only (no status columns).
+- Best for SQL-native analytics and pushdown performance.
+
 ## Table Function Syntax (Notebook vs SQL Warehouse)
 
 UDTFs are table functions, and the SQL syntax differs by environment:
