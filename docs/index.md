@@ -88,6 +88,7 @@ See [Catalog-Based Documentation](./catalog_based/index.md) for complete guide.
 - [Filtering](./catalog_based/filtering.md)
 - [Joining](./catalog_based/joining.md)
 - [Time Series](./catalog_based/time_series.md)
+- [SQL-Native Time Series (Alpha)](./catalog_based/time_series_sql.md)
 - [Governance](./catalog_based/governance.md)
 - [Troubleshooting](./catalog_based/troubleshooting.md)
 

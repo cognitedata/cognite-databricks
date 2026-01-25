@@ -2,6 +2,9 @@
 
 This guide describes the SQL-native Time Series UDTF that supports aggregate pushdown while remaining fully compatible with Unity Catalog.
 
+> **Status: Alpha**
+> The SQL-native time series UDTF is experimental and not fully tested. Expect changes.
+
 ## Overview
 
 The SQL-native UDTF uses **pushdown hints** for:
@@ -55,6 +58,46 @@ FROM main.cdf_models.time_series_sql_udtf(
     granularity_hint => '14d'
 )
 ORDER BY period_start_date DESC, external_id;
+```
+
+## Table Function Syntax (Notebook vs SQL Warehouse)
+
+Databricks SQL UDTFs are table functions, and the invocation syntax differs by environment:
+
+**Notebook `%sql` (cluster-backed):**
+```sql
+SELECT *
+FROM main.cdf_models.time_series_sql_udtf(
+    client_id        => SECRET('cdf_scope', 'client_id'),
+    client_secret    => SECRET('cdf_scope', 'client_secret'),
+    tenant_id        => SECRET('cdf_scope', 'tenant_id'),
+    cdf_cluster      => SECRET('cdf_scope', 'cdf_cluster'),
+    project          => SECRET('cdf_scope', 'project'),
+    instance_ids     => 'space1:ts1,space1:ts2',
+    start_hint       => '2025-01-01',
+    end_hint         => '2025-12-31',
+    aggregate_hint   => 'average',
+    granularity_hint => '14d'
+) AS t;
+```
+
+**SQL Warehouse (Databricks SQL):**
+```sql
+SELECT *
+FROM TABLE(
+  main.cdf_models.time_series_sql_udtf(
+      client_id        => SECRET('cdf_scope', 'client_id'),
+      client_secret    => SECRET('cdf_scope', 'client_secret'),
+      tenant_id        => SECRET('cdf_scope', 'tenant_id'),
+      cdf_cluster      => SECRET('cdf_scope', 'cdf_cluster'),
+      project          => SECRET('cdf_scope', 'project'),
+      instance_ids     => 'space1:ts1,space1:ts2',
+      start_hint       => '2025-01-01',
+      end_hint         => '2025-12-31',
+      aggregate_hint   => 'average',
+      granularity_hint => '14d'
+  )
+);
 ```
 
 ## Example: Extract Hints Programmatically

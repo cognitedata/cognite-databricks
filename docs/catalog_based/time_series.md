@@ -59,6 +59,51 @@ registry.register_view(
 )
 ```
 
+## SQL-Native Time Series (Alpha)
+
+The SQL-native time series UDTF (`time_series_sql_udtf`) is **alpha** and not fully tested. Expect changes. See
+[SQL-Native Time Series](./time_series_sql.md) for details and usage.
+
+## Table Function Syntax (Notebook vs SQL Warehouse)
+
+Time series UDTFs are table functions. Use the syntax that matches your environment:
+
+**Notebook `%sql` (cluster-backed):**
+```sql
+SELECT *
+FROM main.cdf_models.time_series_datapoints_detailed_udtf(
+  client_id     => SECRET('cdf_scope', 'client_id'),
+  client_secret => SECRET('cdf_scope', 'client_secret'),
+  tenant_id     => SECRET('cdf_scope', 'tenant_id'),
+  cdf_cluster   => SECRET('cdf_scope', 'cdf_cluster'),
+  project       => SECRET('cdf_scope', 'project'),
+  instance_ids  => 'space1:ts1,space1:ts2',
+  start         => current_timestamp() - INTERVAL 52 WEEKS,
+  end           => current_timestamp() - INTERVAL 51 WEEKS,
+  aggregates    => 'average',
+  granularity   => '2h'
+) AS t;
+```
+
+**SQL Warehouse (Databricks SQL):**
+```sql
+SELECT *
+FROM TABLE(
+  main.cdf_models.time_series_datapoints_detailed_udtf(
+    client_id     => SECRET('cdf_scope', 'client_id'),
+    client_secret => SECRET('cdf_scope', 'client_secret'),
+    tenant_id     => SECRET('cdf_scope', 'tenant_id'),
+    cdf_cluster   => SECRET('cdf_scope', 'cdf_cluster'),
+    project       => SECRET('cdf_scope', 'project'),
+    instance_ids  => 'space1:ts1,space1:ts2',
+    start         => current_timestamp() - INTERVAL 52 WEEKS,
+    end           => current_timestamp() - INTERVAL 51 WEEKS,
+    aggregates    => 'average',
+    granularity   => '2h'
+  )
+);
+```
+
 ## Querying Time Series Views
 
 ```sql

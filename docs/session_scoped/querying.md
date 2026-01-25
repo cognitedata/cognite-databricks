@@ -41,6 +41,50 @@ FROM f0connectortest.sailboat_sailboat_v1.small_boat_udtf(
 LIMIT 10;
 ```
 
+### Table Function Syntax (Notebook vs SQL Warehouse)
+
+UDTFs are table functions, and the SQL syntax differs by environment:
+
+**Notebook `%sql` (cluster-backed):**
+```sql
+SELECT *
+FROM f0connectortest.sailboat_sailboat_v1.time_series_datapoints_detailed_udtf(
+  client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
+  client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+  tenant_id     => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+  cdf_cluster   => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+  project       => SECRET('cdf_sailboat_sailboat', 'project'),
+  instance_ids  => 'space1:ts1,space1:ts2',
+  start         => current_timestamp() - INTERVAL 52 WEEKS,
+  end           => current_timestamp() - INTERVAL 51 WEEKS,
+  aggregates    => 'average',
+  granularity   => '2h'
+) AS t
+ORDER BY timestamp
+LIMIT 10;
+```
+
+**SQL Warehouse (Databricks SQL):**
+```sql
+SELECT *
+FROM TABLE(
+  f0connectortest.sailboat_sailboat_v1.time_series_datapoints_detailed_udtf(
+    client_id     => SECRET('cdf_sailboat_sailboat', 'client_id'),
+    client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+    tenant_id     => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+    cdf_cluster   => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+    project       => SECRET('cdf_sailboat_sailboat', 'project'),
+    instance_ids  => 'space1:ts1,space1:ts2',
+    start         => current_timestamp() - INTERVAL 52 WEEKS,
+    end           => current_timestamp() - INTERVAL 51 WEEKS,
+    aggregates    => 'average',
+    granularity   => '2h'
+  )
+)
+ORDER BY timestamp
+LIMIT 10;
+```
+
 ### Expected Output Columns
 
 The UDTF returns 27 columns:
