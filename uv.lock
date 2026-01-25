@@ -307,7 +307,7 @@ local = [
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
-    { name = "cognite-pygen-spark", specifier = ">=0.2.1" },
+    { name = "cognite-pygen-spark", specifier = ">=0.0.0" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
     { name = "marko", marker = "extra == 'dev'", specifier = ">=2.1.0,<3.0.0" },

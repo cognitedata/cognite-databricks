@@ -8,19 +8,36 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pyspark.sql.types import (  # type: ignore[import-not-found]
-    ArrayType,
-    BooleanType,
-    DataType,
-    DateType,
-    DoubleType,
-    IntegerType,
-    LongType,
-    StringType,
-    TimestampType,
-)
+try:
+    from cognite.pygen_spark.type_converter import TypeConverter as BaseTypeConverter
+except Exception:  # pragma: no cover - fallback for environments without PySpark
 
-from cognite.pygen_spark.type_converter import TypeConverter as BaseTypeConverter
+    class BaseTypeConverter:  # type: ignore[no-redef]
+        pass
+
+
+try:
+    from pyspark.sql.types import (  # type: ignore[import-not-found]
+        ArrayType,
+        BooleanType,
+        DataType,
+        DateType,
+        DoubleType,
+        IntegerType,
+        LongType,
+        StringType,
+        TimestampType,
+    )
+except Exception:  # pragma: no cover - fallback for environments without PySpark
+    ArrayType = object  # type: ignore[assignment,misc]
+    BooleanType = object  # type: ignore[assignment,misc]
+    DataType = object  # type: ignore[assignment,misc]
+    DateType = object  # type: ignore[assignment,misc]
+    DoubleType = object  # type: ignore[assignment,misc]
+    IntegerType = object  # type: ignore[assignment,misc]
+    LongType = object  # type: ignore[assignment,misc]
+    StringType = object  # type: ignore[assignment,misc]
+    TimestampType = object  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:
     from databricks.sdk.service.catalog import ColumnTypeName

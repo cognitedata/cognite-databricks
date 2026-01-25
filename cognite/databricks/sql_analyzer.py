@@ -30,8 +30,17 @@ class SQLQueryAnalyzer(BaseModel):
             PushdownHints with start/end/aggregate/granularity values when detected
         """
         normalized = " ".join(sql_query.strip().split())
-        start_hint = SQLQueryAnalyzer._extract_start_hint(normalized)
-        end_hint = SQLQueryAnalyzer._extract_end_hint(normalized)
+        between_match = re.search(
+            r"timestamp\s+between\s+['\"]([^'\"]+)['\"]\s+and\s+['\"]([^'\"]+)['\"]",
+            normalized,
+            flags=re.IGNORECASE,
+        )
+        if between_match:
+            start_hint = between_match.group(1)
+            end_hint = between_match.group(2)
+        else:
+            start_hint = SQLQueryAnalyzer._extract_start_hint(normalized)
+            end_hint = SQLQueryAnalyzer._extract_end_hint(normalized)
         aggregate_hint = SQLQueryAnalyzer._extract_aggregate_hint(normalized)
         granularity_hint = SQLQueryAnalyzer._extract_granularity_hint(normalized)
 
@@ -65,14 +74,6 @@ class SQLQueryAnalyzer(BaseModel):
     @staticmethod
     def _extract_start_hint(sql_query: str) -> str | None:
         """Extract start timestamp hint from WHERE clause."""
-        between_match = re.search(
-            r"timestamp\s+between\s+['\"]([^'\"]+)['\"]\s+and\s+['\"]([^'\"]+)['\"]",
-            sql_query,
-            flags=re.IGNORECASE,
-        )
-        if between_match:
-            return between_match.group(1)
-
         gte_match = re.search(r"timestamp\s*>=\s*['\"]([^'\"]+)['\"]", sql_query, flags=re.IGNORECASE)
         if gte_match:
             return gte_match.group(1)
@@ -86,14 +87,6 @@ class SQLQueryAnalyzer(BaseModel):
     @staticmethod
     def _extract_end_hint(sql_query: str) -> str | None:
         """Extract end timestamp hint from WHERE clause."""
-        between_match = re.search(
-            r"timestamp\s+between\s+['\"]([^'\"]+)['\"]\s+and\s+['\"]([^'\"]+)['\"]",
-            sql_query,
-            flags=re.IGNORECASE,
-        )
-        if between_match:
-            return between_match.group(2)
-
         lte_match = re.search(r"timestamp\s*<=\s*['\"]([^'\"]+)['\"]", sql_query, flags=re.IGNORECASE)
         if lte_match:
             return lte_match.group(1)
@@ -117,8 +110,27 @@ class SQLQueryAnalyzer(BaseModel):
         """Extract granularity from GROUP BY date expression.
 
         Looks for patterns like:
-        date_add('2025-01-01', CAST(FLOOR(datediff(timestamp, '2025-01-01') / 14) * 14 AS INT))
+        - date_trunc('hour', timestamp)
+        - date_trunc('day', timestamp)
+        - date_add('2025-01-01', CAST(FLOOR(datediff(timestamp, '2025-01-01') / 14) * 14 AS INT))
         """
+        date_trunc_match = re.search(
+            r"date_trunc\s*\(\s*['\"](\w+)['\"]\s*,\s*timestamp\s*\)",
+            sql_query,
+            flags=re.IGNORECASE,
+        )
+        if date_trunc_match:
+            unit = date_trunc_match.group(1).lower()
+            unit_map = {
+                "second": "s",
+                "sec": "s",
+                "minute": "m",
+                "min": "m",
+                "hour": "h",
+                "day": "d",
+            }
+            if unit in unit_map:
+                return f"1{unit_map[unit]}"
         match = re.search(
             r"datediff\s*\(\s*timestamp\s*,\s*['\"][^'\"]+['\"]\s*\)\s*/\s*(\d+)\s*\)\s*\*\s*\1",
             sql_query,

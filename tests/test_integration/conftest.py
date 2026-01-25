@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from cognite.client import CogniteClient
-from cognite.client import data_modeling as dm
-from cognite.client.testing import monkeypatch_cognite_client
-from databricks.sdk import WorkspaceClient
 
-from cognite.databricks.generator import UDTFGenerator
+if os.name == "nt":
+    collect_ignore = ["*"]
+else:
+    from cognite.client import CogniteClient
+    from cognite.client import data_modeling as dm
+    from cognite.client.testing import monkeypatch_cognite_client
+    from databricks.sdk import WorkspaceClient
+
+    from cognite.databricks.generator import UDTFGenerator
 
 
 @pytest.fixture()
