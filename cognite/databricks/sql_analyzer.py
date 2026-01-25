@@ -131,6 +131,7 @@ class SQLQueryAnalyzer(BaseModel):
             }
             if unit in unit_map:
                 return f"1{unit_map[unit]}"
+            return None
         match = re.search(
             r"datediff\s*\(\s*timestamp\s*,\s*['\"][^'\"]+['\"]\s*\)\s*/\s*(\d+)\s*\)\s*\*\s*\1",
             sql_query,

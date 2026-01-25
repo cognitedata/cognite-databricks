@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 try:
     from cognite.pygen_spark.type_converter import TypeConverter as BaseTypeConverter
-except Exception:  # pragma: no cover - fallback for environments without PySpark
+except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - fallback for environments without PySpark
 
     class BaseTypeConverter:  # type: ignore[no-redef]
         pass
@@ -28,7 +28,7 @@ try:
         StringType,
         TimestampType,
     )
-except Exception:  # pragma: no cover - fallback for environments without PySpark
+except (ImportError, ModuleNotFoundError, AttributeError):  # pragma: no cover - fallback for environments without PySpark
     ArrayType = object  # type: ignore[assignment,misc]
     BooleanType = object  # type: ignore[assignment,misc]
     DataType = object  # type: ignore[assignment,misc]
