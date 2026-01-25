@@ -7,9 +7,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cognite.pygen_spark.config import CDFConnectionConfig
 from pydantic import BaseModel, Field
 
+from cognite.pygen_spark.config import CDFConnectionConfig
 from databricks.sdk.service.catalog import FunctionInfo
 
 
