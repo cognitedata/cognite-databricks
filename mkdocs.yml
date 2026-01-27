@@ -1,0 +1,40 @@
+site_name: Cognite Databricks Docs
+docs_dir: docs
+use_directory_urls: false
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.tooltips
+
+nav:
+  - Home: index.md
+  - Session-Scoped (Development):
+    - Overview: session_scoped/index.md
+    - Installation: session_scoped/installation.md
+    - Registration: session_scoped/registration.md
+    - Querying: session_scoped/querying.md
+    - Filtering: session_scoped/filtering.md
+    - Joining: session_scoped/joining.md
+    - Time Series: session_scoped/time_series.md
+    - Troubleshooting: session_scoped/troubleshooting.md
+  - Catalog-Based (Production):
+    - Overview: catalog_based/index.md
+    - Quickstart: catalog_based/quickstart.md
+    - Prerequisites: catalog_based/prerequisites.md
+    - Secret Manager: catalog_based/secret_manager.md
+    - Registration: catalog_based/registration.md
+    - Views: catalog_based/views.md
+    - Querying: catalog_based/querying.md
+    - Filtering: catalog_based/filtering.md
+    - Joining: catalog_based/joining.md
+    - Time Series: catalog_based/time_series.md
+    - SQL-Native Time Series (Alpha): catalog_based/time_series_sql.md
+    - Governance: catalog_based/governance.md
+    - Troubleshooting: catalog_based/troubleshooting.md
+
+markdown_extensions:
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - tables
+  - admonition

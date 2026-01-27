@@ -16,19 +16,24 @@ Unity Catalog provides a three-level hierarchy: `catalog.schema.object` where UD
 
 This documentation covers the complete workflow for using catalog-based UDTFs and Views:
 
-1. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
-2. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
-3. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
-4. **[Views](./views.md)**: Understand Views and their benefits
-5. **[Querying](./querying.md)**: Query Views and UDTFs directly
-6. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
-7. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
-8. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
-9. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
-10. **[Governance](./governance.md)**: Set up Unity Catalog permissions
-11. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
+1. **[Quickstart](./quickstart.md)**: Get from zero to registered UDTFs and Views in one notebook (catalog-based)
+2. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
+3. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
+4. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
+5. **[Views](./views.md)**: Understand Views and their benefits
+6. **[Querying](./querying.md)**: Query Views and UDTFs directly
+7. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
+8. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
+9. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
+10. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
+11. **[Governance](./governance.md)**: Set up Unity Catalog permissions
+12. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
 ## Quick Links
+
+### Quickstart
+
+- [Catalog-Based Quickstart](./quickstart.md): End-to-end flow based on the init quickstart notebook (install → generate → Secret Manager → register UDTFs and Views)
 
 ### Examples
 

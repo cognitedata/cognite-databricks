@@ -1,0 +1,10 @@
+# Example CDF configuration for cognite-databricks.
+# Copy this file, replace placeholders with your values, and do not commit secrets.
+# Use a path like /Workspace/Users/<your-user>/config.toml in Databricks.
+
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "westeurope-1"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
