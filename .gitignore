@@ -45,3 +45,6 @@ temp_udtfs/
 .DS_Store
 Thumbs.db
 
+# PR description drafts (not for commit)
+pr_description*.md
+
