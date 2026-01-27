@@ -38,6 +38,24 @@ Access to CDF credentials is required:
 
 These credentials are typically stored in a TOML file and then transferred to Databricks Secret Manager.
 
+### Example CDF config TOML (no secrets)
+
+Use the following structure. Replace placeholders with your real values and **do not commit** the file with secrets. In Databricks, store it under a path like `/Workspace/Users/<your-user>/config.toml`.
+
+```toml
+# Example CDF configuration for cognite-databricks.
+# Copy, replace placeholders, and do not commit secrets.
+
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "westeurope-1"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+```
+
+An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
+
 ## CDF Data Model
 
 A CDF Data Model with Views (for Data Model UDTFs) or Time Series (for Time Series UDTFs) is required.

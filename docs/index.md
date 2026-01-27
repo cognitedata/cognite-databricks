@@ -80,6 +80,7 @@ See [Catalog-Based Documentation](./catalog_based/index.md) for complete guide.
 - [Troubleshooting](./session_scoped/troubleshooting.md)
 
 ### Catalog-Based UDTF Registration
+- [Quickstart](./catalog_based/quickstart.md)
 - [Prerequisites](./catalog_based/prerequisites.md)
 - [Secret Manager](./catalog_based/secret_manager.md)
 - [Registration](./catalog_based/registration.md)
