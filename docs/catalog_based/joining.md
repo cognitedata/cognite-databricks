@@ -188,12 +188,28 @@ meta_df = spark.sql("""
     WHERE space = 'sailboat' AND name = 'MyBoat'
 """)
 
-# 2. Query the time series UDTF for just the instance_ids you need
-#    You can batch these or call the UDTF once per ID, but you control the number of calls
-#    (e.g., collect instance_ids from meta_df, then run UDTF in batch or one query per ID)
+# 2. Query the time series UDTF for the instance_ids you need (one or more calls—you control the count)
+#    Example: one UDTF call per instance_id from meta_df, then union the DataFrames
+ts_df = spark.sql("""
+    SELECT space, external_id, timestamp, value
+    FROM main.cdf_models.time_series_datapoints_udtf(
+        instance_id => 'sailboat:my-speed-ts',
+        start => '1d-ago',
+        end => 'now',
+        client_id => SECRET('cdf_sailboat_sailboat', 'client_id'),
+        client_secret => SECRET('cdf_sailboat_sailboat', 'client_secret'),
+        tenant_id => SECRET('cdf_sailboat_sailboat', 'tenant_id'),
+        cdf_cluster => SECRET('cdf_sailboat_sailboat', 'cdf_cluster'),
+        project => SECRET('cdf_sailboat_sailboat', 'project')
+    )
+""")
 
-# 3. Join the two DataFrames in Spark—this is fast and efficient
-result = meta_df.join(ts_df, on=["space", "external_id"], how="inner")
+# 3. Join on the time series keys (meta_df's refs match ts_df's space/external_id)
+result = meta_df.join(
+    ts_df,
+    (meta_df.speed_ts_space == ts_df.space) & (meta_df.speed_ts_external_id == ts_df.external_id),
+    how="inner",
+)
 ```
 
 **When to use this approach**: If your View would return more than a few hundred rows, or if you're seeing slow queries with `CROSS JOIN LATERAL`, try the separate-queries approach. You'll often see a 10x or more speedup because you're making far fewer CDF calls and doing less work per row.
