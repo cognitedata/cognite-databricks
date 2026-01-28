@@ -50,19 +50,19 @@ When you join two UDTFs (or a UDTF with a time series UDTF) using `CROSS JOIN LA
 
 **The key principle**: In a `CROSS JOIN LATERAL`, the **left side runs `eval()` once** and produces N rows. The **right side (inside `LATERAL`) runs `eval()` N times**—once for each row from the left.
 
-**To minimize UDTF invocations**: Put the **largest result set on the LEFT** (runs once), and the **smaller result set inside `LATERAL`** (runs per row). This way, the expensive operation (the UDTF) runs fewer times.
+**To minimize UDTF invocations**: Put the **smallest result set on the LEFT** (runs once and produces N rows). The **right-hand side (inside `LATERAL`) runs N times**—once per row from the left. So fewer rows on the left means fewer UDTF calls.
 
 **Example: Correct structure**
 
 ```sql
--- ✅ CORRECT: Large UDTF (1000 rows) on LEFT, small UDTF inside LATERAL
--- The first UDTF runs once, the second UDTF runs 1000 times (once per time series)
+-- ✅ CORRECT: Small result set (10 rows after WHERE) on LEFT, UDTF inside LATERAL
+-- The first UDTF runs once and returns 10 rows; the second UDTF runs only 10 times
 SELECT 
     meta.external_id AS ts_id,
     meta.name AS ts_name,
     data.timestamp,
     data.value
-FROM nmea_time_series_udtf(...) meta  -- Large result set (1000 time series)
+FROM nmea_time_series_udtf(..., name => 'MyBoat') meta  -- Small result set: filter to few rows (e.g. 10 time series)
 CROSS JOIN LATERAL (
     SELECT * FROM time_series_datapoints_udtf(
         instance_id => CONCAT(meta.space, ':', meta.external_id),
@@ -70,30 +70,29 @@ CROSS JOIN LATERAL (
         end => 'now',
         ...
     )
-) data  -- Small result set per time series (runs 1000 times, but each call is fast)
+) data  -- Runs 10 times (once per row from the left)
 WHERE meta.space = 'sailboat';
 ```
 
-**What happens**: The first UDTF (`nmea_time_series_udtf`) runs **once** and returns 1000 time series IDs. The second UDTF (`time_series_datapoints_udtf`) runs **1000 times** (once per time series), but each call is fast because it's fetching data for a single time series.
+**What happens**: The first UDTF runs **once** and returns 10 time series IDs (thanks to the filter). The second UDTF runs **10 times** (once per time series). Total UDTF invocations: 10.
 
 **Example: Incorrect structure (what NOT to do)**
 
 ```sql
--- ❌ WRONG: If you put a small UDTF (10 rows) on LEFT and a large UDTF inside LATERAL
--- The first UDTF runs once (10 rows), but the second UDTF runs 10 times
--- If the second UDTF returns 1000 datapoints per call, you're still doing 10 UDTF calls
--- This is inefficient if the second UDTF is expensive or if you could batch the calls
+-- ❌ WRONG: Unfiltered first UDTF (1000 rows) on LEFT
+-- The first UDTF runs once and returns 1000 rows; the second UDTF runs 1000 times
+-- That's 1000 CDF calls instead of 10—much slower
 
--- Better: Put the large result set on the LEFT so it runs once
+-- Better: Filter the left-hand UDTF so it returns few rows (e.g. one asset or a small set)
 ```
 
 **The pattern to follow**:
 
-1. **Estimate row counts**: How many rows will each UDTF produce?
-2. **Put the larger result set on the LEFT**: It runs `eval()` once.
-3. **Put the smaller, parameterized UDTF inside `LATERAL`**: It runs `eval()` per row, but each call is fast because it's processing a single parameter.
+1. **Estimate row counts**: How many rows will the left-hand side produce after filters?
+2. **Put the smaller result set on the LEFT**: Use filters so the left side returns as few rows as possible. It runs once.
+3. **Put the parameterized UDTF inside `LATERAL`**: It runs once per row from the left, so fewer rows on the left = fewer UDTF calls.
 
-**When this matters most**: When one UDTF is significantly larger than the other (e.g., 1000+ rows vs. 10 rows). If both UDTFs are similar in size, the difference is less critical.
+**When this matters most**: When the left side could produce many rows (e.g. thousands). Add filters so the left side is small; then the LATERAL UDTF runs fewer times and the query stays fast.
 
 ## CROSS JOIN LATERAL Patterns
 

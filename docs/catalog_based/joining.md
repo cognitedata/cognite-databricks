@@ -51,19 +51,19 @@ When you join a View with a time series UDTF using `CROSS JOIN LATERAL`, **the o
 
 **The key principle**: In a `CROSS JOIN LATERAL`, the **left side runs `eval()` once** and produces N rows. The **right side (inside `LATERAL`) runs `eval()` N times**—once for each row from the left.
 
-**To minimize UDTF invocations**: Put the **largest result set on the LEFT** (runs once), and the **smaller result set inside `LATERAL`** (runs per row). This way, the expensive operation (the UDTF) runs fewer times.
+**To minimize UDTF invocations**: Put the **smallest result set on the LEFT** (runs once and produces N rows). The **right-hand side (inside `LATERAL`) runs N times**—once per row from the left. So fewer rows on the left means fewer UDTF calls.
 
 **Example: Correct structure**
 
 ```sql
--- ✅ CORRECT: Large View (1000 rows) on LEFT, small UDTF inside LATERAL
--- The View runs once, the UDTF runs 1000 times (once per vessel)
+-- ✅ CORRECT: Small View (10 rows after WHERE) on LEFT, UDTF inside LATERAL
+-- The View runs once and returns 10 rows; the UDTF runs only 10 times (once per vessel)
 SELECT 
     v.external_id AS vessel_id,
     v.name AS vessel_name,
     ts.timestamp,
     ts.value AS speed
-FROM main.sailboat_sailboat_1.vessel v  -- Large result set (1000 vessels)
+FROM main.sailboat_sailboat_1.vessel v  -- Small result set: filter so you get few rows (e.g. 10 vessels)
 CROSS JOIN LATERAL (
     SELECT * FROM main.cdf_models.time_series_datapoints_udtf(
         instance_id => CONCAT(v.speed_ts_space, ':', v.speed_ts_external_id),
@@ -71,30 +71,29 @@ CROSS JOIN LATERAL (
         end => 'now',
         ...
     )
-) ts  -- Small result set per vessel (runs 1000 times, but each call is fast)
-WHERE v.space = 'sailboat';
+) ts  -- Runs 10 times (once per row from the left)
+WHERE v.space = 'sailboat' AND v.name = 'MyBoat';  -- Tight filter = small left result set
 ```
 
-**What happens**: The View query runs **once** and returns 1000 rows. The time series UDTF runs **1000 times** (once per vessel), but each call is fast because it's fetching data for a single time series.
+**What happens**: The View runs **once** and returns 10 rows (thanks to the filter). The time series UDTF runs **10 times** (once per vessel). Total UDTF invocations: 10.
 
 **Example: Incorrect structure (what NOT to do)**
 
 ```sql
--- ❌ WRONG: If you put a small View (10 rows) on LEFT and a large UDTF inside LATERAL
--- The View runs once (10 rows), but the UDTF runs 10 times
--- If the UDTF returns 1000 datapoints per call, you're still doing 10 UDTF calls
--- This is inefficient if the UDTF is expensive or if you could batch the calls
+-- ❌ WRONG: Unfiltered View (1000 rows) on LEFT
+-- The View runs once and returns 1000 rows; the UDTF runs 1000 times
+-- That's 1000 CDF calls instead of 10—much slower
 
--- Better: Put the large result set on the LEFT so it runs once
+-- Better: Add a tight WHERE so the left side returns few rows (e.g. one vessel or a small set)
 ```
 
 **The pattern to follow**:
 
-1. **Estimate row counts**: How many rows will each side produce?
-2. **Put the larger result set on the LEFT**: It runs `eval()` once.
-3. **Put the smaller, parameterized side inside `LATERAL`**: It runs `eval()` per row, but each call is fast because it's processing a single parameter.
+1. **Estimate row counts**: How many rows will the left side produce after filters?
+2. **Put the smaller result set on the LEFT**: Use a tight `WHERE` so the left side returns as few rows as possible. It runs once.
+3. **Put the parameterized UDTF inside `LATERAL`**: It runs once per row from the left, so fewer rows on the left = fewer UDTF calls.
 
-**When this matters most**: When one side is significantly larger than the other (e.g., 1000+ rows vs. 10 rows). If both sides are similar in size, the difference is less critical.
+**When this matters most**: When the left side could produce many rows (e.g. thousands). Add filters so the left side is small; then the LATERAL UDTF runs fewer times and the query stays fast.
 
 ## Joining Views with Time Series UDTFs
 
