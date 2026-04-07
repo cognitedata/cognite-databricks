@@ -37,6 +37,7 @@ from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
 from cognite.pygen_spark import SparkUDTFGenerator
 from cognite.pygen_spark.fields import UDTFField
+from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -561,11 +562,12 @@ def generate_session_scoped_notebook_code(
     example_function_name = to_udtf_function_name(example_view_id)
 
     # Get view properties for SQL example (optional - for positional parameter example)
-    view_property_names = []
+    view_property_names: list[str] = []
     try:
         view = generator._get_view_by_id(example_view_id)
         if view and view.properties:
-            view_property_names = list(view.properties.keys())
+            # Parameter order and names must match generated UDTF (reserved-word safe)
+            view_property_names = [f.name for f in SparkMultiAPIGenerator.udtf_fields_for_view(view)]
     except (AttributeError, KeyError):
         pass
 
@@ -2653,8 +2655,12 @@ class UDTFGenerator:
         if debug:
             print(f"[DEBUG] View property parameters ({len(view.properties)}):")
 
-        # Add view property parameters
+        # Add view property parameters (names must match generated UDTF analyze/eval parameters)
         for prop_name, prop in view.properties.items():
+            udtf_field = UDTFField.from_property(prop_name, prop, view.as_id())
+            if udtf_field is None:
+                continue
+
             property_type, is_relationship, is_multi = self._get_property_type(prop)
 
             if is_relationship:
@@ -2667,7 +2673,7 @@ class UDTFGenerator:
                 if debug:
                     relation_kind = "multi relation (JSON list)" if is_multi else "single relation (external_id)"
                     print(
-                        f"  [{position}] {prop_name}: type_text='STRING', "
+                        f"  [{position}] {udtf_field.name}: type_text='STRING', "
                         f"type_name=ColumnTypeName.STRING ({relation_kind})"
                     )
             else:
@@ -2678,13 +2684,13 @@ class UDTFGenerator:
                 type_json_value = TypeConverter.spark_to_datatype_json(prop_spark_type)
                 if debug:
                     print(
-                        f"  [{position}] {prop_name}: type_text='{sql_type}', "
+                        f"  [{position}] {udtf_field.name}: type_text='{sql_type}', "
                         f"type_name={type_name}, type_json='{type_json_value}'"
                     )
 
             input_params.append(
                 FunctionParameterInfo(
-                    name=prop_name,
+                    name=udtf_field.name,
                     type_text=sql_type,
                     type_name=type_name,
                     type_json=type_json_value,
@@ -2837,7 +2843,7 @@ class UDTFGenerator:
         for prop_name, prop in view.properties.items():
             # Use UDTFField.from_property to get the same logic as generated code
             # This ensures we skip the same properties (e.g., MultiReverseDirectRelation)
-            udtf_field = UDTFField.from_property(prop_name, prop)
+            udtf_field = UDTFField.from_property(prop_name, prop, view.as_id())
             if udtf_field is None:
                 continue  # Skipped property (e.g., MultiReverseDirectRelation)
 
@@ -3252,6 +3258,10 @@ class UDTFGenerator:
 
         # Process each property to find relationships
         for prop_name, prop in view.properties.items():
+            udtf_field = UDTFField.from_property(prop_name, prop, view.as_id())
+            if udtf_field is None:
+                continue
+
             property_type, is_relationship, is_multi = self._get_property_type(prop)
 
             if not is_relationship:
@@ -3303,7 +3313,7 @@ class UDTFGenerator:
                         catalog=self.catalog,
                         schema=self.schema,
                         view_name=view_id,
-                        column_name=prop_name,
+                        column_name=udtf_field.name,
                         referenced_catalog=self.catalog,
                         referenced_schema=self.schema,
                         referenced_view=referenced_view_id,
