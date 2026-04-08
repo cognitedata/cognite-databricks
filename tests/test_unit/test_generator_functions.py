@@ -172,6 +172,19 @@ class TestGenerateTimeSeriesUdtfViewSql:
         assert "start => NULL" in sql
         assert "end => NULL" in sql
 
+    def test_generate_time_series_datapoints_detailed_view_sql_uses_instance_ids(self) -> None:
+        """View SQL must use instance_ids => NULL to match time_series_datapoints_detailed_udtf signature."""
+        sql = generate_time_series_udtf_view_sql(
+            udtf_name="time_series_datapoints_detailed_udtf",
+            secret_scope="cdf_test",
+            catalog="main",
+            schema="cdf_models",
+        )
+
+        assert "time_series_datapoints_detailed_udtf" in sql
+        assert "instance_ids => NULL" in sql
+        assert "instance_id => NULL" not in sql
+
     def test_generate_time_series_udtf_view_sql_with_placeholders(self) -> None:
         """Test generating time series UDTF view SQL with catalog/schema placeholders."""
         sql = generate_time_series_udtf_view_sql(

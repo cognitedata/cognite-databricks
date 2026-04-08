@@ -193,9 +193,17 @@ class TestCreateDefaultTimeSeriesConfigs:
 
         assert config.udtf_name == "time_series_datapoints_udtf"
         assert config.view_name == "time_series_datapoints"
-        # Note: The config still uses old "space", "external_id" parameters
-        # but actual UDTFs use "instance_id" - this is a known discrepancy
+        assert config.parameters[0] == "instance_id"
         assert len(config.parameters) > 0
+
+    def test_time_series_datapoints_detailed_udtf_config(self) -> None:
+        """Detailed datapoints UDTF uses instance_ids; must match pygen-spark template analyze/eval."""
+        configs = _create_default_time_series_configs()
+        config = configs["time_series_datapoints_detailed_udtf"]
+
+        assert config.udtf_name == "time_series_datapoints_detailed_udtf"
+        assert config.view_name == "time_series_datapoints_detailed"
+        assert config.parameters[0] == "instance_ids"
 
     def test_global_registry(self) -> None:
         """Test global time_series_udtf_registry instance."""
