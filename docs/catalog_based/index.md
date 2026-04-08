@@ -16,7 +16,7 @@ Unity Catalog provides a three-level hierarchy: `catalog.schema.object` where UD
 
 This documentation covers the complete workflow for using catalog-based UDTFs and Views:
 
-1. **[Quickstart](./quickstart.md)**: Get from zero to registered UDTFs and Views in one notebook (catalog-based)
+1. **[Quickstart](./quickstart.md)**: **Start here** — zero to registered UDTFs and Views (same flow as [quickstart.ipynb](../../examples/catalog_based/quickstart.ipynb))
 2. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
 3. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
 4. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
@@ -33,7 +33,8 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 
 ### Quickstart
 
-- [Catalog-Based Quickstart](./quickstart.md): End-to-end flow based on the init quickstart notebook (install → generate → Secret Manager → register UDTFs and Views)
+- [Catalog-based quickstart](./quickstart.md): Step-by-step guide (explained code blocks)
+- [Quickstart notebook](../../examples/catalog_based/quickstart.ipynb): **Recommended notebook** — markdown sections + inline comments per step (install → generate → Secret Manager → register UDTFs and Views)
 
 ### Examples
 

@@ -40,31 +40,49 @@ It provides high-level APIs for:
 pip install cognite-databricks
 ```
 
-## Quick Start
+## Start here (recommended)
 
-### Notebook-Style (Recommended)
+**Use the catalog-based quickstart** as the main path for getting productive: it works for **all customers** (Unity Catalog + Secret Manager + your CDF data model).
+
+| Resource | What it is |
+|----------|------------|
+| **[docs/catalog_based/quickstart.md](docs/catalog_based/quickstart.md)** | Step-by-step guide with explained code blocks |
+| **[examples/catalog_based/quickstart.ipynb](examples/catalog_based/quickstart.ipynb)** | **Notebook version** — same flow with markdown introductions and **inline comments** in every code cell |
+
+**Prerequisites:** [docs/catalog_based/prerequisites.md](docs/catalog_based/prerequisites.md) (Unity Catalog, Secret Manager, CDF TOML).
+
+**Full documentation index:** [docs/index.md](docs/index.md).
+
+The quickstart walks through: **install** → **CDF + Databricks clients** → **pick a SQL warehouse** → **`generate_udtf_notebook`** → **write CDF secrets to Secret Manager** → **`register_udtfs`** → **`register_views`**.
+
+## Quick start (short reference)
+
+Catalog-based registration (Unity Catalog) in a few lines — for the full narrative, use the quickstart links above.
 
 ```python
 from cognite.client.data_classes.data_modeling.ids import DataModelId
 from cognite.databricks import generate_udtf_notebook
 from cognite.pygen import load_cognite_client_from_toml
+from databricks.sdk import WorkspaceClient
 
-# Load client from TOML file (same pattern as pygen)
-client = load_cognite_client_from_toml("config.toml")
+client = load_cognite_client_from_toml("/Workspace/Users/<you>/config.toml")
+workspace_client = WorkspaceClient()
+warehouses = list(workspace_client.warehouses.list())
+warehouse = warehouses[0]  # pick the warehouse you use for SQL
 
-# Generate UDTFs for a Data Model
-data_model_id = DataModelId(space="sp_pygen_power", external_id="WindTurbine", version="1")
+data_model_id = DataModelId(space="my_space", external_id="MyModel", version="v1")
 generator = generate_udtf_notebook(
     data_model_id,
     client,
+    workspace_client=workspace_client,
+    output_dir="/Workspace/Users/<you>/udtf_generated",
+    catalog="my_catalog",
+    schema="my_schema",
+    warehouse_id=warehouse.id,
 )
 
-# Register UDTFs in Unity Catalog (SQL registration)
-udtf_result = generator.register_udtfs(
-    secret_scope="cdf_sp_pygen_power_windturbine",
-    if_exists="replace",
-)
-print(f"Registered {udtf_result.total_count} UDTF(s)")
+# Then: secret scope + set_cdf_credentials + register_udtfs + register_views
+# (see quickstart — do not skip warehouse selection or Secret Manager)
 ```
 
 ### Low-Level API
@@ -307,11 +325,10 @@ from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_funct
 
 ## Documentation
 
-For detailed documentation, see:
-
-- **[Documentation Index](docs/index.md)**: Complete guide for catalog-based scalar-only UDTF registration
-- **[Unity Catalog UDTF Registration](docs/session_scoped/index.md)**: Session-scoped workflow and SQL usage
-- **[Technical Plan - CDF Databricks Integration (UDTF-Based)](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md)**: Architecture and design details
+- **[Start here — catalog quickstart](docs/catalog_based/quickstart.md)** and **[quickstart notebook](examples/catalog_based/quickstart.ipynb)**
+- **[Documentation index](docs/index.md)**: full catalog-based and session-scoped guides
+- **[Session-scoped (development)](docs/session_scoped/index.md)**: temporary session UDTFs
+- **Technical plan** (if present in your workspace): CDF Databricks integration (UDTF-based) architecture
 
 ## License
 
