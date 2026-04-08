@@ -275,6 +275,7 @@ name = "cognite-databricks"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cognite-pygen" },
     { name = "cognite-pygen-spark" },
     { name = "cognite-sdk" },
     { name = "databricks-sdk" },
@@ -307,6 +308,7 @@ local = [
 [package.metadata]
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
+    { name = "cognite-pygen", specifier = ">=1.3.0" },
     { name = "cognite-pygen-spark", specifier = ">=0.2.3" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
@@ -332,7 +334,7 @@ provides-extras = ["dev", "local"]
 
 [[package]]
 name = "cognite-pygen"
-version = "1.2.29"
+version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cognite-sdk" },
@@ -341,9 +343,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/24/47f70eae3eeae0a63c47953e86c2d49d2f4cea0c169bf72d5e532e1c5e62/cognite_pygen-1.2.29.tar.gz", hash = "sha256:48a1d09e9df7b0f454ec62609775f801a5e9f472e4d88cabd3d3109fe67255cf", size = 11646385, upload-time = "2025-11-14T15:18:23.968Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/0f/a5e0530d6ac8b0d263068ab8ffb5c3d5d6bd2ac35970e763569ffa130a22/cognite_pygen-1.3.0.tar.gz", hash = "sha256:c70326eebff66ad1e4694da18568db2821815bcf0134c60df7bf868099a3baf5", size = 127342, upload-time = "2026-03-28T13:46:18.689Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/30/35/8fb13b973541e51fa3abe3c2bc67b9aa54a9cb3755a30fb3ad8a67fde443/cognite_pygen-1.2.29-py3-none-any.whl", hash = "sha256:03b3db81c1293f8aea5f98e3699ea4141e21bab2317171afae896d3b1781c71d", size = 168087, upload-time = "2025-11-14T15:18:22.108Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/76/5d449d8fc66904091787187aaa3d214f903cf9cced78f02fce70fb0aa221/cognite_pygen-1.3.0-py3-none-any.whl", hash = "sha256:bf258c1fb7afc8b47d0b2366302abe57236347425529836fd06cb109e26c576e", size = 165487, upload-time = "2026-03-28T13:46:17.251Z" },
 ]
 
 [[package]]
