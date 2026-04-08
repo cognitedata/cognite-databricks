@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     # Note: For local builds, use >=0.0.0 to allow 0.0.0 wheels. For releases, align with latest pygen-spark
     "cognite-pygen-spark>=0.2.3",  # Reserved-word safe UDTF fields require 0.2.3+
+    "cognite-pygen>=1.3.0",  # Align with pygen-spark; ensures minimum pygen API for codegen paths
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
     "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml
