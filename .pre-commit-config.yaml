@@ -21,7 +21,7 @@ repos:
         additional_dependencies:
           - pydantic>=2.0.0  # Required for pydantic.mypy plugin
           - cognite-sdk>=7.90.1  # For cognite.client.* imports
-          - cognite-pygen-spark>=0.1.0  # For cognite.pygen_spark.* imports
+          - cognite-pygen-spark>=0.2.3  # UDTFField.from_property(..., view_id); align with pyproject.toml
           - pytest>=8.0.0  # For pytest imports
         args: [cognite/, tests/]
         pass_filenames: false
