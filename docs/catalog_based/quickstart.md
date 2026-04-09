@@ -2,7 +2,7 @@
 
 This guide is the **recommended starting path for all customers**: one flow from **install** → **CDF + Databricks clients** → **generate UDTFs** → **Secret Manager** → **register UDTFs and Views** in **Unity Catalog**.
 
-**Notebook (copy-paste friendly):** [examples/catalog_based/quickstart.ipynb](../../examples/catalog_based/quickstart.ipynb) — same steps as below, with **markdown explanations** and **inline comments** in each code cell.
+**Notebook (copy-paste friendly):** [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb) — same steps as below, with **markdown explanations** and **inline comments** in each code cell.
 
 **Prerequisites:** [Prerequisites](./prerequisites.md) (Unity Catalog, Secret Manager, CDF data model, TOML with `[cognite]` credentials).
 
@@ -164,5 +164,5 @@ result = generator.register_udtfs_and_views(
 ## Next steps
 
 - [Prerequisites](./prerequisites.md) — permissions and example TOML
-- [Registration and Views example](../../examples/catalog_based/registration_and_views.ipynb) — deeper walkthrough
+- [Registration and Views example](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/registration_and_views.ipynb) — deeper walkthrough
 - [Session-scoped workflow](../session_scoped/index.md) — temporary session UDTFs for development (no Unity Catalog persistence)

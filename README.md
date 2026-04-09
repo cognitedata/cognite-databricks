@@ -47,7 +47,7 @@ pip install cognite-databricks
 | Resource | What it is |
 |----------|------------|
 | **[docs/catalog_based/quickstart.md](docs/catalog_based/quickstart.md)** | Step-by-step guide with explained code blocks |
-| **[examples/catalog_based/quickstart.ipynb](examples/catalog_based/quickstart.ipynb)** | **Notebook version** — same flow with markdown introductions and **inline comments** in every code cell |
+| **[quickstart.ipynb](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** | **Notebook version** — same flow with markdown introductions and **inline comments** in every code cell |
 
 **Prerequisites:** [docs/catalog_based/prerequisites.md](docs/catalog_based/prerequisites.md) (Unity Catalog, Secret Manager, CDF TOML).
 
@@ -325,7 +325,7 @@ from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_funct
 
 ## Documentation
 
-- **[Start here — catalog quickstart](docs/catalog_based/quickstart.md)** and **[quickstart notebook](examples/catalog_based/quickstart.ipynb)**
+- **[Start here — catalog quickstart](docs/catalog_based/quickstart.md)** and **[quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)**
 - **[Documentation index](docs/index.md)**: full catalog-based and session-scoped guides
 - **[Session-scoped (development)](docs/session_scoped/index.md)**: temporary session UDTFs
 - **Technical plan** (if present in your workspace): CDF Databricks integration (UDTF-based) architecture
