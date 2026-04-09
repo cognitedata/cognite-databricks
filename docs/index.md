@@ -5,7 +5,7 @@
 **All customers:** begin with the **catalog-based quickstart** — install, generate UDTFs from your CDF data model, store credentials in **Databricks Secret Manager**, and register **Unity Catalog** functions and views.
 
 - **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — full walkthrough with explained code blocks
-- **[Quickstart notebook](../examples/catalog_based/quickstart.ipynb)** — same flow in a Databricks notebook (markdown + inline comments per cell)
+- **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow in a Databricks notebook (markdown + inline comments per cell)
 
 **Prerequisites:** [Catalog-based prerequisites](./catalog_based/prerequisites.md)
 
@@ -70,7 +70,7 @@
 
 ## Examples
 
-- **Catalog-based quickstart:** [examples/catalog_based/quickstart.ipynb](../examples/catalog_based/quickstart.ipynb)
+- **Catalog-based quickstart:** [quickstart.ipynb](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)
 - **Session-scoped:** `examples/session_scoped/`
 - **Other catalog examples:** `examples/catalog_based/`
 
