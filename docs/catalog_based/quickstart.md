@@ -164,5 +164,5 @@ result = generator.register_udtfs_and_views(
 ## Next steps
 
 - [Prerequisites](./prerequisites.md) — permissions and example TOML
-- [Registration and Views example](../../examples/catalog_based/registration_and_views.ipynb) — deeper walkthrough
+- [Registration and Views example](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/registration_and_views.ipynb) — deeper walkthrough
 - [Session-scoped workflow](../session_scoped/index.md) — temporary session UDTFs for development (no Unity Catalog persistence)

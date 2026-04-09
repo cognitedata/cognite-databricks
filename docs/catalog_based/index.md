@@ -38,10 +38,10 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 
 ### Examples
 
-- [Registration and Views](../../examples/catalog_based/registration_and_views.ipynb): Secret Manager setup, UDTF/View registration, Unity Catalog verification
-- [Querying Views](../../examples/catalog_based/querying_views.ipynb): Query Views (no credentials) and UDTFs directly
-- [Filtering Views](../../examples/catalog_based/filtering_views.ipynb): Filter Views with WHERE clauses
-- [Joining Views](../../examples/catalog_based/joining_views.ipynb): Join Views and join Views with time series UDTFs
+- [Registration and Views](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/registration_and_views.ipynb): Secret Manager setup, UDTF/View registration, Unity Catalog verification
+- [Querying Views](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/querying_views.ipynb): Query Views (no credentials) and UDTFs directly
+- [Filtering Views](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/filtering_views.ipynb): Filter Views with WHERE clauses
+- [Joining Views](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/joining_views.ipynb): Join Views and join Views with time series UDTFs
 
 ### Related Documentation
 
