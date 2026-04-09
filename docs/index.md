@@ -1,86 +1,50 @@
 # Cognite Databricks Integration Documentation
 
+## Start here (recommended)
+
+**All customers:** begin with the **catalog-based quickstart** — install, generate UDTFs from your CDF data model, store credentials in **Databricks Secret Manager**, and register **Unity Catalog** functions and views.
+
+- **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — full walkthrough with explained code blocks
+- **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow in a Databricks notebook (markdown + inline comments per cell)
+
+**Prerequisites:** [Catalog-based prerequisites](./catalog_based/prerequisites.md)
+
+---
+
 ## Overview
 
-`cognite-databricks` provides two approaches for registering and using User-Defined Table Functions (UDTFs) to query CDF data from Databricks:
+`cognite-databricks` provides two approaches for registering and using User-Defined Table Functions (UDTFs):
 
-1. **[Session-Scoped Registration](./session_scoped/index.md)**: Temporary registration for development and testing
-2. **[Catalog-Based Registration](./catalog_based/index.md)**: Permanent registration in Unity Catalog for production
+1. **[Catalog-based registration](./catalog_based/index.md)** — **default path** for most customers: permanent UDTFs and Views in **Unity Catalog**, credentials via **Secret Manager**.
+2. **[Session-scoped registration](./session_scoped/index.md)** — temporary registration in a **single Spark session** for development and testing.
 
-## Choosing the Right Approach
+## Choosing the right approach
 
-### Use Session-Scoped Registration When:
+### Use session-scoped when
 
-- ✅ **Developing and Testing**: Quickly test UDTFs before committing to Unity Catalog
-- ✅ **Prototyping**: Experiment with different configurations and queries
-- ✅ **Development**: Quick setup for testing and development
-- ✅ **Temporary Analysis**: Running ad-hoc queries without permanent registration
-- ✅ **Learning**: Getting familiar with UDTFs and CDF data access patterns
+- Developing and testing UDTFs before committing to Unity Catalog
+- Prototyping without Unity Catalog persistence
+- Temporary analysis; learning UDTF patterns
 
-**Key Characteristics:**
-- UDTFs are registered within a single Spark session
-- No Unity Catalog access required
-- Credentials passed directly in SQL queries (or via Secret Manager)
-- Automatically cleaned up when session ends
-- Faster setup, ideal for development
+**Characteristics:** functions live only for the session; no permanent catalog objects; often simpler credentials for ad-hoc use.
 
-### Use Catalog-Based Registration When:
+### Use catalog-based when
 
-- ✅ **Production Deployments**: Permanent registration with Unity Catalog governance
-- ✅ **Data Discovery**: Views are indexed and searchable in the Databricks UI
-- ✅ **Access Control**: Need fine-grained permissions (GRANT/REVOKE)
-- ✅ **Enterprise Security**: Credentials stored securely in Databricks Secret Manager
-- ✅ **Team Collaboration**: Shared, discoverable data assets across teams
-- ✅ **Production**: Using Unity Catalog for permanent, discoverable data assets
+- Production deployments with governance
+- Data discovery and searchable Views in the Databricks UI
+- Fine-grained access control (GRANT/REVOKE)
+- Team collaboration on shared SQL assets
 
-**Key Characteristics:**
-- UDTFs and Views registered in Unity Catalog
-- Permanent, discoverable, and governable
-- Credentials managed via Secret Manager (no credentials in SQL)
-- Views provide simplified query interface
-- Requires Unity Catalog access and Secret Manager setup
+**Characteristics:** UDTFs and Views in Unity Catalog; secrets in Secret Manager; Views hide `SECRET()` details from analysts.
 
-## Quick Start
+---
 
-### Session-Scoped (Development)
+## Documentation structure
 
-```python
-from cognite.databricks import generate_udtf_notebook
-from cognite.pygen import load_cognite_client_from_toml
+### Catalog-based (start here)
 
-client = load_cognite_client_from_toml("config.toml")
-generator = generate_udtf_notebook(data_model_id, client)
-generator.register_session_scoped_udtfs()
-```
-
-See [Session-Scoped Documentation](./session_scoped/index.md) for complete guide.
-
-### Catalog-Based (Production)
-
-```python
-from cognite.databricks import generate_udtf_notebook, SecretManagerHelper
-from databricks.sdk import WorkspaceClient
-
-workspace_client = WorkspaceClient()
-generator = generate_udtf_notebook(data_model_id, client, workspace_client=workspace_client)
-result = generator.register_udtfs_and_views(secret_scope="cdf_scope")
-```
-
-See [Catalog-Based Documentation](./catalog_based/index.md) for complete guide.
-
-## Documentation Structure
-
-### Session-Scoped UDTF Registration
-- [Installation](./session_scoped/installation.md)
-- [Registration](./session_scoped/registration.md)
-- [Querying](./session_scoped/querying.md)
-- [Filtering](./session_scoped/filtering.md)
-- [Joining](./session_scoped/joining.md)
-- [Time Series](./session_scoped/time_series.md)
-- [Troubleshooting](./session_scoped/troubleshooting.md)
-
-### Catalog-Based UDTF Registration
 - [Quickstart](./catalog_based/quickstart.md)
+- [Overview](./catalog_based/index.md)
 - [Prerequisites](./catalog_based/prerequisites.md)
 - [Secret Manager](./catalog_based/secret_manager.md)
 - [Registration](./catalog_based/registration.md)
@@ -93,34 +57,38 @@ See [Catalog-Based Documentation](./catalog_based/index.md) for complete guide.
 - [Governance](./catalog_based/governance.md)
 - [Troubleshooting](./catalog_based/troubleshooting.md)
 
+### Session-scoped
+
+- [Overview](./session_scoped/index.md)
+- [Installation](./session_scoped/installation.md)
+- [Registration](./session_scoped/registration.md)
+- [Querying](./session_scoped/querying.md)
+- [Filtering](./session_scoped/filtering.md)
+- [Joining](./session_scoped/joining.md)
+- [Time Series](./session_scoped/time_series.md)
+- [Troubleshooting](./session_scoped/troubleshooting.md)
+
 ## Examples
 
-All examples are available in the `examples/` directory:
+- **Catalog-based quickstart:** [quickstart.ipynb](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)
+- **Session-scoped:** `examples/session_scoped/`
+- **Other catalog examples:** `examples/catalog_based/`
 
-- **Session-Scoped Examples**: `examples/session_scoped/`
-- **Catalog-Based Examples**: `examples/catalog_based/`
-
-## Package Architecture
+## Package architecture
 
 `cognite-databricks` extends `pygen-spark` with Databricks-specific features:
 
-- **Code Generation**: Uses `pygen-spark` for template-based UDTF generation (both Data Model and Time Series UDTFs)
-- **Generic Components**: Generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) are provided by `pygen-spark` and re-exported from `cognite.databricks` for backward compatibility
-- **Databricks-Specific**: Unity Catalog registration, Secret Manager integration, and Databricks-specific utilities
+- **Code generation**: `cognite-pygen-spark` templates for Data Model and time series UDTFs
+- **Databricks-specific**: Unity Catalog SQL registration and Secret Manager integration
 
-**Import Paths for Generic Components**:
+**Import paths for generic components:**
+
 ```python
-# Preferred: Import directly from pygen-spark (source)
 from cognite.pygen_spark import TypeConverter, CDFConnectionConfig, to_udtf_function_name
-
-# Backward compatible: Still works (re-exported from pygen-spark)
-from cognite.databricks import TypeConverter, CDFConnectionConfig, to_udtf_function_name
+# Or: from cognite.databricks import ...
 ```
 
-## Related Resources
+## Related resources
 
 - [README](../README.md): Package overview and installation
-- [Technical Plan](../Technical%20Plan%20-%20CDF%20Databricks%20Integration%20(UDTF-Based).md): Architecture and design details
-- [pygen-spark Documentation](https://github.com/cognitedata/pygen-spark): Generic Spark UDTF code generation library (works with any Spark cluster)
-
-
+- [pygen-spark](https://github.com/cognitedata/pygen-spark): Generic Spark UDTF code generation
