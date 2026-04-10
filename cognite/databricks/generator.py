@@ -76,6 +76,9 @@ if TYPE_CHECKING:
 # This avoids depending on pygen's private API (_generator module)
 DataModel = DataModelIdentifier | dm.DataModel[dm.View]
 
+# Fourth segment of pygen-spark x-cdp-app for SparkUDTFGenerator (CognitePygenSpark:…:…:tail)
+_DATABRICKS_AUDIT_TAIL = "Databricks"
+
 
 def register_udtf_from_file(
     udtf_file_path: str | Path,
@@ -806,7 +809,7 @@ def generate_udtf_notebook(
         output_dir=output_dir,
         data_model=data_model,  # Pass data_model here
         top_level_package="cognite_databricks",
-        cdf_audit_deployment_tail="Databricks",
+        cdf_audit_deployment_tail=_DATABRICKS_AUDIT_TAIL,
     )
 
     # Generate UDTF files to disk
