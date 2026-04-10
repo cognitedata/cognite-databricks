@@ -806,6 +806,7 @@ def generate_udtf_notebook(
         output_dir=output_dir,
         data_model=data_model,  # Pass data_model here
         top_level_package="cognite_databricks",
+        cdf_audit_deployment_tail="Databricks",
     )
 
     # Generate UDTF files to disk
