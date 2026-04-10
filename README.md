@@ -30,7 +30,6 @@ It provides high-level APIs for:
 - **UDTF Registration**: Register persistent UDTFs in Unity Catalog via SQL
 - **Secret Manager Integration**: Manage OAuth2 credentials securely
 - **SQL Usage**: Use UDTFs directly in SQL after registration
-- **Notebook-Friendly API**: Aligned with `cognite.pygen`'s notebook workflow
 
 ## Features
 
