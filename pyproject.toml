@@ -24,12 +24,12 @@ classifiers = [
 
 dependencies = [
     # Note: For local builds, use >=0.0.0 to allow 0.0.0 wheels. For releases, align with latest pygen-spark
-    "cognite-pygen-spark>=0.3.0",  # CDF audit headers in generated UDTFs; requires 0.3.0+
+    "cognite-pygen-spark>=0.3.1",  # CDF audit headers + security deps; requires 0.3.1+
     "cognite-pygen>=1.3.0",  # Align with pygen-spark; ensures minimum pygen API for codegen paths
     "cognite-sdk>=7.90.1",
     "databricks-sdk>=0.20.0",
     "toml>=0.10.2",  # Required by cognite-pygen for load_cognite_client_from_toml
-    "pyasn1>=0.6.2",  # Security fix for CVE-2026-23490 (memory exhaustion vulnerability)
+    "pyasn1>=0.6.3",  # Security fix for CVE-2026-23490 (memory exhaustion vulnerability)
     # PySpark is provided by Databricks runtime - do not include as dependency
     # For local development, install with: pip install cognite-databricks[local]
 ]

@@ -5,10 +5,11 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
 **Latest Release:**
 
 - **Version 0.2.3**: Aligns Unity Catalog view registration with **cognite-pygen-spark** 0.2.3+ for reserved-word safe `UDTFField` naming.
-- **Dependencies**: Now target **cognite-pygen-spark** 0.3.0+ for:
+- **Dependencies**: Now target **cognite-pygen-spark** 0.3.1+ for:
     - CDF audit headers in generated UDTFs.
     - TypeConverter-based UDTF field typing.
     - Timestamp normalization.
+    - Security-patched transitive dependencies (lockfile; includes `pyasn1>=0.6.3`).
 - **Version 0.2.1**: Added SQL-native time series UDTF support with predicate pushdown hints and a SQL query analyzer for pushdown hints.
 
 Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases).
