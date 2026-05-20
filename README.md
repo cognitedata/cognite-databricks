@@ -12,7 +12,7 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
     - Security-patched transitive dependencies (lockfile; includes `pyasn1>=0.6.3`).
 - **Version 0.2.1**: Added SQL-native time series UDTF support with predicate pushdown hints and a SQL query analyzer for pushdown hints.
 
-Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases).
+Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases). Patch releases may update locked dependencies and minimum constraints without API changes.
 
 **Note**: This package provides Databricks-specific utilities for Unity Catalog UDTF registration and Secret Manager integration.
 
