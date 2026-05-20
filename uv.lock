@@ -309,7 +309,7 @@ local = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
     { name = "cognite-pygen", specifier = ">=1.3.0" },
-    { name = "cognite-pygen-spark", specifier = ">=0.3.0" },
+    { name = "cognite-pygen-spark", specifier = ">=0.3.1" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
     { name = "marko", marker = "extra == 'dev'", specifier = ">=2.1.0,<3.0.0" },
@@ -350,7 +350,7 @@ wheels = [
 
 [[package]]
 name = "cognite-pygen-spark"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cognite-pygen" },
@@ -360,9 +360,9 @@ dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bf/32/078497d13403d6aa20f1fe15f9d99b73c1b7e064d33f483d336111a2ea36/cognite_pygen_spark-0.3.0.tar.gz", hash = "sha256:2d375a3aa1c2891248ff151216877b30f647133041c9c449b2ebe5d440b138d3", size = 54982, upload-time = "2026-04-10T07:40:36.337Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/11/9f551b1d874a31ffe30c9bac1205c9bb4936c77fb1dfd0eb682b3b19f20f/cognite_pygen_spark-0.3.1.tar.gz", hash = "sha256:d5728f9c2acd42ff2924e73b1b6d28e53569cf9c4054836b074317b530fdf650", size = 55059, upload-time = "2026-05-20T12:28:42.522Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/e6/c37598f59c8ae3022435bc54158df2adc79be61b41520218f98dd84e123f/cognite_pygen_spark-0.3.0-py3-none-any.whl", hash = "sha256:39eb48180865f9e7baf9af66ff5e0141bf29d771704af217d9c974ac52789895", size = 71415, upload-time = "2026-04-10T07:40:35.301Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/e0/34a06950d88e8e32dd754f70360da121b300f70c03e158ea36c3ef58b03d/cognite_pygen_spark-0.3.1-py3-none-any.whl", hash = "sha256:54e317dd3a6e9f36cf15e0f4537c39ef9a4fb08eac105b9a999e50f3d6a0577f", size = 71442, upload-time = "2026-05-20T12:28:41.107Z" },
 ]
 
 [[package]]
@@ -1771,7 +1771,7 @@ wheels = [
 
 [[package]]
 name = "requests"
-version = "2.32.5"
+version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "certifi" },
@@ -1779,9 +1779,9 @@ dependencies = [
     { name = "idna" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517, upload-time = "2025-08-18T20:46:02.573Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
 ]
 
 [[package]]
