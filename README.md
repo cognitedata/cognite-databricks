@@ -9,6 +9,7 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
     - CDF audit headers in generated UDTFs.
     - TypeConverter-based UDTF field typing.
     - Timestamp normalization.
+    - Security-patched transitive dependencies (lockfile; includes `pyasn1>=0.6.3`).
 - **Version 0.2.1**: Added SQL-native time series UDTF support with predicate pushdown hints and a SQL query analyzer for pushdown hints.
 
 Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases).
