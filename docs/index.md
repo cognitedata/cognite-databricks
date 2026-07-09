@@ -2,9 +2,7 @@
 
 ## Start here (recommended)
 
-**All customers:**
-
-1. **[Deployment concepts](./catalog_based/deployment.md)** — identify your base URL, build TOML, understand success = querying Views
+1. **[Deployment concepts](./catalog_based/deployment.md)** — base URL, TOML, and how to verify via Views
 2. **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — run the provisioning notebook
 3. **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow with inline comments
 
@@ -16,7 +14,7 @@
 
 `cognite-databricks` provides two approaches for registering and using User-Defined Table Functions (UDTFs):
 
-1. **[Catalog-based registration](./catalog_based/index.md)** — **default path** for most customers: permanent UDTFs and Views in **Unity Catalog**, credentials via **Secret Manager**.
+1. **[Catalog-based registration](./catalog_based/index.md)** — permanent UDTFs and Views in **Unity Catalog**, credentials via **Secret Manager**.
 2. **[Session-scoped registration](./session_scoped/index.md)** — temporary registration in a **single Spark session** for development and testing.
 
 ## Choosing the right approach

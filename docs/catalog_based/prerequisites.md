@@ -54,11 +54,11 @@ client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
 ```
 
-An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
+An example file with this content is in the repo at [`example_config.toml`](./example_config.toml). PSaaS / Private Link: [`example_config_private_link.toml`](./example_config_private_link.toml). Full walkthrough: [Deployment §2 I need TOML](./deployment.md#2-i-need-toml).
 
 ### Base URL and `base_url` in TOML
 
-Every customer must know their **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
+Know your **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 

@@ -49,7 +49,7 @@ pip install cognite-databricks
 
 ## Start here (recommended)
 
-**Use the catalog-based quickstart** as the main path for getting productive: it works for **all customers** (Unity Catalog + Secret Manager + your CDF data model).
+**Use the catalog-based quickstart** to get productive: Unity Catalog + Secret Manager + your CDF data model.
 
 | Resource | What it is |
 |----------|------------|

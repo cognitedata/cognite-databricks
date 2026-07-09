@@ -1,8 +1,8 @@
 # Quickstart (Unity Catalog) — runbook
 
-This is the **hands-on runbook** for all customers: install → TOML client → generate UDTFs → Secret Manager → register Views.
+Hands-on steps to install **cognite-databricks**, load credentials from TOML, and register **Views** in Unity Catalog.
 
-**Read first:** [Deployment concepts](./deployment.md) — [§1 base URL](./deployment.md#1-i-need-my-base-url), [§2 TOML](./deployment.md#2-i-need-toml), [§5 verify Views](./deployment.md#5-verify-deployment-databricks).
+**Read first:** [Deployment overview](./deployment.md) — [base URL](./deployment.md#1-i-need-my-base-url), [TOML](./deployment.md#2-i-need-toml), [verify Views](./deployment.md#5-verify-deployment-databricks).
 
 **Notebook:** [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb) — same steps with inline comments and links to the deployment guide.
 
@@ -25,7 +25,7 @@ Restart the kernel if the installer tells you to.
 
 ## 2. Imports and CDF client
 
-> **Base URL & TOML:** Look up your cluster's **Cognite API URL** before this step — [Deployment §1](./deployment.md#1-i-need-my-base-url). Build your TOML per [§2](./deployment.md#2-i-need-toml). PSaaS / Private Link: also read [§4](./deployment.md#4-what-psaas-base-url-means).
+> **Base URL & TOML:** Look up your **Cognite API URL** — [§1](./deployment.md#1-i-need-my-base-url). **PSaaS / Private Link:** set `base_url` in TOML per [§2](./deployment.md#2-i-need-toml) (e.g. `p001.plink.….cognitedata.com`) and read [§4](./deployment.md#4-what-psaas-base-url-means).
 
 - **`load_cognite_client_from_toml`**: builds a Cognite client from TOML — uses `base_url` from TOML when set ([how it works](./deployment.md#how-load_cognite_client_from_toml-applies-base_url)).
 - **TOML during provisioning**: you read credentials from a file to **seed** Secret Manager. **End users querying Views do not use this file**; SQL uses `SECRET()`.
