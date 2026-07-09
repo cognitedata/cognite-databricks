@@ -58,7 +58,7 @@ An example file with this content is in the repo at [`example_config.toml`](./ex
 
 ### Base URL and `base_url` in TOML
 
-Every customer must know their **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
+Know your **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 

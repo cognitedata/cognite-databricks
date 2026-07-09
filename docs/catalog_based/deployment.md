@@ -1,6 +1,6 @@
 # CDF base URL and TOML deployment
 
-How to identify your CDF **base URL**, configure **TOML**, and deploy **cognite-databricks** / **cognite-pygen-spark**. Applies to **all** customers.
+How to identify your CDF **base URL**, configure **TOML**, and deploy **cognite-databricks** / **cognite-pygen-spark**.
 
 ## How this guide fits together
 
@@ -29,7 +29,7 @@ flowchart TD
 
 ## 1. I need my base URL
 
-Every customer must know the **Cognite API URL** their project uses before deploying. A CDF project lives on one cluster; that cluster has a specific hostname for API traffic.
+Every CDF project lives on one cluster with a specific API hostname. Know yours before deploying.
 
 See [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions). There are three deployment models:
 
@@ -87,7 +87,7 @@ Per-customer hostname wired into your VPN (e.g. `p001.plink.az-xyz-001.cogniteda
 
 ## 2. I need TOML
 
-**All customers** use a TOML file for cognite-databricks **admin setup** — multi-tenant, dedicated, and PSaaS / Private Link.
+Use a TOML file for **one-time admin setup** (provisioning only).
 
 The TOML is an **admin-only provisioning artifact**:
 
@@ -111,7 +111,7 @@ Store the file in your Databricks workspace (not in git), for example:
 
 ### Example — multi-tenant (`westeurope-1`)
 
-Most customers: `cdf_cluster` matches the **Cognite API URL** from the [cluster table](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) — no `base_url` needed.
+`cdf_cluster` matches the **Cognite API URL** from the [cluster table](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) — no `base_url` needed.
 
 ```toml
 # credentials.toml — do not commit secrets
@@ -166,7 +166,7 @@ client.iam.token.inspect()  # confirms connectivity to your base URL
 
 ## 3. TOML-based deployment
 
-**All customers** follow this flow. Multi-tenant: same steps in the [catalog quickstart](./quickstart.md) or [quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb).
+Follow this flow. Step-by-step: [catalog quickstart](./quickstart.md) or [quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb).
 
 Build TOML from [§1](#1-i-need-my-base-url) and [§2](#2-i-need-toml). **Analysts do not use the TOML file at query time.**
 
@@ -205,7 +205,7 @@ Use [`example_config_private_link.toml`](./example_config_private_link.toml) for
 
 ### cognite-databricks (step by step)
 
-Step-by-step notebook flow. Multi-tenant: same steps in the [catalog quickstart](./quickstart.md).
+Step-by-step notebook flow. Same steps in the [catalog quickstart](./quickstart.md).
 
 ### Step 1 — Install
 

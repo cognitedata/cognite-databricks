@@ -1,6 +1,6 @@
 # Quickstart (Unity Catalog) — runbook
 
-This is the **hands-on runbook** for all customers: install → TOML client → generate UDTFs → Secret Manager → register Views.
+This is the **hands-on runbook**: install → TOML client → generate UDTFs → Secret Manager → register Views.
 
 **Read first:** [Deployment concepts](./deployment.md) — [§1 base URL](./deployment.md#1-i-need-my-base-url), [§2 TOML](./deployment.md#2-i-need-toml), [§5 verify Views](./deployment.md#5-verify-deployment-databricks).
 
