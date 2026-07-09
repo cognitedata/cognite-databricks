@@ -2,7 +2,7 @@
 
 ## Start here (recommended)
 
-1. **[Deployment concepts](./catalog_based/deployment.md)** — identify your base URL, build TOML, understand success = querying Views
+1. **[Deployment concepts](./catalog_based/deployment.md)** — base URL, TOML, and how to verify via Views
 2. **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — run the provisioning notebook
 3. **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow with inline comments
 

@@ -1,8 +1,8 @@
 # Quickstart (Unity Catalog) — runbook
 
-This is the **hands-on runbook**: install → TOML client → generate UDTFs → Secret Manager → register Views.
+Hands-on steps to install **cognite-databricks**, load credentials from TOML, and register **Views** in Unity Catalog.
 
-**Read first:** [Deployment concepts](./deployment.md) — [§1 base URL](./deployment.md#1-i-need-my-base-url), [§2 TOML](./deployment.md#2-i-need-toml), [§5 verify Views](./deployment.md#5-verify-deployment-databricks).
+**Read first:** [Deployment overview](./deployment.md) — [base URL](./deployment.md#1-i-need-my-base-url), [TOML](./deployment.md#2-i-need-toml), [verify Views](./deployment.md#5-verify-deployment-databricks).
 
 **Notebook:** [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb) — same steps with inline comments and links to the deployment guide.
 

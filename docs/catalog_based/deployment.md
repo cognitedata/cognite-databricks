@@ -1,24 +1,29 @@
 # CDF base URL and TOML deployment
 
-Identify your CDF **base URL**, write **TOML** for admin setup, deploy to Databricks, and confirm success by querying **Views**.
+Deploying **cognite-databricks** starts with two setup steps: find the **API hostname** your CDF project uses, then write a **TOML file** with credentials for the one-time provisioning run.
 
-## How this guide fits together
+When provisioning is done, analysts query **Views** in Unity Catalog. They do not use the TOML file, call UDTFs directly, or paste secrets into notebooks.
 
-1. **[I need my base URL](#1-i-need-my-base-url)** — look up your cluster in [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
-2. **[I need TOML](#2-i-need-toml)** — create `credentials.toml` for provisioning
-3. **[TOML-based deployment](#3-toml-based-deployment)** — run the [quickstart](./quickstart.md) notebook
-4. **[What PSaaS base URL means](#4-what-psaas-base-url-means)** — PSaaS / Private Link only
-5. **[Verify deployment (Databricks)](#5-verify-deployment-databricks)** — query Views, not UDTFs
+## Overview
 
-**Platform admin** — steps 1–3 once (TOML, Secret Manager, register Views).
+Work through these sections in order:
 
-**Analyst** — `SELECT` from Views only. No TOML, no UDTF calls, no secrets in notebooks.
+1. **[Find your base URL](#1-i-need-my-base-url)** — your row in [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) lists the Cognite API URL
+2. **[Write TOML](#2-i-need-toml)** — `credentials.toml` with `[cognite]` fields; add `base_url` when the API URL is not `{cluster}.cognitedata.com`
+3. **[Deploy](#3-toml-based-deployment)** — run the [quickstart](./quickstart.md) notebook (install → Secret Manager → register Views)
+4. **[PSaaS / Private Link](#4-what-psaas-base-url-means)** — only if Cognite gave you a Private Link hostname
+5. **[Verify](#5-verify-deployment-databricks)** — a `SELECT` from a View returns CDF data
+
+| Role | Responsibility |
+| --- | --- |
+| **Platform admin** | Steps 1–3, once per environment |
+| **Analyst** | Query Views in SQL |
 
 ---
 
 ## 1. I need my base URL
 
-Every CDF project lives on one cluster with a specific API hostname. Know yours before deploying.
+Your CDF project runs on one cluster. Each cluster has a fixed **Cognite API URL** — the hostname the SDK sends requests to. Look yours up before writing TOML.
 
 See [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions). There are three deployment models:
 
@@ -76,7 +81,7 @@ Per-customer hostname wired into your VPN (e.g. `p001.plink.az-xyz-001.cogniteda
 
 ## 2. I need TOML
 
-Use a TOML file for **one-time admin setup** (provisioning only).
+The platform admin creates a TOML file for **provisioning only** — connect to CDF, generate UDTFs, and seed Databricks Secret Manager.
 
 The TOML is an **admin-only provisioning artifact**:
 
