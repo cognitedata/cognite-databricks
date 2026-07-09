@@ -105,6 +105,63 @@ The TOML is an **admin-only provisioning artifact**:
 
 Requires **cognite-pygen ≥ 1.3.0** for `base_url` support. OAuth scopes derive from `cdf_cluster`; `base_url` overrides where API requests are sent.
 
+Store the file in your Databricks workspace (not in git), for example:
+
+`/Workspace/Users/<your-email>/config/credentials.toml`
+
+### Example — multi-tenant (`westeurope-1`)
+
+Most customers: `cdf_cluster` matches the **Cognite API URL** from the [cluster table](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) — no `base_url` needed.
+
+```toml
+# credentials.toml — do not commit secrets
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "westeurope-1"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+```
+
+Copy-paste template: [`example_config.toml`](./example_config.toml)
+
+### Example — when you need `base_url`
+
+Add `base_url` when [§1](#1-i-need-my-base-url) requires it (`europe-west1-1`, dedicated, or PSaaS / Private Link):
+
+```toml
+# PSaaS / Private Link — do not commit secrets
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "az-xyz-001"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+base_url = "https://p001.plink.az-xyz-001.cognitedata.com"
+```
+
+```toml
+# europe-west1-1 only — API URL is api.cognitedata.com
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "europe-west1-1"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+base_url = "https://api.cognitedata.com"
+```
+
+PSaaS / Private Link template: [`example_config_private_link.toml`](./example_config_private_link.toml)
+
+### Load from TOML
+
+```python
+from cognite.pygen import load_cognite_client_from_toml
+
+client = load_cognite_client_from_toml("/Workspace/Users/<your-email>/config/credentials.toml")
+client.iam.token.inspect()  # confirms connectivity to your base URL
+```
+
 ---
 
 ## 3. TOML-based deployment
