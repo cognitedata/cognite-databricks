@@ -1,6 +1,8 @@
-# Example CDF configuration for cognite-databricks.
+# Example CDF configuration for Private Link / PSaaS customers.
 # Copy this file, replace placeholders with your values, and do not commit secrets.
 # Use a path like /Workspace/Users/<your-user>/config.toml in Databricks.
+#
+# See docs/private_link_psaas.md for full setup instructions.
 
 [cognite]
 project = "your-cdf-project"
@@ -8,5 +10,5 @@ tenant_id = "your-azure-ad-tenant-id"
 cdf_cluster = "westeurope-1"
 client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
-# Optional — Private Link / PSaaS only (see docs/private_link_psaas.md):
-# base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+# Private Link base URL from Cognite (format: pNNN.plink.<cluster>.cognitedata.com)
+base_url = "https://p123.plink.westeurope-1.cognitedata.com"

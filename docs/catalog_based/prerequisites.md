@@ -56,6 +56,12 @@ client_secret = "your-oauth2-client-secret"
 
 An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
 
+### Private Link / PSaaS
+
+If your CDF project uses **Private Link**, add an optional `base_url` to the TOML and keep `cdf_cluster` as the public cluster name. See the dedicated guide: [Private Link and PSaaS setup](../private_link_psaas.md).
+
+Example: `docs/catalog_based/example_config_private_link.toml`
+
 ## CDF Data Model
 
 A CDF Data Model with Views (for Data Model UDTFs) or Time Series (for Time Series UDTFs) is required.

@@ -9,6 +9,8 @@
 
 **Prerequisites:** [Catalog-based prerequisites](./catalog_based/prerequisites.md)
 
+**Private Link / PSaaS:** [Private Link setup guide](./private_link_psaas.md) — configure `base_url` in TOML for Private Link endpoints.
+
 ---
 
 ## Overview
@@ -40,6 +42,10 @@
 ---
 
 ## Documentation structure
+
+### Private Link / PSaaS
+
+- [Private Link and PSaaS setup](./private_link_psaas.md)
 
 ### Catalog-based (start here)
 
