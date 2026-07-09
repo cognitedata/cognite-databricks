@@ -16,23 +16,25 @@ Unity Catalog provides a three-level hierarchy: `catalog.schema.object` where UD
 
 This documentation covers the complete workflow for using catalog-based UDTFs and Views:
 
-1. **[Quickstart](./quickstart.md)**: **Start here** — zero to registered UDTFs and Views (same flow as [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb))
-2. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
-3. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
-4. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
-5. **[Views](./views.md)**: Understand Views and their benefits
-6. **[Querying](./querying.md)**: Query Views and UDTFs directly
-7. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
-8. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
-9. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
-10. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
-11. **[Governance](./governance.md)**: Set up Unity Catalog permissions
-12. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
+1. **[Deployment concepts](./deployment.md)**: Base URL, TOML, and how to verify deployment — **read first**
+2. **[Quickstart](./quickstart.md)**: **Run this** — zero to registered UDTFs and Views (same flow as [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb))
+3. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
+4. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
+5. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
+6. **[Views](./views.md)**: Understand Views and their benefits
+7. **[Querying](./querying.md)**: Query Views and UDTFs directly
+8. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
+9. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
+10. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
+11. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
+12. **[Governance](./governance.md)**: Set up Unity Catalog permissions
+13. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
 ## Quick Links
 
 ### Quickstart
 
+- [Deployment concepts](./deployment.md): Base URL and TOML — read before the quickstart
 - [Catalog-based quickstart](./quickstart.md): Step-by-step guide (explained code blocks)
 - [Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb): **Recommended notebook** — markdown sections + inline comments per step (install → generate → Secret Manager → register UDTFs and Views)
 

@@ -2,10 +2,11 @@
 
 ## Start here (recommended)
 
-**All customers:** begin with the **catalog-based quickstart** — install, generate UDTFs from your CDF data model, store credentials in **Databricks Secret Manager**, and register **Unity Catalog** functions and views.
+**All customers:**
 
-- **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — full walkthrough with explained code blocks
-- **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow in a Databricks notebook (markdown + inline comments per cell)
+1. **[Deployment concepts](./catalog_based/deployment.md)** — identify your base URL, build TOML, understand success = querying Views
+2. **[Quickstart (step-by-step)](./catalog_based/quickstart.md)** — run the provisioning notebook
+3. **[Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb)** — same flow with inline comments
 
 **Prerequisites:** [Catalog-based prerequisites](./catalog_based/prerequisites.md)
 
@@ -41,8 +42,9 @@
 
 ## Documentation structure
 
-### Catalog-based (start here)
+### Deployment and catalog-based (start here)
 
+- [Deployment concepts](./catalog_based/deployment.md) — base URL, TOML, verify via Views
 - [Quickstart](./catalog_based/quickstart.md)
 - [Overview](./catalog_based/index.md)
 - [Prerequisites](./catalog_based/prerequisites.md)

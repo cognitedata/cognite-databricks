@@ -1,8 +1,10 @@
-# Quickstart (Unity Catalog) — start here
+# Quickstart (Unity Catalog) — runbook
 
-This guide is the **recommended starting path for all customers**: one flow from **install** → **CDF + Databricks clients** → **generate UDTFs** → **Secret Manager** → **register UDTFs and Views** in **Unity Catalog**.
+This is the **hands-on runbook** for all customers: install → TOML client → generate UDTFs → Secret Manager → register Views.
 
-**Notebook (copy-paste friendly):** [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb) — same steps as below, with **markdown explanations** and **inline comments** in each code cell.
+**Read first:** [Deployment concepts](./deployment.md) — [§1 base URL](./deployment.md#1-i-need-my-base-url), [§2 TOML](./deployment.md#2-i-need-toml), [§5 verify Views](./deployment.md#5-verify-deployment-databricks).
+
+**Notebook:** [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb) — same steps with inline comments and links to the deployment guide.
 
 **Prerequisites:** [Prerequisites](./prerequisites.md) (Unity Catalog, Secret Manager, CDF data model, TOML with `[cognite]` credentials).
 
@@ -23,7 +25,9 @@ Restart the kernel if the installer tells you to.
 
 ## 2. Imports and CDF client
 
-- **`load_cognite_client_from_toml`**: builds a Cognite client from TOML — same idea as `cognite-pygen` notebooks. Used to **load the data model** and talk to CDF.
+> **Base URL & TOML:** Look up your cluster's **Cognite API URL** before this step — [Deployment §1](./deployment.md#1-i-need-my-base-url). Build your TOML per [§2](./deployment.md#2-i-need-toml). PSaaS / Private Link: also read [§4](./deployment.md#4-what-psaas-base-url-means).
+
+- **`load_cognite_client_from_toml`**: builds a Cognite client from TOML — uses `base_url` from TOML when set ([how it works](./deployment.md#how-load_cognite_client_from_toml-applies-base_url)).
 - **TOML during provisioning**: you read credentials from a file to **seed** Secret Manager. **End users querying Views do not use this file**; SQL uses `SECRET()`.
 
 ```python
@@ -95,6 +99,8 @@ generator = generate_udtf_notebook(
 
 ## 5. Persist CDF credentials in Secret Manager
 
+> **Note:** `base_url` from TOML is used during provisioning only — it is **not** copied to Secret Manager. See [Deployment §3](./deployment.md#3-toml-based-deployment) and [what TOML is used for](./deployment.md#what-the-toml-is-and-is-not-used-for).
+
 - **Scope naming**: `cdf_{space}_{external_id.lower()}` aligns with generated SQL that references `SECRET('cdf_...', 'client_id')`, etc.
 - **`set_cdf_credentials`**: creates the scope if missing; stores **project**, **cdf_cluster**, **client_id**, **client_secret**, **tenant_id**.
 
@@ -158,11 +164,20 @@ result = generator.register_udtfs_and_views(
 
 ## 7. Verify and continue
 
-- **Databricks UI**: Catalog Explorer → your **catalog** → **schema** → functions and views.
+> **Success criteria:** [Deployment §5](./deployment.md#5-verify-deployment-databricks) — you can `SELECT` from **Views**; no TOML, no UDTF calls.
+
+**Deployment succeeded** when you can `SELECT` from registered **Views** and get CDF data. Analysts query Views only — you do not call UDTFs directly and you do not need the TOML file at query time.
+
+```sql
+SELECT * FROM my_catalog.CDF_CogniteCore_v1.<view_name> LIMIT 10;
+```
+
+- **Databricks UI**: Catalog Explorer → your **catalog** → **schema** → **views** (not functions).
 - **Docs**: [Querying](./querying.md), [Registration](./registration.md), [Views](./views.md).
 
 ## Next steps
 
+- [Deployment concepts](./deployment.md) — base URL, TOML, PSaaS details
 - [Prerequisites](./prerequisites.md) — permissions and example TOML
 - [Registration and Views example](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/registration_and_views.ipynb) — deeper walkthrough
 - [Session-scoped workflow](../session_scoped/index.md) — temporary session UDTFs for development (no Unity Catalog persistence)

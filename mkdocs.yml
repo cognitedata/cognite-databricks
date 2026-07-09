@@ -20,6 +20,7 @@ nav:
     - Troubleshooting: session_scoped/troubleshooting.md
   - Catalog-Based (Production):
     - Overview: catalog_based/index.md
+    - Deployment concepts: catalog_based/deployment.md
     - Quickstart: catalog_based/quickstart.md
     - Prerequisites: catalog_based/prerequisites.md
     - Secret Manager: catalog_based/secret_manager.md

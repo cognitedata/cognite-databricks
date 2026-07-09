@@ -33,7 +33,7 @@ Access to CDF credentials is required:
 - **client_id**: OAuth2 client ID
 - **client_secret**: OAuth2 client secret
 - **tenant_id**: Azure AD tenant ID
-- **cdf_cluster**: CDF cluster name (e.g., "westeurope-1")
+- **cdf_cluster**: CDF cluster name (e.g., `westeurope-1`) — look up your cluster and **Cognite API URL** in the [multi-tenant clusters table](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
 - **project**: CDF project name
 
 These credentials are typically stored in a TOML file and then transferred to Databricks Secret Manager.
@@ -55,6 +55,12 @@ client_secret = "your-oauth2-client-secret"
 ```
 
 An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
+
+### Base URL and `base_url` in TOML
+
+Every customer must know their **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
+
+Example: `docs/catalog_based/example_config_private_link.toml`
 
 ## CDF Data Model
 
