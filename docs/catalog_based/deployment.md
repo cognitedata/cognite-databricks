@@ -97,7 +97,7 @@ The TOML is an **admin-only provisioning artifact**:
 | --- | --- | --- |
 | `project`, `tenant_id`, `client_id`, `client_secret` | Yes | CDF authentication |
 | `cdf_cluster` | Yes | Cluster name; OAuth scopes |
-| `base_url` | PSaaS / Private Link, dedicated, `europe-west1-1` | Cognite API hostname when it ≠ `{cluster}.cognitedata.com` (PSaaS/PL: `p001.plink.…`) |
+| `base_url` | PSaaS / Private Link, dedicated, `europe-west1-1` | Cognite API hostname when it ≠ `{cluster}.cognitedata.com` (PSaaS/PL: `p001.plink.<cluster>.cognitedata.com`) |
 
 Requires **cognite-pygen ≥ 1.3.0** for `base_url` support. OAuth scopes derive from `cdf_cluster`; `base_url` overrides where API requests are sent.
 
