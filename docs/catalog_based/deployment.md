@@ -1,29 +1,18 @@
 # CDF base URL and TOML deployment
 
-How to identify your CDF **base URL**, configure **TOML**, and deploy **cognite-databricks** / **cognite-pygen-spark**.
+Identify your CDF **base URL**, write **TOML** for admin setup, deploy to Databricks, and confirm success by querying **Views**.
 
 ## How this guide fits together
 
-| Step | Your question | Section |
-| --- | --- | --- |
-| 1 | **I need my base URL** | [I need my base URL](#1-i-need-my-base-url) |
-| 2 | **I need TOML** | [I need TOML](#2-i-need-toml) |
-| 3 | **How do I do TOML-based deployment?** | [TOML-based deployment](#3-toml-based-deployment) |
-| 4 | **What does PSaaS base URL mean?** | [What PSaaS base URL means](#4-what-psaas-base-url-means) |
-| 5 | **(Databricks) Did deployment succeed?** | [Verify deployment (Databricks)](#5-verify-deployment-databricks) |
+1. **[I need my base URL](#1-i-need-my-base-url)** — look up your cluster in [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
+2. **[I need TOML](#2-i-need-toml)** — create `credentials.toml` for provisioning
+3. **[TOML-based deployment](#3-toml-based-deployment)** — run the [quickstart](./quickstart.md) notebook
+4. **[What PSaaS base URL means](#4-what-psaas-base-url-means)** — PSaaS / Private Link only
+5. **[Verify deployment (Databricks)](#5-verify-deployment-databricks)** — query Views, not UDTFs
 
-```mermaid
-flowchart TD
-  A["1. My base URL"] --> B["2. TOML config"]
-  B --> C["3. TOML-based deployment"]
-  C --> D["4. PSaaS details if applicable"]
-  C --> E["5. Query Views → success"]
-```
+**Platform admin** — steps 1–3 once (TOML, Secret Manager, register Views).
 
-**Roles on Databricks:**
-
-- **Platform admin** — looks up base URL, creates TOML, runs provisioning once (Secret Manager, View registration).
-- **Analyst** — queries **Views** only. No TOML, no UDTF calls, no secrets in notebooks.
+**Analyst** — `SELECT` from Views only. No TOML, no UDTF calls, no secrets in notebooks.
 
 ---
 
@@ -170,22 +159,7 @@ Follow this flow. Step-by-step: [catalog quickstart](./quickstart.md) or [quicks
 
 Build TOML from [§1](#1-i-need-my-base-url) and [§2](#2-i-need-toml). **Analysts do not use the TOML file at query time.**
 
-```mermaid
-flowchart LR
-  TOML["credentials.toml"]
-  Client["load_cognite_client_from_toml"]
-  Gen["Generate UDTFs"]
-  SM["Secret Manager"]
-  UC["Unity Catalog"]
-  SQL["Analyst SQL / Views"]
-
-  TOML --> Client
-  Client --> Gen
-  TOML --> SM
-  Gen --> UC
-  SM --> UC
-  UC --> SQL
-```
+**Flow:** TOML → `load_cognite_client_from_toml` → generate UDTFs → Secret Manager → Unity Catalog → analysts query Views.
 
 | Phase | Who runs it | Uses TOML? | What happens |
 | --- | --- | --- | --- |
