@@ -43,7 +43,7 @@ See [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#c
 
 Most rows use a **cluster-specific** hostname: `{cluster}.cognitedata.com` (e.g. `westeurope-1.cognitedata.com`, `az-eastus-1.cognitedata.com`).
 
-Only **`europe-west1-1` (GCP Europe)** uses `api.cognitedata.com`. That hostname appears in general API docs as an example, but most multi-tenant customers are on a different cluster-specific URL — look up your row in the table.
+Only **`europe-west1-1` (GCP Europe)** uses `api.cognitedata.com`. That hostname appears in general API docs as an example — look up **your** row in the table.
 
 ```toml
 # westeurope-1 — API URL is westeurope-1.cognitedata.com
