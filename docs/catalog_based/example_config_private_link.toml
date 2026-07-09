@@ -2,7 +2,7 @@
 # Copy this file, replace placeholders with your values, and do not commit secrets.
 # Use a path like /Workspace/Users/<your-user>/config.toml in Databricks.
 #
-# See docs/private_link_psaas.md for full setup instructions.
+# See docs/catalog_based/deployment.md (§4 PSaaS / Private Link).
 
 [cognite]
 project = "your-cdf-project"

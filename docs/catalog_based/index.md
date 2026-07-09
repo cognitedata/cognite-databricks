@@ -16,8 +16,8 @@ Unity Catalog provides a three-level hierarchy: `catalog.schema.object` where UD
 
 This documentation covers the complete workflow for using catalog-based UDTFs and Views:
 
-1. **[Quickstart](./quickstart.md)**: **Start here** — zero to registered UDTFs and Views (same flow as [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb))
-2. **[Private Link / PSaaS](../private_link_psaas.md)**: Configure `base_url` in TOML for Private Link endpoints
+1. **[Deployment concepts](./deployment.md)**: Base URL, TOML, and how to verify deployment — **read first**
+2. **[Quickstart](./quickstart.md)**: **Run this** — zero to registered UDTFs and Views (same flow as [quickstart.ipynb on GitHub](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb))
 3. **[Prerequisites](./prerequisites.md)**: System requirements and access permissions
 4. **[Secret Manager](./secret_manager.md)**: Set up secure credential storage
 5. **[Registration](./registration.md)**: Register UDTFs and Views in Unity Catalog
@@ -34,8 +34,8 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 
 ### Quickstart
 
+- [Deployment concepts](./deployment.md): Base URL and TOML — read before the quickstart
 - [Catalog-based quickstart](./quickstart.md): Step-by-step guide (explained code blocks)
-- [Private Link / PSaaS](../private_link_psaas.md): Configure `base_url` for Private Link endpoints
 - [Quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb): **Recommended notebook** — markdown sections + inline comments per step (install → generate → Secret Manager → register UDTFs and Views)
 
 ### Examples

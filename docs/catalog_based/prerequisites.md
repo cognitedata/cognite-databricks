@@ -58,7 +58,7 @@ An example file with this content is in the repo at `docs/catalog_based/example_
 
 ### Base URL and `base_url` in TOML
 
-Every customer must know their **Cognite API URL** before writing TOML. Most multi-tenant clusters use `{cluster}.cognitedata.com` — set `cdf_cluster` only. Add `base_url` when the published URL differs (e.g. `europe-west1-1` → `api.cognitedata.com`) or for dedicated / PSaaS / Private Link. See [CDF base URL and TOML deployment](../private_link_psaas.md).
+Every customer must know their **Cognite API URL** before writing TOML. See [Deployment concepts](./deployment.md#1-i-need-my-base-url).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 

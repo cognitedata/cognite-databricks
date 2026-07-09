@@ -109,7 +109,7 @@ Requires **cognite-pygen ≥ 1.3.0** for `base_url` support. OAuth scopes derive
 
 ## 3. TOML-based deployment
 
-**All customers** follow this flow. Multi-tenant: same steps in the [catalog quickstart](./catalog_based/quickstart.md).
+**All customers** follow this flow. Multi-tenant: same steps in the [catalog quickstart](./quickstart.md) or [quickstart notebook](https://github.com/cognitedata/cognite-databricks/blob/main/examples/catalog_based/quickstart.ipynb).
 
 Build TOML from [§1](#1-i-need-my-base-url) and [§2](#2-i-need-toml). **Analysts do not use the TOML file at query time.**
 
@@ -144,11 +144,11 @@ Store the file outside version control, for example:
 
 `/Workspace/Users/<your-email>/config/credentials.toml`
 
-Use [`example_config_private_link.toml`](./catalog_based/example_config_private_link.toml) for PSaaS / Private Link.
+Use [`example_config_private_link.toml`](./example_config_private_link.toml) for PSaaS / Private Link.
 
 ### cognite-databricks (step by step)
 
-Step-by-step notebook flow. Multi-tenant: same steps in the [catalog quickstart](./catalog_based/quickstart.md).
+Step-by-step notebook flow. Multi-tenant: same steps in the [catalog quickstart](./quickstart.md).
 
 ### Step 1 — Install
 
@@ -245,7 +245,7 @@ SELECT * FROM my_catalog.CDF_CogniteCore_v1.my_view LIMIT 10;
 
 If the query returns rows from CDF, provisioning and registration succeeded. Check Catalog Explorer (`catalog` → `schema` → **views**) to see what is available.
 
-See also [§5 Verify deployment (Databricks)](#5-verify-deployment-databricks) and the [querying guide](./catalog_based/querying.md).
+See also [§5 Verify deployment (Databricks)](#5-verify-deployment-databricks) and the [querying guide](./querying.md).
 
 Under the hood, the View passes `SECRET('cdf_…', …)` values into the UDTF — analysts never see this.
 
@@ -291,7 +291,7 @@ generator = SparkUDTFGenerator(
 result = generator.generate_udtfs()
 ```
 
-See the [pygen-spark Private Link guide](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/private_link_psaas.md) for registration and query details.
+See the [pygen-spark deployment guide](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/deployment.md) for registration and query details.
 
 ---
 
@@ -332,7 +332,7 @@ Provisioning uses both: authenticate with scopes from `cdf_cluster`, send reques
 - Databricks workers must reach this endpoint at **query time** (not only during admin provisioning).
 - See Cognite docs: [Private Link on Azure](https://docs.cognite.com/cdf/access/guides/configure_private_link_azure), [Private Link on AWS](https://docs.cognite.com/cdf/access/guides/configure_private_link_aws).
 
-Example TOML file: [`example_config_private_link.toml`](./catalog_based/example_config_private_link.toml).
+Example TOML file: [`example_config_private_link.toml`](./example_config_private_link.toml).
 
 ---
 
@@ -405,7 +405,7 @@ base_url = "https://p001.plink.az-xyz-001.cognitedata.com"
 | `base_url` | Dedicated / PSaaS / Private Link | Cognite-provided URL (with `https://`). Routed via VPN for PSaaS/Private Link |
 | `project`, `tenant_id`, `client_id`, `client_secret` | Yes | Same as standard setups |
 
-Example file: [`docs/catalog_based/example_config_private_link.toml`](./catalog_based/example_config_private_link.toml).
+Example file: [`example_config_private_link.toml`](./example_config_private_link.toml).
 
 ### How `load_cognite_client_from_toml` applies `base_url`
 
@@ -482,8 +482,8 @@ Provisioning uses `load_cognite_client_from_toml` (`base_url` aware). UDTF queri
 ## Related documentation
 
 - [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions) — standard CDF base URLs by cluster
-- [Catalog-based quickstart](./catalog_based/quickstart.md)
-- [Prerequisites](./catalog_based/prerequisites.md)
-- [Secret Manager](./catalog_based/secret_manager.md)
-- [pygen-spark Private Link guide](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/private_link_psaas.md)
+- [Catalog-based quickstart](./quickstart.md)
+- [Prerequisites](./prerequisites.md)
+- [Secret Manager](./secret_manager.md)
+- [pygen-spark deployment guide](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/deployment.md)
 - [cognite-pygen 1.3.0 release](https://github.com/cognitedata/pygen/releases/tag/1.3.0)
