@@ -47,20 +47,24 @@ client_secret = "your-oauth2-client-secret"
 
 ### 3. PSaaS / Private Link
 
-**Private SaaS (PSaaS)** and **Private Link** route CDF API traffic through endpoints configured in **your customer tenant** (your private network or dedicated environment), not the shared public cluster URL.
+**Private SaaS (PSaaS)** and **Private Link** use a **Cognite-provided** per-customer hostname that is **wired into your VPN or private network setup**. API traffic reaches CDF through your private connectivity instead of the shared public cluster URL.
+
+Typical hostname format:
+
+`p001.plink.az-xyz-001.cognitedata.com`
 
 | | |
 | --- | --- |
-| **Base URL** | Per-customer URL resolved in your tenant (Private Link example: `https://pNNN.plink.{cluster}.cognitedata.com`) |
-| **Who provides it** | You configure it in your tenant; Cognite provisions the Private Link / PSaaS endpoint |
-| **TOML** | Set `cdf_cluster` to the **public cluster name** (for OAuth) **and** `base_url` to your tenant URL |
+| **Base URL** | Cognite-provided Private Link hostname (for example `https://p001.plink.az-xyz-001.cognitedata.com`) |
+| **Who provides it** | Cognite assigns the URL; you integrate it with your VPN / Private Link configuration |
+| **TOML** | Set `cdf_cluster` to your cluster name (for OAuth) **and** `base_url` to the Cognite-provided Private Link URL |
 
 ```toml
 [cognite]
 project = "your-cdf-project"
 tenant_id = "your-azure-ad-tenant-id"
-cdf_cluster = "westeurope-1"
-base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+cdf_cluster = "az-xyz-001"
+base_url = "https://p001.plink.az-xyz-001.cognitedata.com"
 client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
 ```
@@ -76,7 +80,7 @@ For Private Link setup, see:
 | --- | --- | --- | --- |
 | **Multi-tenant** | [Published cluster list](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) | Required | Not needed |
 | **Dedicated** | Cognite-provided, customer-specific | Required | Required |
-| **PSaaS / Private Link** | Customer tenant configured | Required (public cluster name for OAuth) | Required |
+| **PSaaS / Private Link** | Cognite-provided; routed via customer VPN | Required | Required |
 
 **cognite-pygen 1.3.0+** reads optional `base_url` from TOML (and supports `--cdf-url` on the CLI) for dedicated, PSaaS, and Private Link deployments. OAuth scopes still derive from `cdf_cluster`; `base_url` overrides where API requests are sent.
 
@@ -102,23 +106,23 @@ Install or upgrade in a Databricks notebook:
 
 ## TOML configuration
 
-Add an optional `base_url` to the `[cognite]` section. Keep `cdf_cluster` as the **public cluster name** (not the Private Link hostname).
+Add an optional `base_url` to the `[cognite]` section for PSaaS / Private Link. Use the Cognite-provided Private Link hostname (not the bare cluster URL). Keep `cdf_cluster` as your cluster name for OAuth.
 
 ```toml
 # Private Link / PSaaS example — do not commit secrets.
 [cognite]
 project = "your-cdf-project"
 tenant_id = "your-azure-ad-tenant-id"
-cdf_cluster = "westeurope-1"
+cdf_cluster = "az-xyz-001"
 client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
-base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+base_url = "https://p001.plink.az-xyz-001.cognitedata.com"
 ```
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `cdf_cluster` | Yes | Public cluster name (e.g. `westeurope-1`). Used for OAuth scopes: `https://{cdf_cluster}.cognitedata.com/.default` |
-| `base_url` | No | Full Private Link URL (with `https://`). Overrides where the Cognite client sends API requests |
+| `cdf_cluster` | Yes | Cluster name (e.g. `az-xyz-001`). Used for OAuth scopes: `https://{cdf_cluster}.cognitedata.com/.default` |
+| `base_url` | No | Cognite-provided Private Link URL (with `https://`). Routed via your VPN; overrides where API requests are sent |
 | `project`, `tenant_id`, `client_id`, `client_secret` | Yes | Same as standard setups |
 
 A redacted example file is in the repo: [`docs/catalog_based/example_config_private_link.toml`](./catalog_based/example_config_private_link.toml).
@@ -257,8 +261,8 @@ pygen generate \
   --tenant-id <tenant-id> \
   --client-id <client-id> \
   --client-secret <client-secret> \
-  --cdf-cluster westeurope-1 \
-  --cdf-url https://p123.plink.westeurope-1.cognitedata.com \
+  --cdf-cluster az-xyz-001 \
+  --cdf-url https://p001.plink.az-xyz-001.cognitedata.com \
   --cdf-project my-project
 ```
 

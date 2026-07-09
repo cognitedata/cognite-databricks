@@ -7,8 +7,9 @@
 [cognite]
 project = "your-cdf-project"
 tenant_id = "your-azure-ad-tenant-id"
-cdf_cluster = "westeurope-1"
+cdf_cluster = "az-xyz-001"
 client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
-# Private Link base URL from Cognite (format: pNNN.plink.<cluster>.cognitedata.com)
-base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+# Cognite-provided Private Link URL (wired into your VPN setup)
+# Typical format: p001.plink.<cluster>.cognitedata.com
+base_url = "https://p001.plink.az-xyz-001.cognitedata.com"

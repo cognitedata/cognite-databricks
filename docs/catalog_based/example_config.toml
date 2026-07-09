@@ -9,4 +9,4 @@ cdf_cluster = "westeurope-1"
 client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
 # Optional — Private Link / PSaaS only (see docs/private_link_psaas.md):
-# base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+# base_url = "https://p001.plink.az-xyz-001.cognitedata.com"

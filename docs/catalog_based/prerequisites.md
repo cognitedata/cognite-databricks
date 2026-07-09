@@ -58,7 +58,7 @@ An example file with this content is in the repo at `docs/catalog_based/example_
 
 ### Dedicated, Private Link, or PSaaS
 
-If you use a **dedicated cluster** (Cognite-provided URL), **Private Link**, or **Private SaaS (PSaaS)** (customer tenant URL), add `base_url` to TOML alongside `cdf_cluster`. See [CDF base URL types](../private_link_psaas.md#cdf-base-url).
+If you use a **dedicated cluster** (Cognite-provided URL), **Private Link**, or **Private SaaS (PSaaS)** (Cognite-provided URL wired into your VPN), add `base_url` to TOML alongside `cdf_cluster`. See [CDF base URL types](../private_link_psaas.md#cdf-base-url).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 
