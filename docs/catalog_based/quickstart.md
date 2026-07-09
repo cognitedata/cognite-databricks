@@ -6,7 +6,7 @@ This guide is the **recommended starting path for all customers**: one flow from
 
 **Prerequisites:** [Prerequisites](./prerequisites.md) (Unity Catalog, Secret Manager, CDF data model, TOML with `[cognite]` credentials).
 
-**Private Link / PSaaS:** add `base_url` to your TOML — see [Private Link setup](../private_link_psaas.md#deploying-with-a-toml-file) for the full deployment flow with TOML.
+**Private Link / PSaaS / dedicated:** not on the default base URL — see [Which deployment](../private_link_psaas.md#1-which-deployment-do-you-use), [base URL types](../private_link_psaas.md#3-what-base-url-means--three-types), and [TOML-based deployment](../private_link_psaas.md#4-toml-based-deployment). After setup, analysts query **Views only** — [§6 Verify deployment](../private_link_psaas.md#6-verify-deployment-databricks).
 
 ---
 
@@ -160,7 +160,15 @@ result = generator.register_udtfs_and_views(
 
 ## 7. Verify and continue
 
-- **Databricks UI**: Catalog Explorer → your **catalog** → **schema** → functions and views.
+**Deployment succeeded** when you can `SELECT` from registered **Views** and get CDF data. Analysts query Views only — you do not call UDTFs directly and you do not need the TOML file at query time.
+
+```sql
+SELECT * FROM my_catalog.CDF_CogniteCore_v1.<view_name> LIMIT 10;
+```
+
+PSaaS / Private Link customers: see [§6 Verify deployment (Databricks)](../private_link_psaas.md#6-verify-deployment-databricks) for a full checklist.
+
+- **Databricks UI**: Catalog Explorer → your **catalog** → **schema** → **views** (not functions).
 - **Docs**: [Querying](./querying.md), [Registration](./registration.md), [Views](./views.md).
 
 ## Next steps
