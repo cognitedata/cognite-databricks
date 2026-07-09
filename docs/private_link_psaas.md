@@ -90,6 +90,149 @@ Multi-tenant customers only need `cdf_cluster` — follow the [catalog quickstar
 
 This guide focuses on **dedicated**, **PSaaS**, and **Private Link** setups that require `base_url` in TOML.
 
+## Deploying with a TOML file
+
+The TOML file is an **admin-only provisioning artifact**. It is read during setup to connect to CDF, generate UDTFs, and (for Databricks) seed Secret Manager. **Analysts do not use the TOML file at query time.**
+
+```mermaid
+flowchart LR
+  TOML["credentials.toml"]
+  Client["load_cognite_client_from_toml"]
+  Gen["Generate UDTFs"]
+  SM["Secret Manager"]
+  UC["Unity Catalog"]
+  SQL["Analyst SQL / Views"]
+
+  TOML --> Client
+  Client --> Gen
+  TOML --> SM
+  Gen --> UC
+  SM --> UC
+  UC --> SQL
+```
+
+| Phase | Who runs it | Uses TOML? | What happens |
+| --- | --- | --- | --- |
+| **1. Prepare config** | Platform admin | Create file | Store `[cognite]` credentials (+ `base_url` for PSaaS/Private Link) in the workspace |
+| **2. Install packages** | Platform admin | No | `%pip install cognite-databricks` (and `cognite-pygen>=1.3.0`) |
+| **3. Connect to CDF** | Platform admin | **Yes** | `load_cognite_client_from_toml()` — uses `base_url` when set |
+| **4. Generate UDTFs** | Platform admin | Indirectly | Client from step 3 fetches the data model and writes Python UDTF files |
+| **5. Seed secrets** | Platform admin | **Yes** | Read TOML again; copy fields into Databricks Secret Manager (`base_url` is **not** stored) |
+| **6. Register** | Platform admin | No | `register_udtfs` / `register_views` reference secrets via `SECRET()` |
+| **7. Query** | Analysts | **No** | SQL against Views; credentials resolved from Secret Manager |
+
+Store the file outside version control, for example:
+
+`/Workspace/Users/<your-email>/config/credentials.toml`
+
+Use [`example_config_private_link.toml`](./catalog_based/example_config_private_link.toml) for PSaaS / Private Link.
+
+---
+
+## cognite-databricks deployment (step by step)
+
+Full catalog-based flow with TOML. For the standard multi-tenant path, see the [catalog quickstart](./catalog_based/quickstart.md) — the steps are the same; only the TOML content differs when `base_url` is required.
+
+### Step 1 — Install
+
+```python
+%pip install --upgrade "cognite-databricks>=0.3.1" "cognite-pygen>=1.3.0"
+```
+
+Restart the kernel if prompted.
+
+### Step 2 — Load client from TOML
+
+The TOML drives the **first** connection to CDF. For PSaaS / Private Link, `base_url` must be present so provisioning traffic uses your VPN-routed hostname.
+
+```python
+from cognite.databricks import generate_udtf_notebook
+from cognite.client.data_classes.data_modeling.ids import DataModelId
+from cognite.pygen import load_cognite_client_from_toml
+from databricks.sdk import WorkspaceClient
+
+import toml
+
+toml_file_path = "/Workspace/Users/<your-email>/config/credentials.toml"
+
+client = load_cognite_client_from_toml(toml_file_path)
+client.iam.token.inspect()  # sanity check against your base_url
+```
+
+### Step 3 — Generate UDTF Python files
+
+The client loaded from TOML is passed into the generator. Codegen talks to CDF through `base_url` (when set) to read your data model.
+
+```python
+workspace_client = WorkspaceClient()
+warehouses = list(workspace_client.warehouses.list())
+warehouse = warehouses[0]
+
+data_model_id = DataModelId(space="cdf_cdm", external_id="CogniteCore", version="v1")
+
+generator = generate_udtf_notebook(
+    data_model_id,
+    client,
+    workspace_client=workspace_client,
+    output_dir="/Workspace/Users/<your-email>/udtf_generated",
+    catalog="my_catalog",
+    schema="CDF_CogniteCore_v1",
+    warehouse_id=warehouse.id,
+)
+```
+
+### Step 4 — Copy TOML credentials into Secret Manager
+
+Re-read the TOML and push **individual secret keys** into Databricks. This is a one-time handoff: after registration, the notebook no longer needs the TOML for queries.
+
+`base_url` is **not** copied to Secret Manager — only `project`, `cdf_cluster`, `client_id`, `client_secret`, and `tenant_id`.
+
+```python
+secret_scope = f"cdf_{data_model_id.space}_{data_model_id.external_id.lower()}"
+
+toml_content = toml.load(toml_file_path)
+cognite_config = toml_content["cognite"]
+
+generator.secret_helper.set_cdf_credentials(
+    scope_name=secret_scope,
+    project=cognite_config["project"],
+    cdf_cluster=cognite_config["cdf_cluster"],
+    client_id=cognite_config["client_id"],
+    client_secret=cognite_config["client_secret"],
+    tenant_id=cognite_config["tenant_id"],
+)
+```
+
+### Step 5 — Register UDTFs and Views
+
+Registration uses **Secret Manager**, not the TOML file. Generated SQL embeds `SECRET('cdf_…', 'client_id')` references.
+
+```python
+generator.register_udtfs(secret_scope=secret_scope, if_exists="replace")
+generator.register_views(secret_scope=secret_scope, if_exists="replace")
+```
+
+### Step 6 — Query (no TOML)
+
+Analysts query Views without touching the TOML file:
+
+```sql
+SELECT * FROM my_catalog.CDF_CogniteCore_v1.my_view;
+```
+
+Under the hood, the View passes `SECRET('cdf_…', …)` values into the UDTF.
+
+### What the TOML is (and is not) used for
+
+| TOML field | Provisioning (`load_cognite_client_from_toml`) | Secret Manager | UDTF query time |
+| --- | --- | --- | --- |
+| `project` | Yes | Stored | Via `SECRET()` |
+| `cdf_cluster` | Yes (OAuth scopes) | Stored | Via `SECRET()` |
+| `client_id` / `client_secret` / `tenant_id` | Yes | Stored | Via `SECRET()` |
+| `base_url` | Yes (API endpoint) | **Not stored** | Not used today — see [Query-time behavior](#query-time-behavior-udtfs) |
+
+---
+
 ## Requirements
 
 | Package | Minimum version | Role |
@@ -98,15 +241,9 @@ This guide focuses on **dedicated**, **PSaaS**, and **Private Link** setups that
 | `cognite-pygen-spark` | **0.3.1** | UDTF code generation (used by cognite-databricks) |
 | `cognite-databricks` | **0.3.1** | Databricks registration; depends on pygen ≥ 1.3.0 |
 
-Install or upgrade in a Databricks notebook:
+## TOML configuration reference
 
-```python
-%pip install --upgrade "cognite-databricks>=0.3.1" "cognite-pygen>=1.3.0"
-```
-
-## TOML configuration
-
-Add an optional `base_url` to the `[cognite]` section for PSaaS / Private Link. Use the Cognite-provided Private Link hostname (not the bare cluster URL). Keep `cdf_cluster` as your cluster name for OAuth.
+Add `base_url` to the `[cognite]` section for dedicated, PSaaS, or Private Link deployments:
 
 ```toml
 # Private Link / PSaaS example — do not commit secrets.
@@ -122,14 +259,12 @@ base_url = "https://p001.plink.az-xyz-001.cognitedata.com"
 | Field | Required | Description |
 | --- | --- | --- |
 | `cdf_cluster` | Yes | Cluster name (e.g. `az-xyz-001`). Used for OAuth scopes: `https://{cdf_cluster}.cognitedata.com/.default` |
-| `base_url` | No | Cognite-provided Private Link URL (with `https://`). Routed via your VPN; overrides where API requests are sent |
+| `base_url` | Dedicated / PSaaS / Private Link | Cognite-provided URL (with `https://`). Routed via VPN for PSaaS/Private Link |
 | `project`, `tenant_id`, `client_id`, `client_secret` | Yes | Same as standard setups |
 
-A redacted example file is in the repo: [`docs/catalog_based/example_config_private_link.toml`](./catalog_based/example_config_private_link.toml).
+Example file: [`docs/catalog_based/example_config_private_link.toml`](./catalog_based/example_config_private_link.toml).
 
 ### How `load_cognite_client_from_toml` applies `base_url`
-
-`cognite-pygen` loads credentials, creates the client with `default_oauth_client_credentials()` (using `cdf_cluster` for OAuth), then overrides the API endpoint:
 
 ```python
 base_url = toml_content.pop("base_url", None)
@@ -140,80 +275,38 @@ if base_url:
 
 Omitting `base_url` preserves the default public URL behavior.
 
----
-
-## cognite-databricks (Unity Catalog)
-
-Private Link affects **provisioning** (loading the data model, generating UDTFs, registering in Unity Catalog) when your Databricks workspace reaches CDF only through Private Link.
-
-### 1. Create your TOML file
-
-Store the file in the workspace, for example:
-
-`/Workspace/Users/<your-email>/config/credentials.toml`
-
-Use the [Private Link TOML example](./catalog_based/example_config_private_link.toml) as a template.
-
-### 2. Load the CDF client (provisioning)
-
-Same as the [catalog quickstart](./catalog_based/quickstart.md), but the TOML must include `base_url`:
-
-```python
-from cognite.pygen import load_cognite_client_from_toml
-
-toml_file_path = "/Workspace/Users/<your-email>/config/credentials.toml"
-
-# Uses base_url from TOML when present — required for Private Link during codegen.
-client = load_cognite_client_from_toml(toml_file_path)
-```
-
-Verify connectivity before generating UDTFs:
-
-```python
-# Quick sanity check — should succeed against your Private Link endpoint.
-client.iam.token.inspect()
-```
-
-### 3. Generate and register UDTFs
-
-Continue the [quickstart](./catalog_based/quickstart.md) flow (`generate_udtf_notebook`, Secret Manager, `register_udtfs`, `register_views`). No API changes are required beyond the TOML `base_url` for the provisioning client.
-
-### 4. Store credentials in Secret Manager
-
-`set_cdf_credentials()` stores the **public** `cdf_cluster` name (for OAuth scopes at query time). It does not store `base_url`:
-
-```python
-import toml
-
-toml_content = toml.load(toml_file_path)
-cognite_config = toml_content["cognite"]
-
-generator.secret_helper.set_cdf_credentials(
-    scope_name=secret_scope,
-    project=cognite_config["project"],
-    cdf_cluster=cognite_config["cdf_cluster"],  # public cluster name
-    client_id=cognite_config["client_id"],
-    client_secret=cognite_config["client_secret"],
-    tenant_id=cognite_config["tenant_id"],
-)
-```
-
 ### Query-time behavior (UDTFs)
 
-Generated UDTFs (from **cognite-pygen-spark** templates) build API URLs as `https://{cdf_cluster}.cognitedata.com` using the `cdf_cluster` value passed from SQL / Secret Manager. OAuth scopes use the same public cluster pattern.
+Generated UDTFs build API URLs as `https://{cdf_cluster}.cognitedata.com` from Secret Manager values. `base_url` from TOML is **not** stored in secrets and is **not** used at query time today.
 
 | Phase | `base_url` support | Notes |
 | --- | --- | --- |
 | **Provisioning** (TOML → `load_cognite_client_from_toml`) | Yes | Use `base_url` in TOML |
-| **Query time** (UDTF `eval()` via `SECRET('…', 'cdf_cluster')`) | Public URL only today | Works when workers can reach the public CDF endpoint |
+| **Query time** (UDTF via `SECRET('…', 'cdf_cluster')`) | Public URL pattern only | Ensure workers can reach the endpoint UDTFs resolve |
 
-If your Spark workers can only reach CDF through Private Link at query time, contact your Cognite team — runtime `base_url` in Secret Manager and UDTF templates is on the roadmap. Until then, ensure network routing from Databricks to the appropriate CDF endpoint matches how UDTFs resolve URLs.
+If workers can only reach CDF through Private Link at query time, contact your Cognite team — runtime `base_url` in Secret Manager is on the roadmap.
 
 ---
 
-## cognite-pygen-spark (generic Spark)
+## cognite-pygen-spark deployment (step by step)
 
-For standalone Spark clusters (no Databricks), use the same TOML shape and **cognite-pygen** client loading during [generation](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/generation.md).
+Standalone Spark clusters use the same TOML for **code generation only**. There is no Secret Manager — credentials are passed into SQL when querying UDTFs.
+
+| Phase | Uses TOML? |
+| --- | --- |
+| Install + generate UDTFs | **Yes** — `load_cognite_client_from_toml("config.toml")` |
+| Register UDTFs in Spark session | No — register generated Python modules |
+| Query UDTFs | No — pass credential values in SQL (often read from TOML once in the notebook) |
+
+### Step 1 — Install
+
+```bash
+pip install --upgrade "cognite-pygen-spark>=0.3.1" "cognite-pygen>=1.3.0"
+```
+
+Ensure `cognite-sdk` is available on all Spark worker nodes.
+
+### Step 2 — Generate from TOML
 
 ```python
 from pathlib import Path
@@ -222,8 +315,8 @@ from cognite.client.data_classes.data_modeling.ids import DataModelId
 from cognite.pygen import load_cognite_client_from_toml
 from cognite.pygen_spark import SparkUDTFGenerator
 
-# TOML must include base_url for Private Link.
 client = load_cognite_client_from_toml("config.toml")
+client.iam.token.inspect()
 
 generator = SparkUDTFGenerator(
     client=client,
@@ -234,18 +327,22 @@ generator = SparkUDTFGenerator(
 result = generator.generate_udtfs()
 ```
 
-See the [pygen-spark Private Link guide](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/private_link_psaas.md) for session registration and querying notes.
+### Step 3 — Register and query
 
-### `CDFConnectionConfig` (pygen-spark)
-
-`CDFConnectionConfig.from_toml()` loads standard fields but does **not** yet read `base_url`. For Private Link, prefer `load_cognite_client_from_toml()` for client creation, or build the client manually:
+Register the generated UDTF classes in your Spark session, then query with credentials as SQL parameters. You can read values from the same TOML in your driver notebook — the TOML is not read automatically at query time.
 
 ```python
-from cognite.client import CogniteClient
-from cognite.pygen import load_cognite_client_from_toml
+import toml
 
-client = load_cognite_client_from_toml("config.toml")
+config = toml.load("config.toml")["cognite"]
+# Use config["client_id"], config["cdf_cluster"], etc. when building SQL or calling the UDTF
 ```
+
+See [Generation](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/generation.md) and [Registration](https://github.com/cognitedata/pygen-spark/blob/main/docs/guide/registration.md).
+
+### `CDFConnectionConfig` vs `load_cognite_client_from_toml`
+
+`CDFConnectionConfig.from_toml()` does not read `base_url`. For PSaaS / Private Link, always use `load_cognite_client_from_toml()`.
 
 ---
 

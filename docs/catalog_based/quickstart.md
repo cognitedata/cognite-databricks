@@ -6,7 +6,7 @@ This guide is the **recommended starting path for all customers**: one flow from
 
 **Prerequisites:** [Prerequisites](./prerequisites.md) (Unity Catalog, Secret Manager, CDF data model, TOML with `[cognite]` credentials).
 
-**Private Link / PSaaS:** add `base_url` to your TOML — see [Private Link setup](../private_link_psaas.md).
+**Private Link / PSaaS:** add `base_url` to your TOML — see [Private Link setup](../private_link_psaas.md#deploying-with-a-toml-file) for the full deployment flow with TOML.
 
 ---
 
