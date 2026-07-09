@@ -1,6 +1,6 @@
 # Private Link and PSaaS Setup
 
-This guide explains how to connect **cognite-databricks** and **cognite-pygen-spark** to CDF when your project uses **Private Link** or **PSaaS** (Platform-as-a-Service) endpoints instead of the standard public CDF URL.
+This guide explains how to connect **cognite-databricks** and **cognite-pygen-spark** to CDF when your project uses **Private Link** or **PSaaS** (Private Software as a Service) endpoints instead of the standard public CDF URL.
 
 For background on Private Link provisioning, see the Cognite docs:
 
