@@ -33,7 +33,7 @@ Access to CDF credentials is required:
 - **client_id**: OAuth2 client ID
 - **client_secret**: OAuth2 client secret
 - **tenant_id**: Azure AD tenant ID
-- **cdf_cluster**: CDF cluster name (e.g., "westeurope-1") — determines the [standard base URL](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions) as `https://{cdf_cluster}.cognitedata.com`
+- **cdf_cluster**: CDF cluster name (e.g., `westeurope-1`) — for multi-tenant deployments, pick from the [published cluster list](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
 - **project**: CDF project name
 
 These credentials are typically stored in a TOML file and then transferred to Databricks Secret Manager.
@@ -56,9 +56,9 @@ client_secret = "your-oauth2-client-secret"
 
 An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
 
-### Private Link / PSaaS
+### Dedicated, Private Link, or PSaaS
 
-If your CDF project uses **Private Link** or **Private SaaS (PSaaS)**, Cognite provisions a per-customer base URL in your tenant instead of the public cluster URL. Add optional `base_url` to the TOML and keep `cdf_cluster` as the public cluster name. See: [Private Link and PSaaS setup](../private_link_psaas.md).
+If you use a **dedicated cluster** (Cognite-provided URL), **Private Link**, or **Private SaaS (PSaaS)** (customer tenant URL), add `base_url` to TOML alongside `cdf_cluster`. See [CDF base URL types](../private_link_psaas.md#cdf-base-url).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 

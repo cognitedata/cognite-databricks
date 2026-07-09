@@ -1,16 +1,20 @@
 # Private Link and PSaaS Setup
 
-This guide explains how to connect **cognite-databricks** and **cognite-pygen-spark** to CDF when your project uses **Private Link** or **PSaaS** (Private Software as a Service) instead of a standard public cluster URL.
+This guide explains CDF **base URL** configuration for **cognite-databricks** and **cognite-pygen-spark**, with setup details for deployments that require a custom `base_url` in TOML.
 
-## CDF base URL (standard)
+## CDF base URL
 
-For standard multi-tenant CDF deployments, the API **base URL** is determined by your cluster and region. Each cluster maps to a hostname under `*.cognitedata.com` — see [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions) for the full list of available clusters, cloud providers, and regions.
+How you connect to CDF depends on your deployment type. See [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions) for the official cluster documentation.
 
-In the typical case:
+### 1. Multi-tenant cluster
 
-- Set **`cdf_cluster`** to your cluster name (for example `westeurope-1` or `greenfield`).
-- The SDK derives the base URL as `https://{cdf_cluster}.cognitedata.com`.
-- No separate `base_url` field is required in TOML.
+Your organization runs on a **shared** Cognite cluster alongside other tenants. Choose a cluster from the [published multi-tenant list](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) (for example `westeurope-1`, `az-eastus-1`, or `europe-west1-1`).
+
+| | |
+| --- | --- |
+| **Base URL** | Listed in the Clusters and regions table (typically `https://{cluster}.cognitedata.com`; some clusters use a different hostname such as `api.cognitedata.com`) |
+| **Who provides it** | Cognite — fixed per cluster from the public list |
+| **TOML** | Set `cdf_cluster` only — no `base_url` needed |
 
 ```toml
 [cognite]
@@ -21,35 +25,66 @@ client_id = "your-oauth2-client-id"
 client_secret = "your-oauth2-client-secret"
 ```
 
-## Private SaaS and Private Link
+### 2. Dedicated cluster
 
-For **Private SaaS (PSaaS)** and **Private Link** deployments, Cognite does **not** use the shared public cluster URL. Instead, your organization is assigned a **per-customer base URL** that is provisioned and resolved in **your customer tenant** (your private network or dedicated environment).
+Your organization uses **exclusive** cloud storage and compute on a Cognite-managed dedicated cluster. Request a dedicated cluster through your Cognite representative.
 
-| Deployment | Base URL pattern | Where it comes from |
-| --- | --- | --- |
-| **Standard multi-tenant** | `https://{cdf_cluster}.cognitedata.com` | [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#clusters-and-regions) |
-| **Private Link** | `https://pNNN.plink.{cdf_cluster}.cognitedata.com` | Cognite provisions per customer; resolved in your tenant |
-| **Private SaaS (PSaaS)** | Customer-specific hostname | Cognite provisions per customer; resolved in your tenant |
+| | |
+| --- | --- |
+| **Base URL** | Customer-specific hostname **provided by Cognite** (not on the public multi-tenant list) |
+| **Who provides it** | Cognite — assigned to your organization |
+| **TOML** | Set `cdf_cluster` **and** `base_url` with the URL Cognite gives you |
 
-You still set **`cdf_cluster`** to the **public cluster name** (for OAuth scopes and token audience). Add optional **`base_url`** in TOML with your tenant-specific URL so API traffic uses the correct endpoint.
+```toml
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "westeurope-1"
+base_url = "https://<your-dedicated-cluster-hostname>.cognitedata.com"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+```
 
-For background on Private Link provisioning, see:
+### 3. PSaaS / Private Link
+
+**Private SaaS (PSaaS)** and **Private Link** route CDF API traffic through endpoints configured in **your customer tenant** (your private network or dedicated environment), not the shared public cluster URL.
+
+| | |
+| --- | --- |
+| **Base URL** | Per-customer URL resolved in your tenant (Private Link example: `https://pNNN.plink.{cluster}.cognitedata.com`) |
+| **Who provides it** | You configure it in your tenant; Cognite provisions the Private Link / PSaaS endpoint |
+| **TOML** | Set `cdf_cluster` to the **public cluster name** (for OAuth) **and** `base_url` to your tenant URL |
+
+```toml
+[cognite]
+project = "your-cdf-project"
+tenant_id = "your-azure-ad-tenant-id"
+cdf_cluster = "westeurope-1"
+base_url = "https://p123.plink.westeurope-1.cognitedata.com"
+client_id = "your-oauth2-client-id"
+client_secret = "your-oauth2-client-secret"
+```
+
+For Private Link setup, see:
 
 - [Configure Private Link on Azure](https://docs.cognite.com/cdf/access/guides/configure_private_link_azure)
 - [Configure Private Link on AWS](https://docs.cognite.com/cdf/access/guides/configure_private_link_aws)
 
-**cognite-pygen 1.3.0+** adds optional `base_url` support in TOML (and `--cdf-url` on the CLI) so provisioning tools can reach CDF through your tenant URL while OAuth still uses the public cluster name.
+### Summary
 
-## Overview
+| Deployment | Base URL source | `cdf_cluster` in TOML | `base_url` in TOML |
+| --- | --- | --- | --- |
+| **Multi-tenant** | [Published cluster list](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters) | Required | Not needed |
+| **Dedicated** | Cognite-provided, customer-specific | Required | Required |
+| **PSaaS / Private Link** | Customer tenant configured | Required (public cluster name for OAuth) | Required |
 
-When using Private Link or Private SaaS, URLs serve two roles in this integration:
+**cognite-pygen 1.3.0+** reads optional `base_url` from TOML (and supports `--cdf-url` on the CLI) for dedicated, PSaaS, and Private Link deployments. OAuth scopes still derive from `cdf_cluster`; `base_url` overrides where API requests are sent.
 
-| URL type | Example | Used for |
-| --- | --- | --- |
-| **Public cluster URL** | `https://westeurope-1.cognitedata.com` | OAuth scopes and token audience (Azure AD app registration) |
-| **Tenant-specific URL** | `https://p123.plink.westeurope-1.cognitedata.com` | Actual CDF API traffic from your network |
+## When you need this guide
 
-Set `cdf_cluster` for OAuth; set `base_url` in TOML to your per-customer tenant URL for API requests.
+Multi-tenant customers only need `cdf_cluster` — follow the [catalog quickstart](./catalog_based/quickstart.md).
+
+This guide focuses on **dedicated**, **PSaaS**, and **Private Link** setups that require `base_url` in TOML.
 
 ## Requirements
 
