@@ -9,7 +9,7 @@
 
 **Prerequisites:** [Catalog-based prerequisites](./catalog_based/prerequisites.md)
 
-**Private Link / PSaaS:** [Private Link setup guide](./private_link_psaas.md) — configure `base_url` in TOML for Private Link endpoints.
+**CDF base URL and TOML:** [Base URL and TOML deployment guide](./private_link_psaas.md) — identify your cluster/API URL, then deploy. All customers use TOML for admin setup.
 
 ---
 

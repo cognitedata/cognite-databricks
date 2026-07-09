@@ -6,7 +6,7 @@ This guide is the **recommended starting path for all customers**: one flow from
 
 **Prerequisites:** [Prerequisites](./prerequisites.md) (Unity Catalog, Secret Manager, CDF data model, TOML with `[cognite]` credentials).
 
-**Private Link / PSaaS / dedicated:** not on the default base URL — see [Which deployment](../private_link_psaas.md#1-which-deployment-do-you-use), [base URL types](../private_link_psaas.md#3-what-base-url-means--three-types), and [TOML-based deployment](../private_link_psaas.md#4-toml-based-deployment). After setup, analysts query **Views only** — [§6 Verify deployment](../private_link_psaas.md#6-verify-deployment-databricks).
+**Before you start:** look up your cluster and **Cognite API URL** in [Clusters and regions](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters). Full path: [§1 base URL](../private_link_psaas.md#1-i-need-my-base-url) → [§2 TOML](../private_link_psaas.md#2-i-need-toml) → [§3 deployment](../private_link_psaas.md#3-toml-based-deployment). Success = [§5 query Views](../private_link_psaas.md#5-verify-deployment-databricks).
 
 ---
 
@@ -166,7 +166,7 @@ result = generator.register_udtfs_and_views(
 SELECT * FROM my_catalog.CDF_CogniteCore_v1.<view_name> LIMIT 10;
 ```
 
-PSaaS / Private Link customers: see [§6 Verify deployment (Databricks)](../private_link_psaas.md#6-verify-deployment-databricks) for a full checklist.
+PSaaS / Private Link customers: see [§5 Verify deployment (Databricks)](../private_link_psaas.md#5-verify-deployment-databricks) for a full checklist.
 
 - **Databricks UI**: Catalog Explorer → your **catalog** → **schema** → **views** (not functions).
 - **Docs**: [Querying](./querying.md), [Registration](./registration.md), [Views](./views.md).

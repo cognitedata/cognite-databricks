@@ -33,7 +33,7 @@ Access to CDF credentials is required:
 - **client_id**: OAuth2 client ID
 - **client_secret**: OAuth2 client secret
 - **tenant_id**: Azure AD tenant ID
-- **cdf_cluster**: CDF cluster name (e.g., `westeurope-1`) — for multi-tenant deployments, pick from the [published cluster list](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
+- **cdf_cluster**: CDF cluster name (e.g., `westeurope-1`) — look up your cluster and **Cognite API URL** in the [multi-tenant clusters table](https://docs.cognite.com/cdf/admin/clusters_regions#cognite-multi-tenant-clusters)
 - **project**: CDF project name
 
 These credentials are typically stored in a TOML file and then transferred to Databricks Secret Manager.
@@ -56,9 +56,9 @@ client_secret = "your-oauth2-client-secret"
 
 An example file with this content is in the repo at `docs/catalog_based/example_config.toml`. Copy it and fill in your values.
 
-### Dedicated, Private Link, or PSaaS
+### Base URL and `base_url` in TOML
 
-If you use a **dedicated**, **Private Link**, or **PSaaS** deployment (not the default base URL), configure TOML per [§3 base URL types](../private_link_psaas.md#3-what-base-url-means--three-types). Deployment: [§4 TOML-based deployment](../private_link_psaas.md#4-toml-based-deployment).
+Every customer must know their **Cognite API URL** before writing TOML. Most multi-tenant clusters use `{cluster}.cognitedata.com` — set `cdf_cluster` only. Add `base_url` when the published URL differs (e.g. `europe-west1-1` → `api.cognitedata.com`) or for dedicated / PSaaS / Private Link. See [CDF base URL and TOML deployment](../private_link_psaas.md).
 
 Example: `docs/catalog_based/example_config_private_link.toml`
 

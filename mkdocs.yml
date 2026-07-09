@@ -9,7 +9,7 @@ theme:
 
 nav:
   - Home: index.md
-  - Private Link / PSaaS: private_link_psaas.md
+  - CDF base URL and TOML: private_link_psaas.md
   - Session-Scoped (Development):
     - Overview: session_scoped/index.md
     - Installation: session_scoped/installation.md
