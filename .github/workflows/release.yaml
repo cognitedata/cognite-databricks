@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install required dependencies
@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v8.2.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install required dependencies
@@ -64,7 +64,7 @@ jobs:
 
       - name: Add entry to CHANGELOG
         if: env.version != '0.0.0'
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
             token: ${{ secrets.GITHUB_TOKEN }}
             prerelease: false
