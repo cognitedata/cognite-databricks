@@ -37,6 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-bdd>=7.0.0",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.10.0",
     "pytest-rerunfailures>=14.0",
@@ -151,6 +152,7 @@ addopts = "--doctest-modules"
 markers = [
     "integration: Integration tests requiring external services.",
     "slow: Slow running tests.",
+    "live: Live CDF tests requiring credentials TOML (skipped if missing).",
 ]
 pythonpath = ["."]
 testpaths = ["tests"]
