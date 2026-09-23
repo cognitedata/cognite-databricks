@@ -39,7 +39,7 @@ class DataModelPushdown(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-class DataModelQueryRewriter(BaseModel):
+class DataModelQueryRewriter:
     """Analyze and rewrite catalog SQL into UDTF calls with pushdown params."""
 
     @staticmethod
@@ -143,12 +143,13 @@ class DataModelQueryRewriter(BaseModel):
                 return None
             udtf_fqn = f"{hints.catalog}.{hints.schema_name}.{hints.view_name}_udtf"
 
-        creds = credential_args or {
+        creds = {
             "client_id": f"SECRET('{secret_scope}', 'client_id')",
             "client_secret": f"SECRET('{secret_scope}', 'client_secret')",
             "tenant_id": f"SECRET('{secret_scope}', 'tenant_id')",
             "cdf_cluster": f"SECRET('{secret_scope}', 'cdf_cluster')",
             "project": f"SECRET('{secret_scope}', 'project')",
+            **(credential_args or {}),
         }
 
         args: list[str] = [
@@ -186,11 +187,17 @@ class DataModelQueryRewriter(BaseModel):
             if hints.group_by:
                 args.append(f"_group_by => {_sql_literal(json.dumps(hints.group_by))}")
 
+        # Aggregate rows are padded into the full UDTF outputSchema; select named columns.
         select_list = "*"
         if hints.query_mode == "aggregate" and hints.aggregates:
             aliases: list[str] = []
-            for i, metric in enumerate(hints.aggregates):
-                aliases.append(f"col{i} AS {metric['fn']}_{metric['property']}")
+            for metric in hints.aggregates:
+                fn = metric["fn"]
+                prop = metric["property"]
+                if fn == "count" and prop in {"externalId", "external_id"}:
+                    aliases.append("external_id AS count_externalId")
+                else:
+                    aliases.append(f"{prop} AS {fn}_{prop}")
             if aliases:
                 select_list = ", ".join(aliases)
 
@@ -198,16 +205,35 @@ class DataModelQueryRewriter(BaseModel):
 
     @staticmethod
     def _extract_null_checks(where_clause: str, result: DataModelPushdown) -> None:
-        for match in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null\b", where_clause, flags=re.IGNORECASE):
+        # ``prop IS NOT NULL``
+        for match in re.finditer(
+            r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+not\s+null\b",
+            where_clause,
+            flags=re.IGNORECASE,
+        ):
             prop = match.group(1)
             if prop.lower() not in {"space", "external_id"}:
                 result.exists_properties.append(prop)
-        for match in re.finditer(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+null\b", where_clause, flags=re.IGNORECASE):
+
+        # ``NOT prop IS NULL`` is equivalent to ``prop IS NOT NULL``.
+        for match in re.finditer(
+            r"\bnot\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+null\b",
+            where_clause,
+            flags=re.IGNORECASE,
+        ):
             prop = match.group(1)
-            # Avoid matching the "not null" already handled: require no "not" before is null
-            start = match.start()
-            prefix = where_clause[max(0, start - 4) : start].lower()
-            if "not" in prefix:
+            if prop.lower() not in {"space", "external_id"} and prop not in result.exists_properties:
+                result.exists_properties.append(prop)
+
+        # ``prop IS NULL`` (does not match ``IS NOT NULL`` because of the ``not`` token).
+        for match in re.finditer(
+            r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s+is\s+null\b",
+            where_clause,
+            flags=re.IGNORECASE,
+        ):
+            prop = match.group(1)
+            prefix = where_clause[max(0, match.start() - 8) : match.start()].lower()
+            if re.search(r"\bnot\s*$", prefix):
                 continue
             if prop.lower() not in {"space", "external_id"}:
                 result.not_exists_properties.append(prop)
@@ -252,7 +278,6 @@ class DataModelQueryRewriter(BaseModel):
 
     @staticmethod
     def _extract_equals(where_clause: str, result: DataModelPushdown) -> None:
-        # Skip props already claimed as identity or null-check only
         for match in re.finditer(
             r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*'([^']+)'",
             where_clause,
@@ -275,7 +300,6 @@ class DataModelQueryRewriter(BaseModel):
 
     @staticmethod
     def _extract_aggregates(sql: str, result: DataModelPushdown) -> None:
-        # Only rewrite when SELECT is aggregate-only (no bare columns besides aggregates)
         select_match = re.search(r"\bselect\b(.+?)\bfrom\b", sql, flags=re.IGNORECASE)
         if not select_match:
             return
@@ -298,9 +322,9 @@ class DataModelQueryRewriter(BaseModel):
                 prop = match.group(3)
                 metrics.append({"fn": fn, "property": prop})
 
-        # Reject if select has non-aggregate identifiers beyond aliases
+        # Reject if select has non-aggregate identifiers beyond optional aliases (AS optional).
         stripped = re.sub(
-            r"\b(count|min|max)\s*\(\s*(?:\*|[a-zA-Z_][a-zA-Z0-9_]*)\s*\)(?:\s+as\s+[a-zA-Z_][a-zA-Z0-9_]*)?",
+            r"\b(count|min|max)\s*\(\s*(?:\*|[a-zA-Z_][a-zA-Z0-9_]*)\s*\)(?:\s+(?:as\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?",
             "",
             select_clause,
             flags=re.IGNORECASE,
@@ -336,14 +360,13 @@ def _sql_literal(value: object) -> str:
 
 
 def _parse_sql_string_list(raw: str) -> list[Any]:
+    """Parse SQL IN-list contents, preserving commas inside quoted strings."""
     items: list[Any] = []
-    for part in raw.split(","):
-        part = part.strip()
-        if part.startswith("'") and part.endswith("'"):
-            items.append(part[1:-1])
-        else:
-            try:
-                items.append(int(part) if "." not in part else float(part))
-            except ValueError:
-                items.append(part)
+    pattern = r"'((?:''|[^'])*)'|(-?\d+(?:\.\d+)?)"
+    for match in re.finditer(pattern, raw):
+        str_val, num_val = match.groups()
+        if str_val is not None:
+            items.append(str_val.replace("''", "'"))
+        elif num_val is not None:
+            items.append(float(num_val) if "." in num_val else int(num_val))
     return items

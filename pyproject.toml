@@ -137,6 +137,14 @@ module = "pytest.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "pytest_bdd"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest_bdd.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "cognite.databricks.udtf_registry"
 disable_error_code = ["no-any-return"]
 
