@@ -20,6 +20,16 @@ Feature: Data-model SQL rewrite for CDF UDTF pushdown
     Then the rewritten SQL should contain "_exists =>"
     And the rewritten SQL should contain "_row_limit => 10"
     And the rewritten SQL should contain "TestSeqNumber => '5889450'"
+    And the rewritten SQL should contain "lims_results_udtf("
+
+  Scenario: Default UDTF FQN uses snake_case from to_udtf_function_name
+    Given the SQL query
+      """
+      SELECT * FROM cat.sch.SmallBoat WHERE name = 'XBOX' LIMIT 1
+      """
+    When I rewrite the SQL to a UDTF call
+    Then the rewritten SQL should contain "cat.sch.small_boat_udtf("
+    And the rewritten SQL should not contain "SmallBoat_udtf"
 
   Scenario: Instance space equals pushes identity filter
     Given the SQL query

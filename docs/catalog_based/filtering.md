@@ -26,7 +26,8 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 |-------------|----------------------------|--------|
 | `prop = 'x'` (view property UDTF arg) | `equals` | Pushed |
 | `prop IN (...)` | `in` | Pushed |
-| Array property filter | `containsAny` | Pushed |
+| Array property filter via UDTF (view metadata marks array) | `containsAny` | Pushed when bound on UDTF |
+| Array property via `DataModelQueryRewriter` | — | **Not schema-aware** — rewriter binds scalars (`equals`/`in`); call UDTF directly for `containsAny` |
 | `prop IS NOT NULL` via `_exists` | `exists` | Pushed (rewriter / explicit param) |
 | `prop IS NULL` via `_not_exists` | `not.exists` | Pushed (rewriter / explicit param) |
 | `space = '...'` via `instance_space` | `equals` on `["node\|edge", "space"]` | Pushed (instance identity, not view space) |
@@ -48,6 +49,15 @@ Aggregate API `limit` caps **groupBy buckets**, not SQL `LIMIT` on list scans.
 
 ## Predicate pushdown with the rewriter
 
+`DataModelQueryRewriter` is a **library helper** (not wired into `UDTFGenerator` or
+notebook registration). Call it explicitly before `spark.sql(...)`, or bind UDTF
+parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
+(e.g. `LimsResults` → `lims_results_udtf`), matching registration.
+
+Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
+and related params (see pygen-spark #68 / #69). Pin `cognite-pygen-spark` to that
+minimum once published; until then regenerate UDTFs from the matching branch.
+
 ```python
 from cognite.databricks import DataModelQueryRewriter
 
@@ -58,7 +68,7 @@ WHERE TestSeqNumber = '5889450'
 LIMIT 10
 """
 rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql)
-# Bind _exists, TestSeqNumber, _row_limit into the UDTF call
+# Bind _exists, TestSeqNumber, _row_limit into lims_results_udtf(...)
 ```
 
 ## EXPLAIN

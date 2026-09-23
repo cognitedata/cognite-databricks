@@ -77,6 +77,12 @@ def then_contains(rewrite_ctx: dict[str, Any], fragment: str) -> None:
     assert fragment in rewrite_ctx["rewritten"]
 
 
+@then(parsers.parse('the rewritten SQL should not contain "{fragment}"'))
+def then_not_contains(rewrite_ctx: dict[str, Any], fragment: str) -> None:
+    assert rewrite_ctx["rewritten"] is not None
+    assert fragment not in rewrite_ctx["rewritten"]
+
+
 @then("aggregates should include count on externalId")
 def then_count_agg(rewrite_ctx: dict[str, Any]) -> None:
     hints: DataModelPushdown = rewrite_ctx["hints"]

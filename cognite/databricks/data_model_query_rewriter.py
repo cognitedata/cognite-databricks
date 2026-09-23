@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from cognite.databricks.utils import to_udtf_function_name
+
 
 class DataModelPushdown(BaseModel):
     """Hints extracted from a catalog SQL query for data-model UDTF pushdown."""
@@ -141,7 +143,8 @@ class DataModelQueryRewriter:
         if udtf_fqn is None:
             if not (hints.catalog and hints.schema_name and hints.view_name):
                 return None
-            udtf_fqn = f"{hints.catalog}.{hints.schema_name}.{hints.view_name}_udtf"
+            # Match registration: SmallBoat -> small_boat_udtf (not SmallBoat_udtf).
+            udtf_fqn = f"{hints.catalog}.{hints.schema_name}.{to_udtf_function_name(hints.view_name)}"
 
         creds = {
             "client_id": f"SECRET('{secret_scope}', 'client_id')",

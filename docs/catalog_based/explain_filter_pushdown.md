@@ -38,6 +38,9 @@ WHERE DilutionFactor IS NOT NULL;
 1. **Filter / Limit above the UDTF or view scan**  
    If `Filter` and `Limit` sit above a UDTF/view with all-null defaults, Spark is post-filtering.
    CDF may still receive a broad `instances/list` call.
+   Rewrite with `DataModelQueryRewriter` (library call — not automatic in notebooks) or bind
+   UDTF args so the plan shows those parameters. Default FQN uses snake_case + `_udtf`
+   (e.g. `LimsResults` → `lims_results_udtf`).
 
 2. **Evidence of bound UDTF parameters**  
    Prefer plans (or rewritten SQL) where equality / `_exists` / `_row_limit` / `_query_mode`
