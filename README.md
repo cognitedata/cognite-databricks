@@ -39,6 +39,7 @@ It provides high-level APIs for:
 - **One-Line Registration**: Generate and register UDTFs in a single call
 - **Secret Manager Integration**: Automatic credential management from TOML files
 - **Scalar-Only Execution**: Compatible with SQL Warehouses and serverless execution
+- **Catalog SQL rewrite helper**: `DataModelQueryRewriter` binds WHERE / LIMIT / aggregates into UDTF parameters for CDF pushdown
 - **Type Safety**: Full type hints and IDE support
 - **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 
