@@ -52,7 +52,7 @@ Aggregate API `limit` caps **groupBy buckets**, not SQL `LIMIT` on list scans.
 `DataModelQueryRewriter` is a **library helper** (not wired into `UDTFGenerator` or
 notebook registration). Call it explicitly before `spark.sql(...)`, or bind UDTF
 parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
-(e.g. `LimsResults` → `lims_results_udtf`), matching registration.
+(e.g. `SmallBoat` → `small_boat_udtf`), matching registration.
 
 Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
 and related params (see pygen-spark #68 / #69). This package pins
@@ -62,13 +62,16 @@ and related params (see pygen-spark #68 / #69). This package pins
 from cognite.databricks import DataModelQueryRewriter
 
 sql = """
-SELECT * FROM adg_cdf_dev.gold.LimsResults
-WHERE TestSeqNumber = '5889450'
-  AND DilutionFactor IS NOT NULL
+SELECT * FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
+WHERE name = 'XBOX'
+  AND description IS NOT NULL
 LIMIT 10
 """
-rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql)
-# Bind _exists, TestSeqNumber, _row_limit into lims_results_udtf(...)
+rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(
+    sql,
+    secret_scope="cdf_sailboat_sailboat",
+)
+# Bind name, _exists, _row_limit into small_boat_udtf(...)
 ```
 
 ## EXPLAIN

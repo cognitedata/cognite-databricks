@@ -65,8 +65,6 @@ with yours (e.g. `f0connectortest.sailboat_sailboat_v1`):
 | Registered UDTF | `small_boat_udtf` (snake_case + `_udtf`) |
 | Secret scope | `cdf_sailboat_sailboat` (pattern `cdf_{space}_{external_id.lower()}`) |
 
-LIMS-style examples use `LimsResults` / `lims_results_udtf` the same way.
-
 ### 1. Slow view query — start with EXPLAIN
 
 ```sql
@@ -148,14 +146,14 @@ SELECT * FROM f0connectortest.sailboat_sailboat_v1.small_boat_udtf(
 
 Compare plans: bound args at the UDTF leaf vs Filter/Limit-only above null defaults.
 
-### 3. Exists + LIMIT (LimsResults)
+### 3. Exists + LIMIT (SmallBoat)
 
 ```sql
 -- Analyst view (often Spark-only until rewritten)
 EXPLAIN
-SELECT * FROM adg_cdf_dev.gold.LimsResults
-WHERE TestSeqNumber = '5889450'
-  AND DilutionFactor IS NOT NULL
+SELECT * FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
+WHERE name = 'XBOX'
+  AND description IS NOT NULL
 LIMIT 10;
 ```
 
@@ -164,29 +162,31 @@ from cognite.databricks import DataModelQueryRewriter
 
 rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(
     """
-    SELECT * FROM adg_cdf_dev.gold.LimsResults
-    WHERE TestSeqNumber = '5889450'
-      AND DilutionFactor IS NOT NULL
+    SELECT * FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
+    WHERE name = 'XBOX'
+      AND description IS NOT NULL
     LIMIT 10
-    """
+    """,
+    secret_scope="cdf_sailboat_sailboat",
 )
-# Expect lims_results_udtf(... TestSeqNumber => ..., _exists => ..., _row_limit => 10)
+# Expect small_boat_udtf(... name => 'XBOX', _exists => ..., _row_limit => 10)
 ```
 
-Expected CDF list filter fragments when bound:
+Expected CDF list filter fragments when bound (property paths use the CDF view
+space / external id / version from your model):
 
 ```json
 {
   "and": [
     {
       "equals": {
-        "property": ["sp-lims", "LimsResults/v1", "TestSeqNumber"],
-        "value": "5889450"
+        "property": ["sailboat", "SmallBoat/v1", "name"],
+        "value": "XBOX"
       }
     },
     {
       "exists": {
-        "property": ["sp-lims", "LimsResults/v1", "DilutionFactor"]
+        "property": ["sailboat", "SmallBoat/v1", "description"]
       }
     }
   ]
