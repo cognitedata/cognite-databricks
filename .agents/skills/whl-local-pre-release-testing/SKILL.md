@@ -19,12 +19,12 @@ user provides).
 
 | Context | Package version in source | `cognite-databricks` dep on pygen-spark |
 |---------|---------------------------|----------------------------------------|
-| Dev / PR branches | `0.0.0` placeholder (`pyproject.toml` + `_version.py`) | Release pin, e.g. `>=0.3.1` |
+| Dev / PR branches | `0.0.0` placeholder (`pyproject.toml` + `_version.py`) | Release pin, e.g. `>=0.4.0` |
 | Local wheel testing | Keep `0.0.0` in source | Temporarily `>=0.0.0` **only while building** the databricks wheel |
-| Real release | `dev.py bump` replaces `0.0.0` → next semver | Restore release pin (e.g. `>=0.3.1`) |
+| Real release | `dev.py bump` replaces `0.0.0` → next semver | Restore release pin (e.g. `>=0.4.0`) |
 
 - Source versions stay at `0.0.0` until release CI runs `dev.py bump`.
-- A databricks wheel built with `Requires-Dist: cognite-pygen-spark>=0.3.1` **cannot** install against a `0.0.0` pygen-spark wheel → `ResolutionImpossible`.
+- A databricks wheel built with `Requires-Dist: cognite-pygen-spark>=0.4.0` **cannot** install against a `0.0.0` pygen-spark wheel → `ResolutionImpossible`.
 - Repo note in `pyproject.toml`: *For local builds, use `>=0.0.0` to allow `0.0.0` wheels. For releases, align with latest pygen-spark.*
 
 **Never commit** the temporary `>=0.0.0` dependency change.
@@ -52,7 +52,7 @@ In this repo's `pyproject.toml`:
 "cognite-pygen-spark>=0.0.0",
 
 # AFTER build (restore for release / PR):
-"cognite-pygen-spark>=0.3.1",  # use whatever the release pin currently is
+"cognite-pygen-spark>=0.4.0",  # use whatever the release pin currently is
 ```
 
 ```powershell
@@ -60,7 +60,7 @@ cd <cognite-databricks-root>
 # edit pyproject.toml dep → >=0.0.0
 Remove-Item dist\*.whl -ErrorAction SilentlyContinue
 uv build --wheel
-# restore pyproject.toml dep → release pin (e.g. >=0.3.1)
+# restore pyproject.toml dep → release pin (e.g. >=0.4.0)
 ```
 
 Output: `dist/cognite_databricks-0.0.0-py3-none-any.whl`
@@ -72,7 +72,7 @@ python -c "from zipfile import ZipFile; z=ZipFile(r'<path-to-cognite_databricks-
 ```
 
 Must print: `Requires-Dist: cognite-pygen-spark>=0.0.0`  
-If it still says `>=0.3.1` (or another release pin), rebuild — the old METADATA is baked in.
+If it still says `>=0.4.0` (or another release pin), rebuild — the old METADATA is baked in.
 
 ### 4. Hand paths to the user
 
@@ -105,7 +105,7 @@ from cognite.databricks import generate_udtf_notebook, DataModelQueryRewriter
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| `ResolutionImpossible`: databricks needs `cognite-pygen-spark>=0.3.1` but user has `0.0.0` wheel | Databricks wheel built with release pin | Rebuild databricks with temporary `>=0.0.0`, verify METADATA |
+| `ResolutionImpossible`: databricks needs `cognite-pygen-spark>=0.4.0` but user has `0.0.0` wheel | Databricks wheel built with release pin | Rebuild databricks with temporary `>=0.0.0`, verify METADATA |
 | Old code still runs after `%pip` | Kernel not restarted | Restart Python kernel |
 | Only one wheel installed | Partial install / cached PyPI | `--force-reinstall` **both** wheels together |
 | Accidental `>=0.0.0` committed | Forgot restore | Revert `pyproject.toml` before push |

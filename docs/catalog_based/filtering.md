@@ -55,8 +55,8 @@ parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
 (e.g. `LimsResults` → `lims_results_udtf`), matching registration.
 
 Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
-and related params (see pygen-spark #68 / #69). Pin `cognite-pygen-spark` to that
-minimum once published; until then regenerate UDTFs from the matching branch.
+and related params (see pygen-spark #68 / #69). This package pins
+`cognite-pygen-spark>=0.4.0` for that minimum.
 
 ```python
 from cognite.databricks import DataModelQueryRewriter
