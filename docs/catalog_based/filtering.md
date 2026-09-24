@@ -73,8 +73,9 @@ rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql)
 
 ## EXPLAIN
 
-See [EXPLAIN and filter / LIMIT pushdown](./explain_filter_pushdown.md) for how to verify
-whether predicates are bound into the UDTF or applied only in Spark.
+See [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md) for
+`EXPLAIN` / `EXPLAIN FORMATTED`, Query Profile, and before/after `DataModelQueryRewriter`
+examples (Databricks EXPLAIN adapted to Cognite UDTF views).
 
 ## Related
 

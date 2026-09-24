@@ -24,7 +24,7 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 6. **[Views](./views.md)**: Understand Views and their benefits
 7. **[Querying](./querying.md)**: Query Views and UDTFs directly
 8. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
-9. **[EXPLAIN filter / LIMIT pushdown](./explain_filter_pushdown.md)**: Verify what Spark vs CDF actually executes
+9. **[Investigating performance (EXPLAIN)](./explain_filter_pushdown.md)**: EXPLAIN / Query Profile for UDTF-backed views — Spark vs CDF pushdown
 10. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
 11. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
 12. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
