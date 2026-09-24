@@ -145,7 +145,8 @@ After successfully registering UDTFs and Views in Unity Catalog:
 1. **Set Up Permissions**: Configure Unity Catalog permissions for your teams (see [Governance](./governance.md))
 2. **Create Documentation**: Document your Views for your users
 3. **Monitor Usage**: Track View usage and performance in Databricks
-4. **Optimize Queries**: Use predicate pushdown and filtering to improve performance
+4. **Optimize Queries**: Use predicate pushdown and filtering to improve performance — see
+   [Investigating performance (EXPLAIN)](./explain_filter_pushdown.md)
 
 For more information, see:
 - [Session-Scoped UDTF Registration](../session_scoped/index.md)

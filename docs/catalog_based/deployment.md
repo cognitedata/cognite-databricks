@@ -311,7 +311,7 @@ Standalone Spark clusters use TOML for **code generation**. There is no Secret M
 | Query UDTFs | No — pass credential values in SQL |
 
 ```bash
-pip install --upgrade "cognite-pygen-spark>=0.3.1" "cognite-pygen>=1.3.0"
+pip install --upgrade "cognite-pygen-spark>=0.4.0" "cognite-pygen>=1.3.0"
 ```
 
 ```python
@@ -421,7 +421,7 @@ Views are the intended interface. UDTFs exist only as the implementation behind 
 | Package | Minimum version | Role |
 | --- | --- | --- |
 | `cognite-pygen` | **1.3.0** | `load_cognite_client_from_toml()` reads `base_url` from TOML |
-| `cognite-pygen-spark` | **0.3.1** | UDTF code generation (used by cognite-databricks) |
+| `cognite-pygen-spark` | **0.4.0** | UDTF code generation (used by cognite-databricks) |
 | `cognite-databricks` | **0.3.1** | Databricks registration; depends on pygen ≥ 1.3.0 |
 
 ## TOML configuration reference

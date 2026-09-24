@@ -34,7 +34,7 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 | `external_id = '...'` via UDTF `external_id` param | `equals` on `["node\|edge", "externalId"]` | Pushed |
 | `>`, `<`, `BETWEEN` via `_gt`/`_gte`/`_lt`/`_lte` | `range` | Pushed (rewriter / explicit param) |
 | `LIMIT n` via `_row_limit` (no `ORDER BY`) | list API `limit` + early stop | Pushed |
-| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed (see #68) |
+| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed |
 | `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
 | `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
 
@@ -52,31 +52,35 @@ Aggregate API `limit` caps **groupBy buckets**, not SQL `LIMIT` on list scans.
 `DataModelQueryRewriter` is a **library helper** (not wired into `UDTFGenerator` or
 notebook registration). Call it explicitly before `spark.sql(...)`, or bind UDTF
 parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
-(e.g. `LimsResults` → `lims_results_udtf`), matching registration.
+(e.g. `SmallBoat` → `small_boat_udtf`), matching registration.
 
 Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
-and related params (see pygen-spark #68 / #69). Pin `cognite-pygen-spark` to that
-minimum once published; until then regenerate UDTFs from the matching branch.
+and related params. This package pins `cognite-pygen-spark>=0.4.0` for that minimum.
 
 ```python
 from cognite.databricks import DataModelQueryRewriter
 
 sql = """
-SELECT * FROM adg_cdf_dev.gold.LimsResults
-WHERE TestSeqNumber = '5889450'
-  AND DilutionFactor IS NOT NULL
+SELECT * FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
+WHERE name = 'XBOX'
+  AND description IS NOT NULL
 LIMIT 10
 """
-rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql)
-# Bind _exists, TestSeqNumber, _row_limit into lims_results_udtf(...)
+rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(
+    sql,
+    secret_scope="cdf_sailboat_sailboat",
+)
+# Bind name, _exists, _row_limit into small_boat_udtf(...)
 ```
 
 ## EXPLAIN
 
-See [EXPLAIN and filter / LIMIT pushdown](./explain_filter_pushdown.md) for how to verify
-whether predicates are bound into the UDTF or applied only in Spark.
+See [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md) for
+`EXPLAIN` / `EXPLAIN FORMATTED`, Query Profile, and before/after `DataModelQueryRewriter`
+examples (Databricks EXPLAIN adapted to Cognite UDTF views).
 
 ## Related
 
-- pygen-spark issues [#68](https://github.com/cognitedata/pygen-spark/issues/68) (aggregates) and
-  [#69](https://github.com/cognitedata/pygen-spark/issues/69) (WHERE / LIMIT / instance space)
+- [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md)
+- [Querying](./querying.md)
+- [Troubleshooting](./troubleshooting.md)
