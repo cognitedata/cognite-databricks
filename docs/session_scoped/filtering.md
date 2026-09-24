@@ -41,8 +41,7 @@ Predicate pushdown means filter conditions are sent to CDF (`instances/list` or
 (`["node","space"]`), not the view definition space used in property paths.
 
 See also: [Investigating UDTF-backed catalog view performance](../catalog_based/explain_filter_pushdown.md),
-[pygen-spark #68](https://github.com/cognitedata/pygen-spark/issues/68),
-[pygen-spark #69](https://github.com/cognitedata/pygen-spark/issues/69).
+[Catalog filtering](../catalog_based/filtering.md).
 
 ## Filter Examples
 

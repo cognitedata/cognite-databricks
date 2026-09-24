@@ -34,7 +34,7 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 | `external_id = '...'` via UDTF `external_id` param | `equals` on `["node\|edge", "externalId"]` | Pushed |
 | `>`, `<`, `BETWEEN` via `_gt`/`_gte`/`_lt`/`_lte` | `range` | Pushed (rewriter / explicit param) |
 | `LIMIT n` via `_row_limit` (no `ORDER BY`) | list API `limit` + early stop | Pushed |
-| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed (see #68) |
+| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed |
 | `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
 | `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
 
@@ -55,8 +55,7 @@ parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
 (e.g. `SmallBoat` → `small_boat_udtf`), matching registration.
 
 Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
-and related params (see pygen-spark #68 / #69). This package pins
-`cognite-pygen-spark>=0.4.0` for that minimum.
+and related params. This package pins `cognite-pygen-spark>=0.4.0` for that minimum.
 
 ```python
 from cognite.databricks import DataModelQueryRewriter
@@ -82,5 +81,6 @@ examples (Databricks EXPLAIN adapted to Cognite UDTF views).
 
 ## Related
 
-- pygen-spark issues [#68](https://github.com/cognitedata/pygen-spark/issues/68) (aggregates) and
-  [#69](https://github.com/cognitedata/pygen-spark/issues/69) (WHERE / LIMIT / instance space)
+- [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md)
+- [Querying](./querying.md)
+- [Troubleshooting](./troubleshooting.md)

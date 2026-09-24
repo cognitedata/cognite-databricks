@@ -13,8 +13,7 @@ Databricks documents general plan inspection in
 [EXPLAIN](https://learn.microsoft.com/en-us/azure/databricks/sql/language-manual/sql-ref-syntax-qry-explain).
 This page adapts that workflow to **UDTF-backed Cognite views**.
 
-Related: [Filtering](./filtering.md), pygen-spark [#68](https://github.com/cognitedata/pygen-spark/issues/68)
-(aggregates), [#69](https://github.com/cognitedata/pygen-spark/issues/69) (WHERE / LIMIT).
+See also: [Filtering](./filtering.md), [Querying](./querying.md).
 
 ## What EXPLAIN can and cannot tell you
 
