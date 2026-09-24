@@ -37,6 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-bdd>=7.0.0",
     "pytest-cov>=6.0.0",
     "pytest-mock>=3.10.0",
     "pytest-rerunfailures>=14.0",
@@ -136,6 +137,14 @@ module = "pytest.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "pytest_bdd"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pytest_bdd.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "cognite.databricks.udtf_registry"
 disable_error_code = ["no-any-return"]
 
@@ -151,6 +160,7 @@ addopts = "--doctest-modules"
 markers = [
     "integration: Integration tests requiring external services.",
     "slow: Slow running tests.",
+    "live: Live CDF tests requiring credentials TOML (skipped if missing).",
 ]
 pythonpath = ["."]
 testpaths = ["tests"]

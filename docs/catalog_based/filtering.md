@@ -2,92 +2,81 @@
 
 ## WHERE Clauses on Views
 
-Views support standard SQL WHERE clauses, which are pushed down to the underlying UDTF:
+Views support standard SQL WHERE clauses. **Some** predicates can be pushed down to CDF
+`instances/list` (or `instances/aggregate`) when you query through the UDTF with bound
+parameters, or when you rewrite catalog SQL with
+[`DataModelQueryRewriter`](../../cognite/databricks/data_model_query_rewriter.py).
 
 ```sql
--- Filter by external_id
-SELECT * FROM main.sailboat_sailboat_1.smallboat
-WHERE external_id = 'my-boat-123'
-LIMIT 10;
-
--- Filter by multiple conditions
-SELECT * FROM main.sailboat_sailboat_1.smallboat
-WHERE space = 'sailboat'
-  AND name = 'MyBoat'
-  AND description IS NOT NULL
-ORDER BY external_id;
-```
-
-## Predicate Pushdown in Views
-
-Predicate pushdown means WHERE clause conditions are evaluated in the UDTF's Python code before making CDF API calls. This improves performance by reducing data transfer.
-
-**Supported Filter Operations:**
-- Equality: `WHERE external_id = 'value'`
-- Inequality: `WHERE count > 100`, `WHERE timestamp < '2025-01-01'`
-- NULL checks: `WHERE name IS NOT NULL`, `WHERE description IS NULL`
-- Multiple conditions: `WHERE space = 'sailboat' AND external_id = 'vessel'`
-
-## Filter Examples
-
-### Equality Filters
-
-```sql
--- Filter by single property
+-- Filter by view property (pushed when bound as UDTF arg or rewritten)
 SELECT * FROM main.sailboat_sailboat_1.smallboat
 WHERE name = 'MyBoat'
 LIMIT 10;
-
--- Filter by space and external_id
-SELECT * FROM main.sailboat_sailboat_1.vessel
-WHERE space = 'sailboat' AND external_id = 'vessel-123'
-LIMIT 10;
 ```
 
-### Range Filters
+Plain Unity Catalog view wrappers currently pass `prop => NULL` for every view property.
+Spark may still apply WHERE **after** the UDTF returns rows unless you:
 
-```sql
--- Filter by timestamp range
-SELECT * FROM main.power_windturbine_1.pump_view
-WHERE timestamp > '2025-01-01' AND timestamp < '2025-12-31'
-ORDER BY timestamp;
+1. Call the UDTF directly with named filter arguments, or
+2. Use `DataModelQueryRewriter.rewrite_to_udtf_sql(...)` to bind pushdown parameters.
 
--- Filter by numeric range
-SELECT * FROM main.power_windturbine_1.sensor_view
-WHERE value > 100 AND value < 200
-LIMIT 10;
+## What is pushed to CDF today
+
+| SQL pattern | CDF FilterDefinition / API | Status |
+|-------------|----------------------------|--------|
+| `prop = 'x'` (view property UDTF arg) | `equals` | Pushed |
+| `prop IN (...)` | `in` | Pushed |
+| Array property filter via UDTF (view metadata marks array) | `containsAny` | Pushed when bound on UDTF |
+| Array property via `DataModelQueryRewriter` | — | **Not schema-aware** — rewriter binds scalars (`equals`/`in`); call UDTF directly for `containsAny` |
+| `prop IS NOT NULL` via `_exists` | `exists` | Pushed (rewriter / explicit param) |
+| `prop IS NULL` via `_not_exists` | `not.exists` | Pushed (rewriter / explicit param) |
+| `space = '...'` via `instance_space` | `equals` on `["node\|edge", "space"]` | Pushed (instance identity, not view space) |
+| `external_id = '...'` via UDTF `external_id` param | `equals` on `["node\|edge", "externalId"]` | Pushed |
+| `>`, `<`, `BETWEEN` via `_gt`/`_gte`/`_lt`/`_lte` | `range` | Pushed (rewriter / explicit param) |
+| `LIMIT n` via `_row_limit` (no `ORDER BY`) | list API `limit` + early stop | Pushed |
+| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed (see #68) |
+| `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
+| `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
+
+### Instance space vs view space
+
+- **Instance `space`** (SQL column `space` on the view): identity of the node/edge. Pushdown uses
+  `["node", "space"]` or `["edge", "space"]`.
+- **View model space**: the first segment of view property paths
+  `["viewSpace", "ViewExternalId/version", "prop"]`. Do not confuse the two.
+
+Aggregate API `limit` caps **groupBy buckets**, not SQL `LIMIT` on list scans.
+
+## Predicate pushdown with the rewriter
+
+`DataModelQueryRewriter` is a **library helper** (not wired into `UDTFGenerator` or
+notebook registration). Call it explicitly before `spark.sql(...)`, or bind UDTF
+parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
+(e.g. `LimsResults` → `lims_results_udtf`), matching registration.
+
+Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
+and related params (see pygen-spark #68 / #69). Pin `cognite-pygen-spark` to that
+minimum once published; until then regenerate UDTFs from the matching branch.
+
+```python
+from cognite.databricks import DataModelQueryRewriter
+
+sql = """
+SELECT * FROM adg_cdf_dev.gold.LimsResults
+WHERE TestSeqNumber = '5889450'
+  AND DilutionFactor IS NOT NULL
+LIMIT 10
+"""
+rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql)
+# Bind _exists, TestSeqNumber, _row_limit into lims_results_udtf(...)
 ```
 
-### NULL Handling
+## EXPLAIN
 
-```sql
--- Filter out NULL values
-SELECT * FROM main.sailboat_sailboat_1.smallboat
-WHERE description IS NOT NULL
-LIMIT 10;
+See [EXPLAIN and filter / LIMIT pushdown](./explain_filter_pushdown.md) for how to verify
+whether predicates are bound into the UDTF or applied only in Spark.
 
--- Find records with NULL values
-SELECT * FROM main.sailboat_sailboat_1.vessel
-WHERE name IS NULL
-LIMIT 10;
-```
+## Related
 
-### Complex Filters
-
-```sql
--- Complex filtering with multiple conditions
-SELECT * FROM main.power_windturbine_1.pump_view
-WHERE space = 'power'
-  AND timestamp > '2025-01-01'
-  AND status = 'active'
-  AND value > 50
-ORDER BY timestamp DESC
-LIMIT 100;
-```
-
-## Next Steps
-
-- Learn about [Joining](./joining.md) Views together
-- See [Querying](./querying.md) for more query examples
-
-
+- pygen-spark issues [#68](https://github.com/cognitedata/pygen-spark/issues/68) (aggregates) and
+  [#69](https://github.com/cognitedata/pygen-spark/issues/69) (WHERE / LIMIT / instance space)

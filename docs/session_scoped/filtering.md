@@ -21,13 +21,28 @@ LIMIT 10;
 
 ## Predicate Pushdown
 
-Predicate pushdown means that WHERE clause conditions are evaluated in the UDTF's Python code before making CDF API calls. This reduces the amount of data transferred and improves query performance.
+Predicate pushdown means filter conditions are sent to CDF (`instances/list` or
+`instances/aggregate`) instead of only being applied in Spark after a full page fetch.
 
-**Supported Filter Operations:**
-- Equality: `WHERE external_id = 'value'`
-- Inequality: `WHERE count > 100`, `WHERE timestamp < '2025-01-01'`
-- NULL checks: `WHERE name IS NOT NULL`, `WHERE description IS NULL`
-- Multiple conditions: `WHERE space = 'sailboat' AND external_id = 'vessel'`
+**Pushed when bound as UDTF parameters** (or via `DataModelQueryRewriter` in cognite-databricks):
+
+- Equality / `IN` on view properties → `equals` / `in`
+- Array properties → `containsAny`
+- `IS NOT NULL` / `IS NULL` via `_exists` / `_not_exists` → `exists` / `not.exists`
+- Instance `space` / `external_id` via `instance_space` / `external_id` params → identity paths
+- Ranges via `_gt` / `_gte` / `_lt` / `_lte` → `range`
+- `LIMIT n` via `_row_limit` (not with `ORDER BY`) → list API `limit` + early pagination stop
+- `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` → `instances/aggregate`
+
+**Spark-only unless rewritten:** bare `WHERE` on a Unity Catalog view that still passes
+`prop => NULL` for every argument; `ORDER BY ... LIMIT`; `OFFSET`; joins; `COUNT(DISTINCT)`.
+
+**Instance space vs view space:** SQL column `space` is the **instance** identity space
+(`["node","space"]`), not the view definition space used in property paths.
+
+See also: [EXPLAIN filter pushdown](../catalog_based/explain_filter_pushdown.md),
+[pygen-spark #68](https://github.com/cognitedata/pygen-spark/issues/68),
+[pygen-spark #69](https://github.com/cognitedata/pygen-spark/issues/69).
 
 ## Filter Examples
 
