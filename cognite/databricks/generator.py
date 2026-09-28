@@ -24,6 +24,10 @@ from cognite.client.data_classes.data_modeling.views import (
     SingleReverseDirectRelation,
     ViewProperty,
 )
+from cognite.pygen_spark import SparkUDTFGenerator
+from cognite.pygen_spark.fields import UDTFField
+from cognite.pygen_spark.pushdown import data_model_pushdown_parameters
+from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
 
 from cognite.databricks.models import (
     RegisteredUDTFResult,
@@ -35,9 +39,6 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 from cognite.databricks.type_converter import TypeConverter
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
-from cognite.pygen_spark import SparkUDTFGenerator
-from cognite.pygen_spark.fields import UDTFField
-from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -2459,12 +2460,15 @@ class UDTFGenerator:
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else None
             default_value = param.default if param.default != inspect.Parameter.empty else None
 
+            pushdown_parameter = data_model_pushdown_parameters.get(param_name)
             # Special handling for timestamp parameters (start, end, before) - register as TIMESTAMP
             # These accept SQL TIMESTAMP, relative time strings, ISO 8601, or milliseconds
-            if param_name in ("start", "end", "before"):
+            if pushdown_parameter is not None:
+                param_spark_type: DataType = pushdown_parameter.spark_type
+            elif param_name in ("start", "end", "before"):
                 from pyspark.sql.types import TimestampType
 
-                param_spark_type: DataType = TimestampType()
+                param_spark_type = TimestampType()
             # For scalar mode, infer type from annotation or default to STRING
             elif param_type is None or param_type is type(None):
                 param_spark_type = StringType()
@@ -2702,6 +2706,29 @@ class UDTFGenerator:
                     parameter_mode=FunctionParameterMode.IN,
                     parameter_type=FunctionParameterType.PARAM,
                     parameter_default="NULL",  # Makes view property parameters optional
+                )
+            )
+            position += 1
+
+        # Pushdown parameters come last, in the same order the generated UDTF and view SQL use them
+        if debug:
+            print(f"[DEBUG] Pushdown parameters ({len(data_model_pushdown_parameters.parameters)}):")
+
+        for pushdown_parameter in data_model_pushdown_parameters.parameters:
+            sql_type, type_name = TypeConverter.spark_to_sql_type_info(pushdown_parameter.spark_type)
+            type_json_value = TypeConverter.spark_to_datatype_json(pushdown_parameter.spark_type)
+            if debug:
+                print(f"  [{position}] {pushdown_parameter.name}: type_text='{sql_type}', type_name={type_name}")
+            input_params.append(
+                FunctionParameterInfo(
+                    name=pushdown_parameter.name,
+                    type_text=sql_type,
+                    type_name=type_name,
+                    type_json=type_json_value,
+                    position=position,
+                    parameter_mode=FunctionParameterMode.IN,
+                    parameter_type=FunctionParameterType.PARAM,
+                    parameter_default="NULL",
                 )
             )
             position += 1
