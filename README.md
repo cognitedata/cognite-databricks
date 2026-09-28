@@ -122,6 +122,7 @@ generator.secret_helper.set_cdf_credentials(
     client_id="...",  # from config.toml
     client_secret="...",  # from config.toml
     tenant_id="...",  # from config.toml
+    base_url=None,  # from config.toml when set (Private Link / dedicated); defaults to the public cluster URL
 )
 
 # Register UDTFs for catalog-based use (scalar-only)
@@ -292,6 +293,7 @@ secret_helper.set_cdf_credentials(
     client_id="...",
     client_secret="...",
     tenant_id="...",
+    base_url=None,  # Private Link / dedicated API URL; defaults to the public cluster URL
 )
 ```
 

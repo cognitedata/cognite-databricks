@@ -89,10 +89,10 @@ class TestSecretManagerHelper:
             tenant_id="test_tenant_id",
         )
 
-        # Verify put_secret was called 5 times (once for each credential)
-        assert mock_workspace_client.secrets.put_secret.call_count == 5
+        # Five credentials plus base_url, which generated views always reference
+        assert mock_workspace_client.secrets.put_secret.call_count == 6
 
         # Verify all credentials were stored
         calls = mock_workspace_client.secrets.put_secret.call_args_list
         stored_keys = {call[0][1] for call in calls}  # Extract key from positional args
-        assert stored_keys == {"project", "cdf_cluster", "client_id", "client_secret", "tenant_id"}
+        assert stored_keys == {"project", "cdf_cluster", "client_id", "client_secret", "tenant_id", "base_url"}

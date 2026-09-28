@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from cognite.databricks.utils import to_udtf_function_name
+from cognite.pygen_spark.udtf_parameters import base_url_parameter
 
 
 class DataModelPushdown(BaseModel):
@@ -152,6 +153,7 @@ class DataModelQueryRewriter:
             "tenant_id": f"SECRET('{secret_scope}', 'tenant_id')",
             "cdf_cluster": f"SECRET('{secret_scope}', 'cdf_cluster')",
             "project": f"SECRET('{secret_scope}', 'project')",
+            base_url_parameter.name: f"SECRET('{secret_scope}', '{base_url_parameter.name}')",
             **(credential_args or {}),
         }
 
@@ -189,6 +191,7 @@ class DataModelQueryRewriter:
             args.append(f"_aggregates => {_sql_literal(json.dumps(hints.aggregates))}")
             if hints.group_by:
                 args.append(f"_group_by => {_sql_literal(json.dumps(hints.group_by))}")
+        args.append(f"{base_url_parameter.name} => {creds[base_url_parameter.name]}")
 
         # Aggregate rows are padded into the full UDTF outputSchema; select named columns.
         select_list = "*"

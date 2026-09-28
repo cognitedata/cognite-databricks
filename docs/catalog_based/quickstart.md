@@ -99,7 +99,7 @@ generator = generate_udtf_notebook(
 
 ## 5. Persist CDF credentials in Secret Manager
 
-> **Note:** `base_url` from TOML is used during provisioning only — it is **not** copied to Secret Manager. See [Deployment §3](./deployment.md#3-toml-based-deployment) and [what TOML is used for](./deployment.md#what-the-toml-is-and-is-not-used-for).
+> **Note:** `base_url` is stored in Secret Manager too, so Views reach CDF through the same host at query time (Private Link included). Without a TOML `base_url`, the public cluster URL is stored. See [Query-time behavior](./deployment.md#query-time-behavior-udtfs).
 
 - **Scope naming**: `cdf_{space}_{external_id.lower()}` aligns with generated SQL that references `SECRET('cdf_...', 'client_id')`, etc.
 - **`set_cdf_credentials`**: creates the scope if missing; stores **project**, **cdf_cluster**, **client_id**, **client_secret**, **tenant_id**.
@@ -119,6 +119,7 @@ generator.secret_helper.set_cdf_credentials(
     client_id=cognite_config["client_id"],
     client_secret=cognite_config["client_secret"],
     tenant_id=cognite_config["tenant_id"],
+    base_url=cognite_config.get("base_url"),  # Private Link / dedicated; omit for public clusters
 )
 ```
 

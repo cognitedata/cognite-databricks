@@ -49,6 +49,7 @@ secret_helper.set_cdf_credentials(
     client_id=cognite_config["client_id"],
     client_secret=cognite_config["client_secret"],
     tenant_id=cognite_config["tenant_id"],
+    base_url=cognite_config.get("base_url"),  # stored as 'base_url'; public cluster URL when omitted
 )
 
 print(f"✓ Credentials stored in scope: {secret_scope}")

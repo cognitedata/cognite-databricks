@@ -137,7 +137,14 @@ generator.register_views(secret_scope=secret_scope, if_exists="replace")  # must
 ```sql
 DESCRIBE FUNCTION f0connectortest.sailboat_sailboat_v1.small_boat_udtf;
 -- Input must end with: instance_space, external_id, _exists, _not_exists, _gt, _gte, _lt, _lte,
--- _row_limit, _query_mode, _aggregates, _group_by
+-- _row_limit, _query_mode, _aggregates, _group_by, base_url
+```
+
+Registration backfills a missing `base_url` secret from the TOML-loaded client and never overwrites one:
+
+```python
+print([s.key for s in dbutils.secrets.list(secret_scope)])  # must include 'base_url'
+print(dbutils.secrets.get(secret_scope, "base_url"))        # redacted in output; cogsail = public URL
 ```
 
 ### 3. Query instance-space pushdown end to end
@@ -159,6 +166,16 @@ count_b = (
     .replace("_aggregates => NULL", """_aggregates => '[{"fn": "count", "property": "externalId"}]'""")
 )
 display(spark.sql(count_b))  # expect count 2 (in the external_id column)
+```
+
+Prove the UDTF uses the `base_url` secret at query time (cogsail is a public cluster, so point it at an
+unreachable host, expect the query to fail, then restore):
+
+```python
+generator.secret_helper.store_secrets(secret_scope, {"base_url": "https://base-url-check.invalid"})
+spark.sql(fleet_a).collect()  # expect a connection error mentioning base-url-check.invalid
+generator.secret_helper.store_secrets(secret_scope, {"base_url": "https://westeurope-1.cognitedata.com"})
+display(spark.sql(fleet_a))   # rows again
 ```
 
 Also try a `DataModelQueryRewriter` call, which passes only the bound args. Unity Catalog Python
@@ -186,6 +203,8 @@ display(spark.sql(rewritten))
 | Workspace write failed on generate | `/Workspace/...` not writable | Use `output_dir="/local_disk0/tmp/pygen_udtf"` (default) |
 | `UNRECOGNIZED_PARAMETER_NAME: instance_space` on `register_views()` | UC signature missing pushdown params (cognite-databricks 0.4.0) | Install wheels that include the pushdown parameter registry, re-run `register_udtfs(if_exists="replace")` |
 | Fleet query returns `sailboat` nodes or nothing | Seed missing, or view space used as instance space | Re-run the seed; filter on `inst_sailboat_fleet_*`, not `sailboat` |
+| View query fails with a missing `base_url` secret | Scope predates runtime `base_url` and views were created without re-registering | Re-run `register_udtfs()` / `register_views()` (they backfill), or `set_cdf_credentials(..., base_url=...)` |
+| `403` / connection error on Private Link | `base_url` secret holds the public URL | `set_cdf_credentials(..., base_url="https://p001.plink.<cluster>.cognitedata.com")` |
 
 ## Agent checklist
 
