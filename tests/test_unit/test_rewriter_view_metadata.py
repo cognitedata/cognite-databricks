@@ -17,6 +17,7 @@ from cognite.client import data_modeling as dm
 
 from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
 from cognite.databricks.generator import UDTFGenerator
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 CERT = "f0connectortest.sailboat_sailboat_v1.ORCCertificate"
 SECRET_SCOPE = "cdf_sailboat_sailboat"
@@ -110,6 +111,32 @@ def test_json_pushdown_args_use_cdf_property_names(metadata: DataModelViewMetada
     assert json.loads(args["_exists"].strip("'")) == ["class"]
     assert json.loads(args["_gte"].strip("'")) == {"class": "A"}
     assert args["class_"] == "'ORC'"  # view-property equality binds the UDTF parameter (SQL column name)
+
+
+def test_rewritten_call_supplies_every_udtf_parameter(metadata: DataModelViewMetadata) -> None:
+    # Unity Catalog Python UDTFs cannot declare defaults, so every parameter must be passed (NULL when unbound)
+    sql = f"SELECT max(aph_tod) AS max_aph_tod FROM {CERT} WHERE space = 'inst_sailboat_fleet_a'"
+
+    rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql, secret_scope=SECRET_SCOPE, view_metadata=metadata)
+
+    assert rewritten is not None
+    names = re.findall(r"(\w+)\s*=>", rewritten)
+    assert names == [
+        "client_id",
+        "client_secret",
+        "tenant_id",
+        "cdf_cluster",
+        "project",
+        "name",
+        "aph_tod",
+        "class_",
+        *data_model_pushdown_parameters.names,
+        base_url_parameter.name,
+    ]
+    args = _named_args(rewritten)
+    assert args["name"].strip() == "NULL"
+    assert args["external_id"].strip() == "NULL"
+    assert args["instance_space"] == "'inst_sailboat_fleet_a'"
 
 
 def test_metadata_for_another_view_is_rejected(metadata: DataModelViewMetadata) -> None:

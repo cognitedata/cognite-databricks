@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, Field
 
 from cognite.databricks.utils import to_udtf_function_name
-from cognite.pygen_spark.udtf_parameters import base_url_parameter
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 if TYPE_CHECKING:
     from cognite.client.data_classes.data_modeling import View
@@ -229,7 +229,8 @@ class DataModelQueryRewriter:
 
         Args:
             view_metadata: Optional view columns; without it the rewriter cannot tell numeric from text
-                columns or detect columns the view does not have.
+                columns or detect columns the view does not have, and the call only carries bound arguments
+                (Unity Catalog requires all of them). With it, unbound parameters are passed as NULL.
 
         Returns:
             Rewritten SQL, or None when pushdown is not supported / nothing to push (run the SQL in Spark).
@@ -278,32 +279,14 @@ class DataModelQueryRewriter:
             f"project => {creds['project']}",
         ]
 
-        for prop, value in hints.property_equals.items():
-            args.append(f"{prop} => {_sql_literal(value)}")
-
-        if hints.instance_space is not None:
-            args.append(f"instance_space => {_sql_literal(hints.instance_space)}")
-        if hints.external_id is not None:
-            args.append(f"external_id => {_sql_literal(hints.external_id)}")
-        if hints.exists_properties:
-            args.append(f"_exists => {_sql_literal(json.dumps(hints.exists_properties))}")
-        if hints.not_exists_properties:
-            args.append(f"_not_exists => {_sql_literal(json.dumps(hints.not_exists_properties))}")
-        if hints.gt:
-            args.append(f"_gt => {_sql_literal(json.dumps(hints.gt))}")
-        if hints.gte:
-            args.append(f"_gte => {_sql_literal(json.dumps(hints.gte))}")
-        if hints.lt:
-            args.append(f"_lt => {_sql_literal(json.dumps(hints.lt))}")
-        if hints.lte:
-            args.append(f"_lte => {_sql_literal(json.dumps(hints.lte))}")
-        if hints.row_limit is not None and hints.query_mode == "list":
-            args.append(f"_row_limit => {hints.row_limit}")
-        if hints.query_mode == "aggregate":
-            args.append("_query_mode => 'aggregate'")
-            args.append(f"_aggregates => {_sql_literal(json.dumps(hints.aggregates))}")
-            if hints.group_by:
-                args.append(f"_group_by => {_sql_literal(json.dumps(hints.group_by))}")
+        property_args = {prop: _sql_literal(value) for prop, value in hints.property_equals.items()}
+        pushdown_args = DataModelQueryRewriter._pushdown_args(hints)
+        if view_metadata is None:
+            args.extend(f"{name} => {value}" for name, value in {**property_args, **pushdown_args}.items())
+        else:
+            # Unity Catalog Python UDTFs cannot declare defaults: pass every parameter, NULL when unbound
+            args.extend(f"{c.column} => {property_args.get(c.column, 'NULL')}" for c in view_metadata.columns)
+            args.extend(f"{name} => {pushdown_args.get(name, 'NULL')}" for name in data_model_pushdown_parameters.names)
         args.append(f"{base_url_parameter.name} => {creds[base_url_parameter.name]}")
 
         # Aggregate rows are padded into the full UDTF outputSchema; select named columns.
@@ -322,6 +305,30 @@ class DataModelQueryRewriter:
                 select_list = ", ".join(aliases)
 
         return f"SELECT {select_list} FROM {udtf_fqn}(\n    " + ",\n    ".join(args) + "\n)"
+
+    @staticmethod
+    def _pushdown_args(hints: DataModelPushdown) -> dict[str, str]:
+        """SQL literals for the bound pushdown parameters, keyed by parameter name."""
+        args: dict[str, str] = {}
+        if hints.instance_space is not None:
+            args["instance_space"] = _sql_literal(hints.instance_space)
+        if hints.external_id is not None:
+            args["external_id"] = _sql_literal(hints.external_id)
+        if hints.exists_properties:
+            args["_exists"] = _sql_literal(json.dumps(hints.exists_properties))
+        if hints.not_exists_properties:
+            args["_not_exists"] = _sql_literal(json.dumps(hints.not_exists_properties))
+        for name, bounds in (("_gt", hints.gt), ("_gte", hints.gte), ("_lt", hints.lt), ("_lte", hints.lte)):
+            if bounds:
+                args[name] = _sql_literal(json.dumps(bounds))
+        if hints.row_limit is not None and hints.query_mode == "list":
+            args["_row_limit"] = str(hints.row_limit)
+        if hints.query_mode == "aggregate":
+            args["_query_mode"] = "'aggregate'"
+            args["_aggregates"] = _sql_literal(json.dumps(hints.aggregates))
+            if hints.group_by:
+                args["_group_by"] = _sql_literal(json.dumps(hints.group_by))
+        return args
 
     @staticmethod
     def _extract_null_checks(where_clause: str, result: DataModelPushdown) -> None:
