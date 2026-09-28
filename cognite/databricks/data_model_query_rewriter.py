@@ -9,12 +9,57 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
 from cognite.databricks.utils import to_udtf_function_name
 from cognite.pygen_spark.udtf_parameters import base_url_parameter
+
+if TYPE_CHECKING:
+    from cognite.client.data_classes.data_modeling import View
+
+# CDF instances/aggregate only supports MIN / MAX on numeric properties
+NUMERIC_VALUE_KINDS = frozenset({"long", "double"})
+COUNT_PROPERTIES = frozenset({"externalId", "external_id"})
+
+
+class ViewColumn(BaseModel):
+    """A queryable property column of a data model view."""
+
+    column: str = Field(..., description="SQL column / UDTF parameter name (reserved words get a trailing _)")
+    property: str = Field(..., description="CDF view property identifier")
+    value_kind: str = Field(..., description="Spark value kind, e.g. string, long, double, timestamp")
+
+
+class DataModelViewMetadata(BaseModel):
+    """Columns of one view, so the rewriter only pushes what CDF and the generated UDTF can serve."""
+
+    view_name: str
+    columns: list[ViewColumn] = Field(default_factory=list)
+
+    @property
+    def by_column(self) -> dict[str, ViewColumn]:
+        """Convenience property for dict-like access."""
+        return {column.column: column for column in self.columns}
+
+    def is_numeric(self, column: str) -> bool:
+        """Whether CDF can aggregate MIN / MAX on this column."""
+        view_column = self.by_column.get(column)
+        return view_column is not None and view_column.value_kind in NUMERIC_VALUE_KINDS
+
+    @classmethod
+    def from_view(cls, view: View) -> DataModelViewMetadata:
+        """Build metadata from the same UDTF fields used to generate the view's UDTF."""
+        from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
+
+        return cls(
+            view_name=view.external_id,
+            columns=[
+                ViewColumn(column=field.name, property=field.prop_name, value_kind=field.value_kind)
+                for field in SparkMultiAPIGenerator.udtf_fields_for_view(view)
+            ],
+        )
 
 
 class DataModelPushdown(BaseModel):
@@ -38,6 +83,8 @@ class DataModelPushdown(BaseModel):
     group_by: list[str] = Field(default_factory=list)
     pushdown_supported: bool = True
     skip_reasons: list[str] = Field(default_factory=list)
+    # Filled from view metadata: CDF property -> SQL column (they differ for reserved words)
+    column_for_property: dict[str, str] = Field(default_factory=dict)
 
     model_config = {"populate_by_name": True}
 
@@ -46,11 +93,14 @@ class DataModelQueryRewriter:
     """Analyze and rewrite catalog SQL into UDTF calls with pushdown params."""
 
     @staticmethod
-    def analyze(sql_query: str) -> DataModelPushdown:
+    def analyze(sql_query: str, view_metadata: DataModelViewMetadata | None = None) -> DataModelPushdown:
         """Extract data-model pushdown hints from a SQL query.
 
         Unsupported patterns (ORDER BY + LIMIT, OFFSET, joins, COUNT DISTINCT,
         HAVING) set ``pushdown_supported=False`` and leave list-scan defaults.
+
+        With ``view_metadata``, columns the view does not have and MIN / MAX on non-numeric columns also
+        disable pushdown, and JSON pushdown args use CDF property names.
         """
         normalized = " ".join(sql_query.strip().split())
         result = DataModelPushdown()
@@ -106,7 +156,65 @@ class DataModelQueryRewriter:
                 result.row_limit = int(limit_match.group(1))
 
         DataModelQueryRewriter._extract_aggregates(normalized, result)
+        if view_metadata is not None:
+            DataModelQueryRewriter._apply_view_metadata(result, view_metadata)
         return result
+
+    @staticmethod
+    def _apply_view_metadata(result: DataModelPushdown, metadata: DataModelViewMetadata) -> None:
+        if result.view_name is not None and result.view_name != metadata.view_name:
+            raise ValueError(f"View metadata is for '{metadata.view_name}', but the query reads '{result.view_name}'")
+        by_column = metadata.by_column
+
+        aggregate_columns = [m["property"] for m in result.aggregates if m["property"] not in COUNT_PROPERTIES]
+        referenced = [
+            *result.property_equals,
+            *result.exists_properties,
+            *result.not_exists_properties,
+            *result.gt,
+            *result.gte,
+            *result.lt,
+            *result.lte,
+            *aggregate_columns,
+            *result.group_by,
+        ]
+        unknown = sorted({column for column in referenced if column not in by_column})
+        if unknown:
+            result.pushdown_supported = False
+            result.skip_reasons.append(f"columns not pushed for view {metadata.view_name}: {', '.join(unknown)}")
+            return
+
+        non_numeric = sorted(
+            {
+                m["property"]
+                for m in result.aggregates
+                if m["fn"] in {"min", "max"} and not metadata.is_numeric(m["property"])
+            }
+        )
+        if non_numeric:
+            result.pushdown_supported = False
+            result.skip_reasons.append(
+                f"MIN/MAX on non-numeric column(s) {', '.join(non_numeric)} run in Spark "
+                "(CDF aggregates only numeric properties)"
+            )
+            return
+
+        # JSON pushdown args are resolved against CDF property names inside the UDTF
+        def to_property(column: str) -> str:
+            return by_column[column].property
+
+        result.exists_properties = [to_property(c) for c in result.exists_properties]
+        result.not_exists_properties = [to_property(c) for c in result.not_exists_properties]
+        result.gt = {to_property(c): v for c, v in result.gt.items()}
+        result.gte = {to_property(c): v for c, v in result.gte.items()}
+        result.lt = {to_property(c): v for c, v in result.lt.items()}
+        result.lte = {to_property(c): v for c, v in result.lte.items()}
+        result.group_by = [to_property(c) for c in result.group_by]
+        result.aggregates = [
+            m if m["property"] in COUNT_PROPERTIES else {**m, "property": to_property(m["property"])}
+            for m in result.aggregates
+        ]
+        result.column_for_property = {column.property: column.column for column in metadata.columns}
 
     @staticmethod
     def rewrite_to_udtf_sql(
@@ -115,13 +223,18 @@ class DataModelQueryRewriter:
         udtf_fqn: str | None = None,
         secret_scope: str = "cdf_credentials",
         credential_args: dict[str, str] | None = None,
+        view_metadata: DataModelViewMetadata | None = None,
     ) -> str | None:
         """Rewrite a simple catalog view query into a UDTF call with pushdown args.
 
+        Args:
+            view_metadata: Optional view columns; without it the rewriter cannot tell numeric from text
+                columns or detect columns the view does not have.
+
         Returns:
-            Rewritten SQL, or None when pushdown is not supported / nothing to push.
+            Rewritten SQL, or None when pushdown is not supported / nothing to push (run the SQL in Spark).
         """
-        hints = DataModelQueryRewriter.analyze(sql_query)
+        hints = DataModelQueryRewriter.analyze(sql_query, view_metadata=view_metadata)
         if not hints.pushdown_supported or hints.view_name is None:
             return None
 
@@ -200,10 +313,11 @@ class DataModelQueryRewriter:
             for metric in hints.aggregates:
                 fn = metric["fn"]
                 prop = metric["property"]
-                if fn == "count" and prop in {"externalId", "external_id"}:
+                if fn == "count" and prop in COUNT_PROPERTIES:
                     aliases.append("external_id AS count_externalId")
                 else:
-                    aliases.append(f"{prop} AS {fn}_{prop}")
+                    column = hints.column_for_property.get(prop, prop)
+                    aliases.append(f"{column} AS {fn}_{column}")
             if aliases:
                 select_list = ", ".join(aliases)
 

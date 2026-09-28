@@ -15,9 +15,6 @@ from unittest.mock import MagicMock
 import pytest
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
-
-pytest.importorskip("pyspark")
-
 from pyspark.sql.types import LongType
 
 from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter

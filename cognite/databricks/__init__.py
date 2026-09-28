@@ -53,7 +53,12 @@ except (
     AttributeError,
 ):  # pragma: no cover - fallback for environments without PySpark
     TypeConverter = None  # type: ignore[assignment,misc]
-from cognite.databricks.data_model_query_rewriter import DataModelPushdown, DataModelQueryRewriter
+from cognite.databricks.data_model_query_rewriter import (
+    DataModelPushdown,
+    DataModelQueryRewriter,
+    DataModelViewMetadata,
+    ViewColumn,
+)
 from cognite.databricks.sql_analyzer import PushdownHints, SQLQueryAnalyzer
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import (
@@ -67,6 +72,7 @@ __all__ = [
     "CDFConnectionConfig",
     "DataModelPushdown",
     "DataModelQueryRewriter",
+    "DataModelViewMetadata",
     "PushdownHints",
     "RegisteredUDTFResult",
     "SQLQueryAnalyzer",
@@ -75,6 +81,7 @@ __all__ = [
     "TimeSeriesUDTFRegistry",
     "UDTFRegistrationResult",
     "UDTFRegistry",
+    "ViewColumn",
     "__version__",
     "inspect_function_parameters",
     "inspect_recently_created_udtf",

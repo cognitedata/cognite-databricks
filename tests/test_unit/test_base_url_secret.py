@@ -15,8 +15,6 @@ import pytest
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 
-pytest.importorskip("pyspark")
-
 from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter
 from cognite.databricks.generator import (
     UDTFGenerator,

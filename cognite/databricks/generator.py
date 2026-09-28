@@ -24,11 +24,8 @@ from cognite.client.data_classes.data_modeling.views import (
     SingleReverseDirectRelation,
     ViewProperty,
 )
-from cognite.pygen_spark import SparkUDTFGenerator
-from cognite.pygen_spark.fields import UDTFField
-from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
-from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
 
+from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
 from cognite.databricks.models import (
     RegisteredUDTFResult,
     RegisteredViewResult,
@@ -39,6 +36,10 @@ from cognite.databricks.secret_manager import SecretManagerHelper
 from cognite.databricks.type_converter import TypeConverter
 from cognite.databricks.udtf_registry import UDTFRegistry
 from cognite.databricks.utils import to_udtf_function_name
+from cognite.pygen_spark import SparkUDTFGenerator
+from cognite.pygen_spark.fields import UDTFField
+from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -2788,6 +2789,32 @@ class UDTFGenerator:
             print(f"[DEBUG] Total parameters: {len(input_params)}")
 
         return input_params
+
+    def rewrite_query(self, sql_query: str, secret_scope: str | None = None) -> str | None:
+        """Rewrite catalog view SQL into a pushdown UDTF call, using this data model's view metadata.
+
+        Returns None when the query should run as-is in Spark: unsupported pattern, a view outside this
+        data model, a column the view does not have, or MIN / MAX on a non-numeric column.
+        """
+        view_name = DataModelQueryRewriter.analyze(sql_query).view_name
+        view = self._get_view_by_id(view_name) if view_name else None
+        if view is None:
+            return None
+        return DataModelQueryRewriter.rewrite_to_udtf_sql(
+            sql_query,
+            secret_scope=secret_scope or self._default_secret_scope(),
+            view_metadata=DataModelViewMetadata.from_view(view),
+        )
+
+    def _default_secret_scope(self) -> str:
+        """Secret scope name used by registration: cdf_{space}_{external_id}."""
+        data_model = getattr(self.code_generator, "_data_model", None)
+        if isinstance(data_model, list):
+            data_model = data_model[0] if data_model else None
+        if not isinstance(data_model, dm.DataModel):
+            raise ValueError("secret_scope must be provided when the generator has no data model")
+        model_id = data_model.as_id()
+        return f"cdf_{model_id.space}_{model_id.external_id.lower()}"
 
     def _get_view_by_id(self, view_id: str) -> dm.View | None:
         """Get view from code_generator's data model by external_id."""
