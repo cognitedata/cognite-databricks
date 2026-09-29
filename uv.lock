@@ -310,7 +310,7 @@ local = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=24.4.2" },
     { name = "cognite-pygen", specifier = ">=1.3.0" },
-    { name = "cognite-pygen-spark", specifier = ">=0.4.0" },
+    { name = "cognite-pygen-spark", specifier = ">=0.4.1" },
     { name = "cognite-sdk", specifier = ">=7.90.1" },
     { name = "databricks-sdk", specifier = ">=0.20.0" },
     { name = "marko", marker = "extra == 'dev'", specifier = ">=2.1.0,<3.0.0" },
@@ -352,7 +352,7 @@ wheels = [
 
 [[package]]
 name = "cognite-pygen-spark"
-version = "0.4.0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cognite-pygen" },
@@ -362,9 +362,9 @@ dependencies = [
     { name = "requests" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5c/8f/43a378c0d2924794a972a5b0907a109ca244bf66b0fe3d5911f5eede87e6/cognite_pygen_spark-0.4.0.tar.gz", hash = "sha256:a65064c2232f39fb8c969db37b1f3f05bc522182043f4b04eed764119b7b2650", size = 62480, upload-time = "2026-09-24T10:05:40.175Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/d9/b9dd420b686708173f215cd3afff81f9ede0f200eea28e2d80894da09805/cognite_pygen_spark-0.4.1.tar.gz", hash = "sha256:798216f939eb8abee1be36bde532466c15361377cb68081fa59244444b4af4a2", size = 63733, upload-time = "2026-09-29T08:56:33.487Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/a9/db78ac5435fc093ba2f7b983ac30fa806ff521bb3a7acdd92fe410179010/cognite_pygen_spark-0.4.0-py3-none-any.whl", hash = "sha256:589ad3945b105a8ff61a22ce6b0c15745437374436c9d006bf89133cee092ba6", size = 79054, upload-time = "2026-09-24T10:05:39.013Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/b9/93599b40920b982ce186c4c096cc459b572a38cadc4c7c7d83ff939f1540/cognite_pygen_spark-0.4.1-py3-none-any.whl", hash = "sha256:ceceb7f82051ee901078415b57dbbe98183ac6f59eeebbf5a875cb3431aa856d", size = 80959, upload-time = "2026-09-29T08:56:32.323Z" },
 ]
 
 [[package]]

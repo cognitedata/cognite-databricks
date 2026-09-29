@@ -25,6 +25,7 @@ from cognite.client.data_classes.data_modeling.views import (
     ViewProperty,
 )
 
+from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
 from cognite.databricks.models import (
     RegisteredUDTFResult,
     RegisteredViewResult,
@@ -38,6 +39,7 @@ from cognite.databricks.utils import to_udtf_function_name
 from cognite.pygen_spark import SparkUDTFGenerator
 from cognite.pygen_spark.fields import UDTFField
 from cognite.pygen_spark.udtf_generator import SparkMultiAPIGenerator
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.catalog import (
     ColumnTypeName,
@@ -229,6 +231,11 @@ def register_udtf_from_file(
     return function_name
 
 
+def _base_url_secret_arg(secret_scope: str) -> str:
+    """Named SQL argument passing the Secret Manager base_url to a UDTF."""
+    return f"{base_url_parameter.name} => SECRET('{secret_scope}', '{base_url_parameter.name}')"
+
+
 def generate_time_series_udtf_view_sql(
     udtf_name: str,
     secret_scope: str,
@@ -317,11 +324,10 @@ def generate_time_series_udtf_view_sql(
     ]
 
     # Add all UDTF-specific parameters as NULL (from config.parameters)
-    if config.parameters:
-        for i, param in enumerate(config.parameters):
-            comma = "," if i < len(config.parameters) - 1 else ""
-            sql_lines.append(f"    {param} => NULL{comma}")
+    for param in config.parameters:
+        sql_lines.append(f"    {param} => NULL,")
 
+    sql_lines.append(f"    {_base_url_secret_arg(secret_scope)}")
     sql_lines.append(")")
 
     return "\n".join(sql_lines)
@@ -393,7 +399,8 @@ def generate_time_series_sql_view(
         f"    start_hint      => {_sql_literal(start_hint)},",
         f"    end_hint        => {_sql_literal(end_hint)},",
         f"    aggregate_hint  => {_sql_literal(aggregate_hint)},",
-        f"    granularity_hint => {_sql_literal(granularity_hint)}",
+        f"    granularity_hint => {_sql_literal(granularity_hint)},",
+        f"    {_base_url_secret_arg(secret_scope)}",
         ")",
     ]
 
@@ -460,7 +467,8 @@ def generate_udtf_sql_query(
             f"    client_secret => SECRET('{secret_scope}', 'client_secret'),",
             f"    tenant_id     => SECRET('{secret_scope}', 'tenant_id'),",
             f"    cdf_cluster   => SECRET('{secret_scope}', 'cdf_cluster'),",
-            f"    project       => SECRET('{secret_scope}', 'project')",
+            f"    project       => SECRET('{secret_scope}', 'project'),",
+            f"    {_base_url_secret_arg(secret_scope)}",
             f") LIMIT {limit};",
         ]
     else:
@@ -477,11 +485,13 @@ def generate_udtf_sql_query(
         ]
 
         if view_properties:
-            for i, prop in enumerate(view_properties):
-                comma = "," if i < len(view_properties) - 1 else ""
-                sql_lines.append(f"    NULL{comma} -- {prop}")
+            for prop in view_properties:
+                sql_lines.append(f"    NULL, -- {prop}")
         else:
             sql_lines.append("    NULL, -- Add property parameters here")
+        for pushdown_parameter in data_model_pushdown_parameters.parameters:
+            sql_lines.append(f"    NULL, -- {pushdown_parameter.name}")
+        sql_lines.append(f"    SECRET('{secret_scope}', '{base_url_parameter.name}')")
 
         sql_lines.append(f") LIMIT {limit};")
 
@@ -631,7 +641,8 @@ for view_id, func_name in registered.items():
         f"    client_secret => SECRET('{secret_scope}', 'client_secret'),",
         f"    tenant_id     => SECRET('{secret_scope}', 'tenant_id'),",
         f"    cdf_cluster   => SECRET('{secret_scope}', 'cdf_cluster'),",
-        f"    project       => SECRET('{secret_scope}', 'project')",
+        f"    project       => SECRET('{secret_scope}', 'project'),",
+        f"    {_base_url_secret_arg(secret_scope)}",
         ") LIMIT 10;",
     ]
     cell3 = "\n".join(sql_lines)
@@ -648,9 +659,11 @@ for view_id, func_name in registered.items():
             f"    SECRET('{secret_scope}', 'project'),",
             "    -- View property parameters (all NULL to get all rows)",
         ]
-        for i, prop in enumerate(view_property_names):
-            comma = "," if i < len(view_property_names) - 1 else ""
-            positional_sql_lines.append(f"    NULL{comma} -- {prop}")
+        for prop in view_property_names:
+            positional_sql_lines.append(f"    NULL, -- {prop}")
+        for pushdown_parameter in data_model_pushdown_parameters.parameters:
+            positional_sql_lines.append(f"    NULL, -- {pushdown_parameter.name}")
+        positional_sql_lines.append(f"    SECRET('{secret_scope}', '{base_url_parameter.name}')")
         positional_sql_lines.append(") LIMIT 10;")
         cell3 += "\n\n" + "\n".join(positional_sql_lines)
 
@@ -1129,6 +1142,27 @@ class UDTFGenerator:
             view_registered=view_registered,
         )
 
+    def _ensure_base_url_secret(self, secret_scope: str) -> None:
+        """Backfill the base_url secret for scopes created before it was stored.
+
+        Generated views pass SECRET(scope, 'base_url'), so a scope without it would fail at query time.
+        The value comes from the CogniteClient loaded from the TOML (Private Link URL or the public
+        cluster URL); an existing secret is never overwritten.
+        """
+        if self.secret_helper is None:
+            return
+        client_base_url = self.cognite_client.config.base_url if self.cognite_client is not None else None
+        if not client_base_url:
+            existing_keys = {s.key for s in self.secret_helper.workspace_client.secrets.list_secrets(secret_scope)}
+            if base_url_parameter.name in existing_keys:
+                return
+            raise ValueError(
+                f"Secret scope '{secret_scope}' has no '{base_url_parameter.name}' secret and no CogniteClient "
+                "base_url is available. Run secret_helper.set_cdf_credentials(..., base_url=...) first."
+            )
+        if self.secret_helper.ensure_base_url(secret_scope, client_base_url):
+            print(f"[INFO] Stored {base_url_parameter.name}={client_base_url} in secret scope '{secret_scope}'")
+
     def register_udtfs(
         self,
         data_model: DataModel | None = None,
@@ -1177,6 +1211,8 @@ class UDTFGenerator:
                 secret_scope = f"cdf_{model_id.space}_{model_id.external_id.lower()}"
             else:
                 raise ValueError("secret_scope must be provided if data_model is None")
+
+        self._ensure_base_url_secret(secret_scope)
 
         # ALWAYS use files from output_dir - don't generate new files
         # Registration is based solely on what files exist in the output directory
@@ -1343,6 +1379,8 @@ class UDTFGenerator:
                     raise ValueError(
                         "secret_scope must be provided if data_model is None and code_generator has no data_model"
                     )
+
+        self._ensure_base_url_secret(secret_scope)
 
         # Query Unity Catalog to find registered UDTFs
         # We'll filter to only include data model and time series UDTFs
@@ -2459,12 +2497,15 @@ class UDTFGenerator:
             param_type = param.annotation if param.annotation != inspect.Parameter.empty else None
             default_value = param.default if param.default != inspect.Parameter.empty else None
 
+            pushdown_parameter = data_model_pushdown_parameters.get(param_name)
             # Special handling for timestamp parameters (start, end, before) - register as TIMESTAMP
             # These accept SQL TIMESTAMP, relative time strings, ISO 8601, or milliseconds
-            if param_name in ("start", "end", "before"):
+            if pushdown_parameter is not None:
+                param_spark_type: DataType = pushdown_parameter.spark_type
+            elif param_name in ("start", "end", "before"):
                 from pyspark.sql.types import TimestampType
 
-                param_spark_type: DataType = TimestampType()
+                param_spark_type = TimestampType()
             # For scalar mode, infer type from annotation or default to STRING
             elif param_type is None or param_type is type(None):
                 param_spark_type = StringType()
@@ -2706,10 +2747,74 @@ class UDTFGenerator:
             )
             position += 1
 
+        # Pushdown parameters come last, in the same order the generated UDTF and view SQL use them
         if debug:
+            print(f"[DEBUG] Pushdown parameters ({len(data_model_pushdown_parameters.parameters)}):")
+
+        for pushdown_parameter in data_model_pushdown_parameters.parameters:
+            sql_type, type_name = TypeConverter.spark_to_sql_type_info(pushdown_parameter.spark_type)
+            type_json_value = TypeConverter.spark_to_datatype_json(pushdown_parameter.spark_type)
+            if debug:
+                print(f"  [{position}] {pushdown_parameter.name}: type_text='{sql_type}', type_name={type_name}")
+            input_params.append(
+                FunctionParameterInfo(
+                    name=pushdown_parameter.name,
+                    type_text=sql_type,
+                    type_name=type_name,
+                    type_json=type_json_value,
+                    position=position,
+                    parameter_mode=FunctionParameterMode.IN,
+                    parameter_type=FunctionParameterType.PARAM,
+                    parameter_default="NULL",
+                )
+            )
+            position += 1
+
+        # base_url is always the last parameter (Private Link / dedicated API endpoint)
+        sql_type, type_name = TypeConverter.spark_to_sql_type_info(base_url_parameter.spark_type)
+        input_params.append(
+            FunctionParameterInfo(
+                name=base_url_parameter.name,
+                type_text=sql_type,
+                type_name=type_name,
+                type_json=TypeConverter.spark_to_datatype_json(base_url_parameter.spark_type),
+                position=position,
+                parameter_mode=FunctionParameterMode.IN,
+                parameter_type=FunctionParameterType.PARAM,
+                parameter_default="NULL",
+            )
+        )
+        if debug:
+            print(f"  [{position}] {base_url_parameter.name}: type_text='{sql_type}', type_name={type_name}")
             print(f"[DEBUG] Total parameters: {len(input_params)}")
 
         return input_params
+
+    def rewrite_query(self, sql_query: str, secret_scope: str | None = None) -> str | None:
+        """Rewrite catalog view SQL into a pushdown UDTF call, using this data model's view metadata.
+
+        Returns None when the query should run as-is in Spark: unsupported pattern, a view outside this
+        data model, a column the view does not have, or MIN / MAX on a non-numeric column.
+        """
+        view_name = DataModelQueryRewriter.analyze(sql_query).view_name
+        view = self._get_view_by_id(view_name) if view_name else None
+        if view is None:
+            return None
+        return DataModelQueryRewriter.rewrite_to_udtf_sql(
+            sql_query,
+            secret_scope=secret_scope or self._default_secret_scope(),
+            view_metadata=DataModelViewMetadata.from_view(view),
+        )
+
+    def _default_secret_scope(self) -> str:
+        """Secret scope name used by registration: cdf_{space}_{external_id}."""
+        data_model = getattr(self.code_generator, "_data_model", None)
+        if isinstance(data_model, list):
+            data_model = data_model[0] if data_model else None
+        if not isinstance(data_model, dm.DataModel):
+            raise ValueError("secret_scope must be provided when the generator has no data model")
+        model_id = data_model.as_id()
+        return f"cdf_{model_id.space}_{model_id.external_id.lower()}"
 
     def _get_view_by_id(self, view_id: str) -> dm.View | None:
         """Get view from code_generator's data model by external_id."""

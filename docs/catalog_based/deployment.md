@@ -178,7 +178,7 @@ Build TOML from [§1](#1-i-need-my-base-url) and [§2](#2-i-need-toml). **Analys
 | **2. Install packages** | Platform admin | No | `%pip install cognite-databricks` (and `cognite-pygen>=1.3.0`) |
 | **3. Connect to CDF** | Platform admin | **Yes** | `load_cognite_client_from_toml()` — uses `base_url` when set |
 | **4. Generate UDTFs** | Platform admin | Indirectly | Client from step 3 fetches the data model and writes Python UDTF files |
-| **5. Seed secrets** | Platform admin | **Yes** | Read TOML again; copy fields into Databricks Secret Manager (`base_url` is **not** stored) |
+| **5. Seed secrets** | Platform admin | **Yes** | Read TOML again; copy fields into Databricks Secret Manager, including `base_url` |
 | **6. Register** | Platform admin | No | `register_udtfs` / `register_views` reference secrets via `SECRET()` |
 | **7. Query** | Analysts | **No** | SQL against Views; credentials resolved from Secret Manager |
 
@@ -244,7 +244,8 @@ generator = generate_udtf_notebook(
 
 Re-read the TOML and push **individual secret keys** into Databricks. This is a one-time handoff: after registration, the notebook no longer needs the TOML for queries.
 
-`base_url` is **not** copied to Secret Manager — only `project`, `cdf_cluster`, `client_id`, `client_secret`, and `tenant_id`.
+`set_cdf_credentials` stores `project`, `cdf_cluster`, `client_id`, `client_secret`, `tenant_id`, and `base_url`.
+When the TOML has no `base_url`, it stores the public URL `https://{cdf_cluster}.cognitedata.com`.
 
 ```python
 secret_scope = f"cdf_{data_model_id.space}_{data_model_id.external_id.lower()}"
@@ -259,6 +260,7 @@ generator.secret_helper.set_cdf_credentials(
     client_id=cognite_config["client_id"],
     client_secret=cognite_config["client_secret"],
     tenant_id=cognite_config["tenant_id"],
+    base_url=cognite_config.get("base_url"),  # Private Link / dedicated; omit for public clusters
 )
 ```
 
@@ -298,7 +300,7 @@ Under the hood, the View passes `SECRET('cdf_…', …)` values into the UDTF �
 | `project` | Yes | Stored | Via `SECRET()` |
 | `cdf_cluster` | Yes (OAuth scopes) | Stored | Via `SECRET()` |
 | `client_id` / `client_secret` / `tenant_id` | Yes | Stored | Via `SECRET()` |
-| `base_url` | Yes (API endpoint) | **Not stored** | Not used today — see [Query-time behavior](#query-time-behavior-udtfs) |
+| `base_url` | Yes (API endpoint) | Stored (public URL when omitted) | Via `SECRET()` — see [Query-time behavior](#query-time-behavior-udtfs) |
 
 ### cognite-pygen-spark (step by step)
 
@@ -311,7 +313,7 @@ Standalone Spark clusters use TOML for **code generation**. There is no Secret M
 | Query UDTFs | No — pass credential values in SQL |
 
 ```bash
-pip install --upgrade "cognite-pygen-spark>=0.4.0" "cognite-pygen>=1.3.0"
+pip install --upgrade "cognite-pygen-spark>=0.4.1" "cognite-pygen>=1.3.0"
 ```
 
 ```python
@@ -411,8 +413,8 @@ Views are the intended interface. UDTFs exist only as the implementation behind 
 
 | Symptom | Likely cause |
 | --- | --- |
-| Provisioning worked; View query fails | Query-time networking — UDTFs resolve a public URL pattern from Secret Manager. See [Query-time behavior](#query-time-behavior-udtfs). |
-| `403` on View query | Workers may be hitting the public endpoint instead of Private Link |
+| Provisioning worked; View query fails | Query-time networking — check the `base_url` secret in the scope. See [Query-time behavior](#query-time-behavior-udtfs). |
+| `403` on View query | The `base_url` secret holds the public URL; set the Private Link URL with `set_cdf_credentials(..., base_url=...)` |
 | Empty result set | View registered correctly but no matching CDF data — not a deployment failure |
 
 ---
@@ -421,7 +423,7 @@ Views are the intended interface. UDTFs exist only as the implementation behind 
 | Package | Minimum version | Role |
 | --- | --- | --- |
 | `cognite-pygen` | **1.3.0** | `load_cognite_client_from_toml()` reads `base_url` from TOML |
-| `cognite-pygen-spark` | **0.4.0** | UDTF code generation (used by cognite-databricks) |
+| `cognite-pygen-spark` | **0.4.1** | UDTF code generation, pushdown parameter registry, and query-time `base_url` |
 | `cognite-databricks` | **0.3.1** | Databricks registration; depends on pygen ≥ 1.3.0 |
 
 ## TOML configuration reference
@@ -462,14 +464,31 @@ Omitting `base_url` preserves the default public URL behavior.
 
 ### Query-time behavior (UDTFs)
 
-Generated UDTFs build API URLs as `https://{cdf_cluster}.cognitedata.com` from Secret Manager values. `base_url` from TOML is **not** stored in secrets and is **not** used at query time today.
+Every generated UDTF takes `base_url` as its last argument, and generated Views pass it from Secret Manager
+(`base_url => SECRET('cdf_…', 'base_url')`). API requests go to that URL; OAuth scopes still come from
+`cdf_cluster`. An empty value falls back to `https://{cdf_cluster}.cognitedata.com`.
 
-| Phase | `base_url` support | Notes |
+| Phase | `base_url` source | Notes |
 | --- | --- | --- |
-| **Provisioning** (TOML → `load_cognite_client_from_toml`) | Yes | Use `base_url` in TOML |
-| **Query time** (UDTF via `SECRET('…', 'cdf_cluster')`) | Public URL pattern only | Ensure workers can reach the endpoint UDTFs resolve |
+| **Provisioning** (TOML → `load_cognite_client_from_toml`) | TOML | Use `base_url` in TOML |
+| **Query time** (View → UDTF) | Secret Manager key `base_url` | Written by `set_cdf_credentials`; backfilled on registration |
 
-If workers can only reach CDF through Private Link at query time, contact your Cognite team — runtime `base_url` in Secret Manager is on the roadmap.
+`register_udtfs()` and `register_views()` backfill a missing `base_url` secret from the TOML-loaded client
+(`client.config.base_url`). They never overwrite an existing value. To change the URL later, call
+`set_cdf_credentials(..., base_url=...)`; no regeneration is needed.
+
+Calling a catalog UDTF directly? Pass `base_url => SECRET('cdf_…', 'base_url')` like the other credentials.
+
+### Upgrading from a release without runtime `base_url`
+
+Views and UDTF signatures change, so upgrade in this order:
+
+1. Load the client from the TOML (with `base_url` for Private Link) and regenerate UDTFs.
+2. Optionally re-run [Step 4](#step-4-copy-toml-credentials-into-secret-manager) with `base_url=cognite_config.get("base_url")`.
+   If you skip it, registration backfills `base_url` from the TOML-loaded client.
+3. Re-run `register_udtfs(..., if_exists="replace")` and `register_views(..., if_exists="replace")`.
+
+Remove any manual patches of generated files that rewrote the API host; they are no longer needed.
 
 ---
 
@@ -497,7 +516,7 @@ pygen generate \
 
 ### `403` — Traffic from this source is forbidden
 
-You are hitting the **public** CDF endpoint from a network that must use Private Link. Add `base_url` to your TOML (provisioning) or verify network routing (query time).
+You are hitting the **public** CDF endpoint from a network that must use Private Link. Add `base_url` to your TOML (provisioning) and to the `base_url` secret (query time) via `set_cdf_credentials(..., base_url=...)`.
 
 ### `TypeError` — unexpected keyword argument `base_url`
 
@@ -517,7 +536,9 @@ Confirm:
 
 ### Provisioning works; UDTF queries fail
 
-Provisioning uses `load_cognite_client_from_toml` (`base_url` aware). UDTF queries use `cdf_cluster` from secrets and the public URL pattern — see [Query-time behavior](#query-time-behavior-udtfs) above.
+Provisioning uses the TOML `base_url`; UDTF queries use the `base_url` secret. Check that the secret holds the
+Private Link URL (not the public default) and that the UDTFs and Views were re-registered after upgrading — see
+[Query-time behavior](#query-time-behavior-udtfs) above.
 
 ---
 

@@ -2,8 +2,19 @@
 
 from __future__ import annotations
 
+from cognite.pygen_spark.udtf_parameters import base_url_parameter
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.workspace import SecretScope
+
+
+def _normalize_base_url(base_url: str | None, cdf_cluster: str | None = None) -> str:
+    """Strip whitespace and trailing slashes; fall back to the public cluster URL when empty."""
+    normalized = (base_url or "").strip().rstrip("/")
+    if normalized:
+        return normalized
+    if not cdf_cluster:
+        raise ValueError("base_url is empty and no cdf_cluster is available to derive the public URL")
+    return f"https://{cdf_cluster}.cognitedata.com"
 
 
 class SecretManagerHelper:
@@ -51,6 +62,7 @@ class SecretManagerHelper:
         client_id: str,
         client_secret: str,
         tenant_id: str,
+        base_url: str | None = None,
     ) -> None:
         """Store CDF credentials in Secret Manager as plain text.
 
@@ -70,6 +82,9 @@ class SecretManagerHelper:
             client_secret: OAuth2 client secret (from TOML: [cognite].client_secret) - plain text
             tenant_id: Azure AD tenant ID (from TOML: [cognite].tenant_id) - plain text GUID,
                          e.g., "dbf2ec1b-2fbc-4106-9371-017d78d6df71"
+            base_url: CDF API base URL (from TOML: [cognite].base_url) for Private Link / dedicated clusters.
+                      Always stored; defaults to https://{cdf_cluster}.cognitedata.com because generated
+                      views reference SECRET(scope, 'base_url').
         """
         self.create_scope_if_not_exists(scope_name)
 
@@ -79,6 +94,7 @@ class SecretManagerHelper:
             "client_id": client_id,
             "client_secret": client_secret,
             "tenant_id": tenant_id,
+            base_url_parameter.name: _normalize_base_url(base_url, cdf_cluster),
         }
 
         for key, value in secrets.items():
@@ -89,6 +105,25 @@ class SecretManagerHelper:
                 key,  # positional
                 string_value=value,  # keyword
             )
+
+    def ensure_base_url(self, scope_name: str, base_url: str) -> bool:
+        """Store the base_url secret unless the scope already has one.
+
+        Scopes created before base_url was stored lack the key that generated views reference.
+        An existing value is never overwritten; use set_cdf_credentials() to change it.
+
+        Returns:
+            True if the secret was written, False if it already existed
+        """
+        existing_keys = {secret.key for secret in self.workspace_client.secrets.list_secrets(scope_name)}
+        if base_url_parameter.name in existing_keys:
+            return False
+        self.workspace_client.secrets.put_secret(
+            scope_name,
+            base_url_parameter.name,
+            string_value=_normalize_base_url(base_url),
+        )
+        return True
 
     def store_secrets(self, secret_scope: str, secrets: dict[str, str]) -> None:
         """Store multiple secrets in Secret Manager.

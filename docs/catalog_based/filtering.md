@@ -26,15 +26,16 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 |-------------|----------------------------|--------|
 | `prop = 'x'` (view property UDTF arg) | `equals` | Pushed |
 | `prop IN (...)` | `in` | Pushed |
-| Array property filter via UDTF (view metadata marks array) | `containsAny` | Pushed when bound on UDTF |
-| Array property via `DataModelQueryRewriter` | — | **Not schema-aware** — rewriter binds scalars (`equals`/`in`); call UDTF directly for `containsAny` |
+| Array property `=` / `IN` (UDTF knows which properties are arrays) | `containsAny` | Pushed (rewriter / explicit param) |
 | `prop IS NOT NULL` via `_exists` | `exists` | Pushed (rewriter / explicit param) |
 | `prop IS NULL` via `_not_exists` | `not.exists` | Pushed (rewriter / explicit param) |
 | `space = '...'` via `instance_space` | `equals` on `["node\|edge", "space"]` | Pushed (instance identity, not view space) |
 | `external_id = '...'` via UDTF `external_id` param | `equals` on `["node\|edge", "externalId"]` | Pushed |
 | `>`, `<`, `BETWEEN` via `_gt`/`_gte`/`_lt`/`_lte` | `range` | Pushed (rewriter / explicit param) |
 | `LIMIT n` via `_row_limit` (no `ORDER BY`) | list API `limit` + early stop | Pushed |
-| `COUNT(*)` / `MIN` / `MAX` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed |
+| `COUNT(*)` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed |
+| `MIN` / `MAX` on a numeric property | `instances/aggregate` | Pushed |
+| `MIN` / `MAX` on text / timestamp | — | **Spark-only** — CDF aggregates only numeric properties |
 | `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
 | `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
 
@@ -49,29 +50,33 @@ Aggregate API `limit` caps **groupBy buckets**, not SQL `LIMIT` on list scans.
 
 ## Predicate pushdown with the rewriter
 
-`DataModelQueryRewriter` is a **library helper** (not wired into `UDTFGenerator` or
-notebook registration). Call it explicitly before `spark.sql(...)`, or bind UDTF
-parameters yourself. Default UDTF FQNs use `to_udtf_function_name(view_name)`
-(e.g. `SmallBoat` → `small_boat_udtf`), matching registration.
-
-Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`,
-and related params. This package pins `cognite-pygen-spark>=0.4.0` for that minimum.
+Views pass every pushdown argument as `NULL`, so a `WHERE` on a view runs in Spark. To push it to CDF,
+rewrite the query into a UDTF call with bound arguments. Use the generator — it knows the view's columns:
 
 ```python
-from cognite.databricks import DataModelQueryRewriter
-
 sql = """
 SELECT * FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
 WHERE name = 'XBOX'
   AND description IS NOT NULL
 LIMIT 10
 """
-rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(
-    sql,
-    secret_scope="cdf_sailboat_sailboat",
-)
-# Bind name, _exists, _row_limit into small_boat_udtf(...)
+rewritten = generator.rewrite_query(sql)  # binds name, _exists, _row_limit into small_boat_udtf(...)
+df = spark.sql(rewritten if rewritten is not None else sql)
 ```
+
+`rewrite_query()` returns `None` when the query should run as-is in Spark:
+
+- unsupported patterns (joins, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
+- a column the view does not have
+- `MIN` / `MAX` on a non-numeric column — CDF only aggregates numeric properties
+- a view outside the generator's data model
+
+The low-level `DataModelQueryRewriter.rewrite_to_udtf_sql(sql, secret_scope=..., view_metadata=...)` does the
+same; pass `view_metadata=DataModelViewMetadata.from_view(view)`. Without metadata it cannot tell numeric from
+text columns, so `MIN(name)` is pushed and the UDTF rejects it with a clear error. Default UDTF names follow
+`to_udtf_function_name(view_name)` (`SmallBoat` → `small_boat_udtf`), matching registration.
+
+Requires cognite-pygen-spark 0.4.1 or newer, which generates the pushdown parameters and the trailing `base_url` argument.
 
 ## EXPLAIN
 
