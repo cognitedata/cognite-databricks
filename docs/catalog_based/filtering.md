@@ -76,7 +76,7 @@ same; pass `view_metadata=DataModelViewMetadata.from_view(view)`. Without metada
 text columns, so `MIN(name)` is pushed and the UDTF rejects it with a clear error. Default UDTF names follow
 `to_udtf_function_name(view_name)` (`SmallBoat` → `small_boat_udtf`), matching registration.
 
-Requires a pygen-spark release that generates `_exists`, `_row_limit`, `_query_mode`, and related params.
+Requires cognite-pygen-spark 0.4.1 or newer, which generates the pushdown parameters and the trailing `base_url` argument.
 
 ## EXPLAIN
 
