@@ -40,6 +40,8 @@ def pytest_ignore_collect(collection_path: Path, config: pytest.Config) -> bool:
 def mock_cognite_client() -> Iterable[CogniteClient]:
     """Mock CogniteClient for testing."""
     with monkeypatch_cognite_client() as m:
+        # Registration reads config.base_url as a string and stores it. The spec mock is not a URL.
+        m.config.base_url = "https://westeurope-1.cognitedata.com"
         yield m
 
 

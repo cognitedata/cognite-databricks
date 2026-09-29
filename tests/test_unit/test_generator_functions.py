@@ -245,7 +245,9 @@ class TestGenerateUdtfSqlQuery:
         assert "SELECT * FROM" in sql
         assert "SECRET('cdf_sailboat_sailboat', 'client_id')" in sql
         assert "NULL, -- name" in sql
-        assert "NULL -- description" in sql
+        # description is not the last argument: pushdown params and base_url follow it
+        assert "NULL, -- description" in sql
+        assert "SECRET('cdf_sailboat_sailboat', 'base_url')" in sql
         assert "LIMIT 10" in sql
 
     def test_generate_udtf_sql_query_positional_no_properties(self) -> None:
