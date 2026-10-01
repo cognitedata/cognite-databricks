@@ -12,10 +12,10 @@ from unittest.mock import MagicMock
 import pytest
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
-from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
 from cognite.databricks.generator import UDTFGenerator
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 CATALOG = "f0connectortest"
 SCHEMA = "dm_dom_lims_result_limsresult_dom_v1"
