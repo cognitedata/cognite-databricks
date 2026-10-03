@@ -11,10 +11,10 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, Literal
 
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 from pydantic import BaseModel, Field
 
 from cognite.databricks.utils import to_udtf_function_name
-from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 if TYPE_CHECKING:
     from cognite.client.data_classes.data_modeling import View
@@ -22,6 +22,11 @@ if TYPE_CHECKING:
 # CDF instances/aggregate only supports MIN / MAX on numeric properties
 NUMERIC_VALUE_KINDS = frozenset({"long", "double"})
 COUNT_PROPERTIES = frozenset({"externalId", "external_id"})
+IDENTITY_COLUMNS = frozenset({"space", "external_id", "externalId"})
+_GROUP_BY_PATTERN = re.compile(
+    r"\bgroup\s+by\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(?:$|\border\s+by\b|\blimit\b|\bhaving\b)",
+    flags=re.IGNORECASE,
+)
 
 
 class ViewColumn(BaseModel):
@@ -62,6 +67,15 @@ class DataModelViewMetadata(BaseModel):
         )
 
 
+class AggregateSelectItem(BaseModel):
+    """One column of a rewritten aggregate select list, in the order the analyst wrote it."""
+
+    kind: Literal["group", "aggregate"]
+    column: str = ""
+    fn: str = ""
+    property: str = ""
+
+
 class DataModelPushdown(BaseModel):
     """Hints extracted from a catalog SQL query for data-model UDTF pushdown."""
 
@@ -81,6 +95,7 @@ class DataModelPushdown(BaseModel):
     query_mode: Literal["list", "aggregate"] = "list"
     aggregates: list[dict[str, str]] = Field(default_factory=list)
     group_by: list[str] = Field(default_factory=list)
+    aggregate_select: list[AggregateSelectItem] = Field(default_factory=list)
     pushdown_supported: bool = True
     skip_reasons: list[str] = Field(default_factory=list)
     # Filled from view metadata: CDF property -> SQL column (they differ for reserved words)
@@ -97,7 +112,8 @@ class DataModelQueryRewriter:
         """Extract data-model pushdown hints from a SQL query.
 
         Unsupported patterns (ORDER BY + LIMIT, OFFSET, joins, COUNT DISTINCT,
-        HAVING) set ``pushdown_supported=False`` and leave list-scan defaults.
+        HAVING, GROUP BY expressions, and a select list that is not the grouped
+        columns plus aggregates) set ``pushdown_supported=False`` and leave list-scan defaults.
 
         With ``view_metadata``, columns the view does not have and MIN / MAX on non-numeric columns also
         disable pushdown, and JSON pushdown args use CDF property names.
@@ -178,7 +194,9 @@ class DataModelQueryRewriter:
             *aggregate_columns,
             *result.group_by,
         ]
-        unknown = sorted({column for column in referenced if column not in by_column})
+        unknown = sorted(
+            {column for column in referenced if column not in by_column and column not in IDENTITY_COLUMNS}
+        )
         if unknown:
             result.pushdown_supported = False
             result.skip_reasons.append(f"columns not pushed for view {metadata.view_name}: {', '.join(unknown)}")
@@ -209,11 +227,18 @@ class DataModelQueryRewriter:
         result.gte = {to_property(c): v for c, v in result.gte.items()}
         result.lt = {to_property(c): v for c, v in result.lt.items()}
         result.lte = {to_property(c): v for c, v in result.lte.items()}
-        result.group_by = [to_property(c) for c in result.group_by]
+        result.group_by = [_cdf_group_property(column, by_column) for column in result.group_by]
         result.aggregates = [
             m if m["property"] in COUNT_PROPERTIES else {**m, "property": to_property(m["property"])}
             for m in result.aggregates
         ]
+        remapped_select: list[AggregateSelectItem] = []
+        for item in result.aggregate_select:
+            if item.kind == "aggregate" and item.property not in COUNT_PROPERTIES:
+                remapped_select.append(item.model_copy(update={"property": to_property(item.property)}))
+            else:
+                remapped_select.append(item)
+        result.aggregate_select = remapped_select
         result.column_for_property = {column.property: column.column for column in metadata.columns}
 
     @staticmethod
@@ -292,17 +317,7 @@ class DataModelQueryRewriter:
         # Aggregate rows are padded into the full UDTF outputSchema; select named columns.
         select_list = "*"
         if hints.query_mode == "aggregate" and hints.aggregates:
-            aliases: list[str] = []
-            for metric in hints.aggregates:
-                fn = metric["fn"]
-                prop = metric["property"]
-                if fn == "count" and prop in COUNT_PROPERTIES:
-                    aliases.append("external_id AS count_externalId")
-                else:
-                    column = hints.column_for_property.get(prop, prop)
-                    aliases.append(f"{column} AS {fn}_{column}")
-            if aliases:
-                select_list = ", ".join(aliases)
+            select_list = _aggregate_select_sql(hints) or select_list
 
         return f"SELECT {select_list} FROM {udtf_fqn}(\n    " + ",\n    ".join(args) + "\n)"
 
@@ -431,48 +446,136 @@ class DataModelQueryRewriter:
         if not select_match:
             return
         select_clause = select_match.group(1).strip()
+        has_group_by = bool(re.search(r"\bgroup\s+by\b", sql, flags=re.IGNORECASE))
+        group_match = _GROUP_BY_PATTERN.search(sql)
+        if has_group_by and group_match is None:
+            result.pushdown_supported = False
+            result.skip_reasons.append("GROUP BY expressions are not pushed")
+            return
+        group_columns = [part.strip() for part in group_match.group(1).split(",")] if group_match else []
+
         if select_clause == "*":
+            if has_group_by:
+                result.pushdown_supported = False
+                result.skip_reasons.append("GROUP BY requires the grouped columns in the select list")
             return
 
-        metrics: list[dict[str, str]] = []
-        for match in re.finditer(
-            r"\b(count|min|max)\s*\(\s*(\*|([a-zA-Z_][a-zA-Z0-9_]*))\s*\)",
-            select_clause,
-            flags=re.IGNORECASE,
-        ):
-            fn = match.group(1).lower()
-            if match.group(2) == "*":
-                if fn != "count":
-                    continue
-                metrics.append({"fn": "count", "property": "externalId"})
-            else:
-                prop = match.group(3)
-                metrics.append({"fn": fn, "property": prop})
-
-        # Reject if select has non-aggregate identifiers beyond optional aliases (AS optional).
-        stripped = re.sub(
-            r"\b(count|min|max)\s*\(\s*(?:\*|[a-zA-Z_][a-zA-Z0-9_]*)\s*\)(?:\s+(?:as\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?",
-            "",
-            select_clause,
-            flags=re.IGNORECASE,
-        )
-        leftover = re.sub(r"[, ]+", "", stripped)
-        if leftover:
+        items = [_parse_select_item(part) for part in _split_select_items(select_clause)]
+        if any(item is None for item in items):
+            if has_group_by:
+                result.pushdown_supported = False
+                result.skip_reasons.append("GROUP BY expressions are not pushed")
             return
+        select_items = [item for item in items if item is not None]
+        plain = [item.column for item in select_items if item.kind == "group"]
+        metrics = [{"fn": item.fn, "property": item.property} for item in select_items if item.kind == "aggregate"]
+
+        if set(plain) != set(group_columns):
+            if has_group_by:
+                result.pushdown_supported = False
+                result.skip_reasons.append(
+                    "GROUP BY columns must be selected, and every selected column must be grouped or aggregated"
+                )
+            return
+        if has_group_by and not metrics:
+            result.pushdown_supported = False
+            result.skip_reasons.append("GROUP BY without count, min, or max is not pushed")
+            return
+
+        for metric in metrics:
+            grouped = {column.lower() for column in group_columns}
+            if metric["fn"] == "count" and metric["property"] in COUNT_PROPERTIES and "external_id" in grouped:
+                result.pushdown_supported = False
+                result.skip_reasons.append("GROUP BY external_id collides with count, which is returned on external_id")
+                return
+            if metric["fn"] in {"min", "max"} and metric["property"] in group_columns:
+                result.pushdown_supported = False
+                result.skip_reasons.append(
+                    f"GROUP BY {metric['property']} collides with {metric['fn']} on the same output column"
+                )
+                return
 
         if metrics:
             result.query_mode = "aggregate"
             result.aggregates = metrics
-            # LIMIT on aggregates is groupBy bucket cap, not list row limit
+            result.aggregate_select = select_items
+            result.group_by = plain
+            # LIMIT on aggregates is a groupBy bucket cap, not a list row limit
             result.row_limit = None
 
-        group_match = re.search(
-            r"\bgroup\s+by\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\s*,\s*[a-zA-Z_][a-zA-Z0-9_]*)*)",
-            sql,
-            flags=re.IGNORECASE,
-        )
-        if group_match and metrics:
-            result.group_by = [p.strip() for p in group_match.group(1).split(",")]
+
+def _split_select_items(select_clause: str) -> list[str]:
+    """Split a select list on commas that are not inside parentheses."""
+    items: list[str] = []
+    depth = 0
+    current: list[str] = []
+    for char in select_clause:
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth = max(0, depth - 1)
+        if char == "," and depth == 0:
+            item = "".join(current).strip()
+            if item:
+                items.append(item)
+            current = []
+            continue
+        current.append(char)
+    tail = "".join(current).strip()
+    if tail:
+        items.append(tail)
+    return items
+
+
+_AGGREGATE_ITEM = re.compile(
+    r"^(count|min|max)\s*\(\s*(\*|[a-zA-Z_][a-zA-Z0-9_]*)\s*\)(?:\s+(?:as\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$",
+    flags=re.IGNORECASE,
+)
+_COLUMN_ITEM = re.compile(
+    r"^([a-zA-Z_][a-zA-Z0-9_]*)(?:\s+(?:as\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?$",
+    flags=re.IGNORECASE,
+)
+
+
+def _parse_select_item(part: str) -> AggregateSelectItem | None:
+    """Parse one select item into a group column or a count/min/max."""
+    aggregate = _AGGREGATE_ITEM.match(part.strip())
+    if aggregate:
+        fn = aggregate.group(1).lower()
+        target = aggregate.group(2)
+        if target == "*":
+            if fn != "count":
+                return None
+            return AggregateSelectItem(kind="aggregate", fn="count", property="externalId")
+        return AggregateSelectItem(kind="aggregate", fn=fn, property=target, column=target)
+    column = _COLUMN_ITEM.match(part.strip())
+    if column:
+        return AggregateSelectItem(kind="group", column=column.group(1))
+    return None
+
+
+def _cdf_group_property(column: str, by_column: dict[str, ViewColumn]) -> str:
+    """CDF groupBy name for a SQL column. Identity columns are not view properties."""
+    if column == "space":
+        return "space"
+    if column in {"external_id", "externalId"}:
+        return "externalId"
+    return by_column[column].property
+
+
+def _aggregate_select_sql(hints: DataModelPushdown) -> str:
+    """Render the aggregate select list, including grouped columns."""
+    parts: list[str] = []
+    for item in hints.aggregate_select:
+        if item.kind == "group":
+            parts.append(item.column)
+            continue
+        if item.fn == "count" and item.property in COUNT_PROPERTIES:
+            parts.append("external_id AS count_externalId")
+            continue
+        column = hints.column_for_property.get(item.property, item.property)
+        parts.append(f"{column} AS {item.fn}_{column}")
+    return ", ".join(parts)
 
 
 def _sql_literal(value: object) -> str:

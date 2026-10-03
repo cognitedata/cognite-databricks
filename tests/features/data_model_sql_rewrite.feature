@@ -70,6 +70,26 @@ Feature: Data-model SQL rewrite for CDF UDTF pushdown
     And aggregates should include min on DateAuthorised
     And aggregates should include max on DateAuthorised
 
+  Scenario: GROUP BY a selected column rewrites with the group key
+    Given the SQL query
+      """
+      SELECT componentName, count(*) AS n
+      FROM cat.sch.LimsResult
+      WHERE space = 'inst_lims_result_lab_a'
+        AND numericValue >= 2
+      GROUP BY componentName
+      """
+    When I analyze the data-model pushdown
+    Then query_mode should be "aggregate"
+    And aggregates should include count on externalId
+    And group_by should include "componentName"
+    And instance_space should be "inst_lims_result_lab_a"
+    When I rewrite the SQL to a UDTF call
+    Then the rewritten SQL should contain "SELECT componentName, external_id AS count_externalId FROM"
+    And the rewritten SQL should contain "_group_by =>"
+    And the rewritten SQL should contain "instance_space => 'inst_lims_result_lab_a'"
+    And the rewritten SQL should contain "_gte =>"
+
   Scenario: Joins are not rewritten
     Given the SQL query
       """
