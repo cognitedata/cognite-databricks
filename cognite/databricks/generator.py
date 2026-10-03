@@ -25,7 +25,12 @@ from cognite.client.data_classes.data_modeling.views import (
     ViewProperty,
 )
 
-from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
+from cognite.databricks.data_model_query_rewriter import (
+    CreatedSqlFunction,
+    DataModelQueryRewriter,
+    DataModelViewMetadata,
+    QueryNotPushdownCompatible,
+)
 from cognite.databricks.models import (
     RegisteredUDTFResult,
     RegisteredViewResult,
@@ -2805,6 +2810,55 @@ class UDTFGenerator:
             secret_scope=secret_scope or self._default_secret_scope(),
             view_metadata=DataModelViewMetadata.from_view(view),
         )
+
+    def create_sql_function(
+        self,
+        name: str,
+        sql: str,
+        secret_scope: str | None = None,
+        warehouse_id: str | None = None,
+    ) -> CreatedSqlFunction:
+        """Create a Unity Catalog SQL function whose body pushes one analyst statement.
+
+        The statement must reference a view in this generator's data model. Literals become
+        function arguments. Credentials and base_url stay SECRET() references, as on the view.
+        """
+        if self.workspace_client is None or self.udtf_registry is None:
+            raise ValueError("WorkspaceClient must be set before creating a SQL function")
+
+        view_name = DataModelQueryRewriter.analyze(sql).view_name
+        view = self._get_view_by_id(view_name) if view_name else None
+        if view is None:
+            raise QueryNotPushdownCompatible(sql, [f"view is not in this data model: {view_name}"])
+
+        scope = secret_scope or self._default_secret_scope()
+        created = DataModelQueryRewriter.build_sql_function(
+            name,
+            sql,
+            secret_scope=scope,
+            view_metadata=DataModelViewMetadata.from_view(view),
+        )
+        if created.catalog != self.catalog or created.schema_name != self.schema:
+            raise QueryNotPushdownCompatible(
+                sql,
+                [
+                    f"FROM clause {created.catalog}.{created.schema_name} does not match "
+                    f"this generator ({self.catalog}.{self.schema})"
+                ],
+            )
+
+        resolved_warehouse = warehouse_id or self.warehouse_id or self.udtf_registry._get_default_warehouse_id()
+        response = self.workspace_client.statement_execution.execute_statement(
+            warehouse_id=resolved_warehouse,
+            statement=created.statement,
+            wait_timeout="50s",
+        )
+        state = getattr(getattr(response, "status", None), "state", None)
+        state_text = str(state).upper() if state else ""
+        if "FAILED" in state_text or "CANCELED" in state_text or not state_text:
+            error = getattr(getattr(response, "status", None), "error", None)
+            raise RuntimeError(f"Failed to create SQL function {created.full_name}: {error or state_text}")
+        return created
 
     def _default_secret_scope(self) -> str:
         """Secret scope name used by registration: cdf_{space}_{external_id}."""

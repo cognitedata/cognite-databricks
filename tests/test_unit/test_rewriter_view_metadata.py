@@ -16,7 +16,12 @@ from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
 from pydantic import BaseModel, Field
 
-from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
+from cognite.databricks.data_model_query_rewriter import (
+    CreatedSqlFunction,
+    DataModelQueryRewriter,
+    DataModelViewMetadata,
+    QueryNotPushdownCompatible,
+)
 from cognite.databricks.generator import UDTFGenerator
 from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
@@ -375,3 +380,117 @@ def test_group_by_expression_is_not_rewritten(metadata: DataModelViewMetadata) -
 
     assert hints.pushdown_supported is False
     assert any("GROUP BY" in reason for reason in hints.skip_reasons)
+
+
+def test_sql_function_lifts_where_literals_and_keeps_secrets(metadata: DataModelViewMetadata) -> None:
+    sql = (
+        f"SELECT count(*) AS n FROM {CERT} "
+        "WHERE space = 'inst_sailboat_fleet_a' AND name = 'Seed ORC A 01' AND class_ IS NOT NULL"
+    )
+
+    created = DataModelQueryRewriter.build_sql_function(
+        "certificate_count_in_fleet", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata
+    )
+
+    assert created.full_name == "f0connectortest.sailboat_sailboat_v1.certificate_count_in_fleet"
+    assert [(arg.name, arg.sql_type) for arg in created.arguments] == [
+        ("space", "STRING"),
+        ("name", "STRING"),
+    ]
+    assert [(column.name, column.sql_type) for column in created.return_columns] == [("count_externalId", "STRING")]
+    statement = created.statement
+    assert "SQL SECURITY DEFINER" in statement
+    assert "instance_space => space" in statement
+    assert "name => name" in statement
+    assert "_exists => '[\"class\"]'" in statement or "_exists => " in statement
+    assert "SECRET('cdf_sailboat_sailboat', 'client_secret')" in statement
+    assert "SECRET('cdf_sailboat_sailboat', 'base_url')" in statement
+    assert "inst_sailboat_fleet_a" not in statement
+    assert "Seed ORC A 01" not in statement
+
+
+def test_sql_function_groups_and_parameterizes_the_where_clause(metadata: DataModelViewMetadata) -> None:
+    sql = (
+        f"SELECT name, count(*) FROM {CERT} "
+        "WHERE space IN ('inst_sailboat_fleet_a', 'inst_sailboat_fleet_b') AND aph_tod >= 480 "
+        "GROUP BY name"
+    )
+
+    created = DataModelQueryRewriter.build_sql_function(
+        "certificate_count_by_name", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata
+    )
+
+    assert [(arg.name, arg.sql_type) for arg in created.arguments] == [
+        ("space", "ARRAY<STRING>"),
+        ("aph_tod_gte", "DOUBLE"),
+    ]
+    assert [column.name for column in created.return_columns] == ["name", "count_externalId"]
+    assert "instance_space => to_json(space)" in created.statement
+    assert "to_json(map('aph_tod', aph_tod_gte))" in created.statement
+    assert "_group_by => '[\"name\"]'" in created.statement
+    assert "480" not in created.statement
+    assert "inst_sailboat_fleet_a" not in created.statement
+
+
+def test_sql_function_rejects_a_group_by_that_does_not_match(metadata: DataModelViewMetadata) -> None:
+    sql = f"SELECT name, count(*) FROM {CERT} WHERE space = 'inst_sailboat_fleet_a' GROUP BY aph_tod"
+
+    with pytest.raises(QueryNotPushdownCompatible, match="GROUP BY"):
+        DataModelQueryRewriter.build_sql_function(
+            "certificate_bad_group", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata
+        )
+
+
+def test_create_sql_function_executes_the_statement_and_skips_incompatible_sql(
+    mock_workspace_client: MagicMock,
+    mock_cognite_client: CogniteClient,
+    temp_output_dir: Path,
+    certificate_view: dm.View,
+) -> None:
+    from cognite.pygen_spark import SparkUDTFGenerator
+
+    model = dm.DataModel(
+        space="sailboat",
+        external_id="sailboat",
+        version="v1",
+        created_time=1,
+        last_updated_time=2,
+        name=None,
+        description=None,
+        is_global=False,
+        views=[certificate_view],
+    )
+    status = MagicMock()
+    status.state = "SUCCEEDED"
+    response = MagicMock()
+    response.status = status
+    mock_workspace_client.statement_execution.execute_statement.return_value = response
+    generator = UDTFGenerator(
+        workspace_client=mock_workspace_client,
+        cognite_client=mock_cognite_client,
+        catalog="f0connectortest",
+        schema="sailboat_sailboat_v1",
+        warehouse_id="warehouse-1",
+        code_generator=SparkUDTFGenerator(client=mock_cognite_client, output_dir=temp_output_dir, data_model=model),
+    )
+
+    created = generator.create_sql_function(
+        "certificate_count_in_fleet",
+        f"SELECT count(*) FROM {CERT} WHERE space = 'inst_sailboat_fleet_a' AND name = 'Seed ORC A 01'",
+        secret_scope=SECRET_SCOPE,
+    )
+
+    assert isinstance(created, CreatedSqlFunction)
+    assert created.full_name.endswith(".certificate_count_in_fleet")
+    executed = mock_workspace_client.statement_execution.execute_statement.call_args.kwargs["statement"]
+    assert "SQL SECURITY DEFINER" in executed
+    assert "SECRET('cdf_sailboat_sailboat', 'client_secret')" in executed
+    mock_workspace_client.statement_execution.execute_statement.reset_mock()
+
+    with pytest.raises(QueryNotPushdownCompatible):
+        generator.create_sql_function(
+            "certificate_join",
+            f"SELECT a.* FROM {CERT} a JOIN {CERT} b ON a.external_id = b.external_id",
+            secret_scope=SECRET_SCOPE,
+        )
+    mock_workspace_client.statement_execution.execute_statement.assert_not_called()

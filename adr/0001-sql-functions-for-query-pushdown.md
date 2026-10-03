@@ -1,6 +1,6 @@
 # ADR 0001: SQL functions for query pushdown
 
-- Status: Proposed
+- Status: Approved
 - Date: 2026-10-02
 - Updated: 2026-10-03
 - Issue: https://github.com/cognitedata/cognite-databricks/issues/88

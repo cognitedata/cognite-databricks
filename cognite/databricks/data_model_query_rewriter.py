@@ -76,6 +76,46 @@ class AggregateSelectItem(BaseModel):
     property: str = ""
 
 
+class QueryNotPushdownCompatible(ValueError):
+    """The statement cannot be pushed into the UDTF, so no SQL function is created."""
+
+    def __init__(self, sql_query: str, reasons: list[str]) -> None:
+        self.sql_query = sql_query
+        self.reasons = reasons
+        detail = "; ".join(reasons) if reasons else "nothing to push down"
+        super().__init__(f"SQL statement is not compatible with UDTF pushdown: {detail}")
+
+
+class SqlFunctionArgument(BaseModel):
+    """One argument of a Unity Catalog SQL function created from a pushed statement."""
+
+    name: str
+    sql_type: str
+
+
+class SqlFunctionColumn(BaseModel):
+    """One column of the SQL function's RETURNS TABLE clause."""
+
+    name: str
+    sql_type: str
+
+
+class CreatedSqlFunction(BaseModel):
+    """A Unity Catalog SQL function whose body is a pushed UDTF call."""
+
+    catalog: str
+    schema_name: str
+    name: str
+    arguments: list[SqlFunctionArgument] = Field(default_factory=list)
+    return_columns: list[SqlFunctionColumn] = Field(default_factory=list)
+    statement: str
+
+    @property
+    def full_name(self) -> str:
+        """Three-part function name."""
+        return f"{self.catalog}.{self.schema_name}.{self.name}"
+
+
 class DataModelPushdown(BaseModel):
     """Hints extracted from a catalog SQL query for data-model UDTF pushdown."""
 
@@ -320,6 +360,72 @@ class DataModelQueryRewriter:
             select_list = _aggregate_select_sql(hints) or select_list
 
         return f"SELECT {select_list} FROM {udtf_fqn}(\n    " + ",\n    ".join(args) + "\n)"
+
+    @staticmethod
+    def build_sql_function(
+        name: str,
+        sql_query: str,
+        *,
+        secret_scope: str,
+        view_metadata: DataModelViewMetadata,
+    ) -> CreatedSqlFunction:
+        """Build a CREATE FUNCTION statement for one pushed query.
+
+        Literals in the statement become function arguments. Secrets stay SECRET() references.
+        Raises QueryNotPushdownCompatible when rewrite_query would not push the statement.
+        """
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            raise ValueError(f"Function name must be a SQL identifier: {name}")
+
+        hints = DataModelQueryRewriter.analyze(sql_query, view_metadata=view_metadata)
+        reasons = list(hints.skip_reasons)
+        if not hints.pushdown_supported:
+            if not reasons:
+                reasons.append("the statement is not compatible with UDTF pushdown")
+            raise QueryNotPushdownCompatible(sql_query, reasons)
+        if reasons:
+            raise QueryNotPushdownCompatible(sql_query, reasons)
+        if hints.view_name is None or not hints.catalog or not hints.schema_name:
+            raise QueryNotPushdownCompatible(sql_query, ["FROM clause must be a catalog.schema.view name"])
+
+        has_pushdown = bool(
+            hints.property_equals
+            or hints.exists_properties
+            or hints.not_exists_properties
+            or hints.instance_space is not None
+            or hints.external_id is not None
+            or hints.gt
+            or hints.gte
+            or hints.lt
+            or hints.lte
+            or hints.row_limit is not None
+            or hints.query_mode == "aggregate"
+        )
+        if not has_pushdown:
+            raise QueryNotPushdownCompatible(sql_query, ["nothing would be pushed"])
+
+        arguments, expressions = _function_arguments(hints, view_metadata)
+        udtf_fqn = f"{hints.catalog}.{hints.schema_name}.{to_udtf_function_name(hints.view_name)}"
+        body = _parameterized_udtf_sql(hints, udtf_fqn, secret_scope, view_metadata, expressions)
+        return_columns = _return_columns(hints, view_metadata)
+        signature = (
+            "(\n  " + ",\n  ".join(f"{arg.name} {arg.sql_type}" for arg in arguments) + "\n)" if arguments else "()"
+        )
+        returns = ",\n  ".join(f"{column.name} {column.sql_type}" for column in return_columns)
+        statement = (
+            f"CREATE OR REPLACE FUNCTION {hints.catalog}.{hints.schema_name}.{name}{signature}\n"
+            f"RETURNS TABLE (\n  {returns}\n)\n"
+            "SQL SECURITY DEFINER\n"
+            f"RETURN\n{body}"
+        )
+        return CreatedSqlFunction(
+            catalog=hints.catalog,
+            schema_name=hints.schema_name,
+            name=name,
+            arguments=arguments,
+            return_columns=return_columns,
+            statement=statement,
+        )
 
     @staticmethod
     def _pushdown_args(hints: DataModelPushdown) -> dict[str, str]:
@@ -576,6 +682,166 @@ def _aggregate_select_sql(hints: DataModelPushdown) -> str:
         column = hints.column_for_property.get(item.property, item.property)
         parts.append(f"{column} AS {item.fn}_{column}")
     return ", ".join(parts)
+
+
+def _sql_type_for_value_kind(value_kind: str) -> str:
+    """SQL type for a view column. Long stays BIGINT so a CDF long is not narrowed to INT."""
+    from pyspark.sql.types import BooleanType, DateType, DoubleType, LongType, StringType, TimestampType
+
+    from cognite.databricks.type_converter import TypeConverter
+
+    spark_types = {
+        "string": StringType(),
+        "long": LongType(),
+        "double": DoubleType(),
+        "boolean": BooleanType(),
+        "timestamp": TimestampType(),
+        "date": DateType(),
+    }
+    spark_type = spark_types.get(value_kind)
+    if spark_type is None:
+        return "STRING"
+    sql_type, _ = TypeConverter.spark_to_sql_type_info(spark_type)
+    if value_kind == "long":
+        return "BIGINT"
+    return sql_type
+
+
+def _array_sql_type(values: list[object]) -> str:
+    if values and all(isinstance(value, bool) for value in values):
+        return "ARRAY<BOOLEAN>"
+    if values and all(isinstance(value, int) and not isinstance(value, bool) for value in values):
+        return "ARRAY<BIGINT>"
+    if values and all(isinstance(value, int | float) and not isinstance(value, bool) for value in values):
+        return "ARRAY<DOUBLE>"
+    return "ARRAY<STRING>"
+
+
+def _function_arguments(
+    hints: DataModelPushdown, metadata: DataModelViewMetadata
+) -> tuple[list[SqlFunctionArgument], dict[str, str]]:
+    """Function arguments, and the UDTF expression each pushed parameter should use."""
+    arguments: list[SqlFunctionArgument] = []
+    expressions: dict[str, str] = {}
+
+    if isinstance(hints.instance_space, list):
+        arguments.append(SqlFunctionArgument(name="space", sql_type="ARRAY<STRING>"))
+        expressions["instance_space"] = "to_json(space)"
+    elif hints.instance_space is not None:
+        arguments.append(SqlFunctionArgument(name="space", sql_type="STRING"))
+        expressions["instance_space"] = "space"
+
+    if isinstance(hints.external_id, list):
+        arguments.append(SqlFunctionArgument(name="external_id", sql_type=_array_sql_type(hints.external_id)))
+        expressions["external_id"] = "to_json(external_id)"
+    elif hints.external_id is not None:
+        arguments.append(SqlFunctionArgument(name="external_id", sql_type="STRING"))
+        expressions["external_id"] = "external_id"
+
+    for column in metadata.columns:
+        if column.column not in hints.property_equals:
+            continue
+        value = hints.property_equals[column.column]
+        if isinstance(value, list):
+            arguments.append(SqlFunctionArgument(name=column.column, sql_type=_array_sql_type(value)))
+            expressions[column.column] = f"to_json({column.column})"
+        else:
+            arguments.append(
+                SqlFunctionArgument(name=column.column, sql_type=_sql_type_for_value_kind(column.value_kind))
+            )
+            expressions[column.column] = column.column
+
+    for operator in ("gt", "gte", "lt", "lte"):
+        bounds: dict[str, object] = getattr(hints, operator)
+        if not bounds:
+            continue
+        pairs: list[str] = []
+        for column in metadata.columns:
+            if column.property not in bounds:
+                continue
+            parameter = f"{column.column}_{operator}"
+            arguments.append(SqlFunctionArgument(name=parameter, sql_type=_sql_type_for_value_kind(column.value_kind)))
+            pairs.append(f"'{column.property}', {parameter}")
+        if pairs:
+            expressions[f"_{operator}"] = f"to_json(map({', '.join(pairs)}))"
+
+    if hints.exists_properties:
+        expressions["_exists"] = _sql_literal(json.dumps(hints.exists_properties))
+    if hints.not_exists_properties:
+        expressions["_not_exists"] = _sql_literal(json.dumps(hints.not_exists_properties))
+    if hints.row_limit is not None and hints.query_mode == "list":
+        arguments.append(SqlFunctionArgument(name="row_limit", sql_type="BIGINT"))
+        expressions["_row_limit"] = "row_limit"
+    if hints.query_mode == "aggregate":
+        expressions["_query_mode"] = "'aggregate'"
+        expressions["_aggregates"] = _sql_literal(json.dumps(hints.aggregates))
+        if hints.group_by:
+            expressions["_group_by"] = _sql_literal(json.dumps(hints.group_by))
+    return arguments, expressions
+
+
+def _parameterized_udtf_sql(
+    hints: DataModelPushdown,
+    udtf_fqn: str,
+    secret_scope: str,
+    metadata: DataModelViewMetadata,
+    expressions: dict[str, str],
+) -> str:
+    """UDTF call with SECRET() credentials and function arguments in place of literals."""
+    args = [
+        f"client_id => SECRET('{secret_scope}', 'client_id')",
+        f"client_secret => SECRET('{secret_scope}', 'client_secret')",
+        f"tenant_id => SECRET('{secret_scope}', 'tenant_id')",
+        f"cdf_cluster => SECRET('{secret_scope}', 'cdf_cluster')",
+        f"project => SECRET('{secret_scope}', 'project')",
+    ]
+    args.extend(f"{column.column} => {expressions.get(column.column, 'NULL')}" for column in metadata.columns)
+    args.extend(f"{name} => {expressions.get(name, 'NULL')}" for name in data_model_pushdown_parameters.names)
+    args.append(f"{base_url_parameter.name} => SECRET('{secret_scope}', '{base_url_parameter.name}')")
+    select_list = "*"
+    if hints.query_mode == "aggregate" and hints.aggregates:
+        select_list = _aggregate_select_sql(hints) or select_list
+    return f"SELECT {select_list} FROM {udtf_fqn}(\n    " + ",\n    ".join(args) + "\n)"
+
+
+def _return_columns(hints: DataModelPushdown, metadata: DataModelViewMetadata) -> list[SqlFunctionColumn]:
+    """RETURNS TABLE columns. A list query returns the UDTF row. An aggregate returns the rewritten select."""
+    if hints.query_mode != "aggregate" or not hints.aggregate_select:
+        columns = [
+            SqlFunctionColumn(name=column.column, sql_type=_sql_type_for_value_kind(column.value_kind))
+            for column in metadata.columns
+        ]
+        columns.extend(
+            [
+                SqlFunctionColumn(name="space", sql_type="STRING"),
+                SqlFunctionColumn(name="external_id", sql_type="STRING"),
+                SqlFunctionColumn(name="createdTime", sql_type="TIMESTAMP"),
+                SqlFunctionColumn(name="lastUpdatedTime", sql_type="TIMESTAMP"),
+                SqlFunctionColumn(name="deletedTime", sql_type="TIMESTAMP"),
+            ]
+        )
+        return columns
+
+    columns = []
+    for item in hints.aggregate_select:
+        if item.kind == "group":
+            if item.column in {"space", "external_id"}:
+                sql_type = "STRING"
+            else:
+                sql_type = _sql_type_for_value_kind(metadata.by_column[item.column].value_kind)
+            columns.append(SqlFunctionColumn(name=item.column, sql_type=sql_type))
+            continue
+        if item.fn == "count" and item.property in COUNT_PROPERTIES:
+            columns.append(SqlFunctionColumn(name="count_externalId", sql_type="STRING"))
+            continue
+        column = hints.column_for_property.get(item.property, item.property)
+        columns.append(
+            SqlFunctionColumn(
+                name=f"{item.fn}_{column}",
+                sql_type=_sql_type_for_value_kind(metadata.by_column[column].value_kind),
+            )
+        )
+    return columns
 
 
 def _sql_literal(value: object) -> str:
