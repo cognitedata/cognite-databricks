@@ -17,7 +17,7 @@ That statement is valid SQL. Power BI can send it to the SQL warehouse, and the 
 
 The view calls the Python UDTF with every filter argument set to `NULL`. Spark applies `WHERE`, `LIMIT`, and aggregates after the UDTF has returned rows. On a large view, Power BI waits while CDF pages through the instances. `COUNT(*)` on the view does the same full read.
 
-`generator.rewrite_query` can bind those filters, and a notebook can run the rewritten statement. Power BI never calls `rewrite_query`. It only sends SQL.
+`generator.rewrite_query` can bind those filters, and a notebook can run the rewritten statement. Power BI never calls `rewrite_query`. It only sends SQL. In a notebook, [rewrite_query](./rewrite_query.md) runs that statement with the filters pushed to CDF.
 
 Use the view to decide the query. Use a SQL function to run that query from Power BI.
 
@@ -156,6 +156,7 @@ See [Governance](./governance.md) for the same grants on views.
 ## Related
 
 - [Filtering](./filtering.md) — which predicates push to CDF
+- [rewrite_query in a notebook](./rewrite_query.md)
 - [Investigating performance (EXPLAIN)](./explain_filter_pushdown.md) — how to see that a view query filters in Spark
 - [Views](./views.md)
 - Example notebook: `examples/catalog_based/pushdown_latency_cogsail_lims.ipynb`

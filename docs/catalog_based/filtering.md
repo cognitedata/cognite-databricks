@@ -65,6 +65,8 @@ rewritten = generator.rewrite_query(sql)  # binds name, _exists, _row_limit into
 df = spark.sql(rewritten if rewritten is not None else sql)
 ```
 
+The notebook guide is [Using rewrite_query in a notebook](./rewrite_query.md). It walks through each supported statement: space, external id, property equality, exists, ranges, `LIMIT`, `COUNT`, numeric `MIN` / `MAX`, and `GROUP BY`.
+
 `rewrite_query()` returns `None` when the query should run as-is in Spark:
 
 - unsupported patterns (joins, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
@@ -93,6 +95,7 @@ examples (Databricks EXPLAIN adapted to Cognite UDTF views).
 
 ## Related
 
+- [Using rewrite_query in a notebook](./rewrite_query.md)
 - [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md)
 - [SQL functions for Power BI](./sql_functions.md)
 - [Querying](./querying.md)
