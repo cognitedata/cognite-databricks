@@ -13,7 +13,7 @@ Databricks documents general plan inspection in
 [EXPLAIN](https://learn.microsoft.com/en-us/azure/databricks/sql/language-manual/sql-ref-syntax-qry-explain).
 This page adapts that workflow to **UDTF-backed Cognite views**.
 
-See also: [Filtering](./filtering.md), [Querying](./querying.md).
+See also: [Filtering](./filtering.md), [SQL functions for Power BI](./sql_functions.md), [Querying](./querying.md).
 
 ## What EXPLAIN can and cannot tell you
 

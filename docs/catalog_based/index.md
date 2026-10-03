@@ -24,12 +24,13 @@ This documentation covers the complete workflow for using catalog-based UDTFs an
 6. **[Views](./views.md)**: Understand Views and their benefits
 7. **[Querying](./querying.md)**: Query Views and UDTFs directly
 8. **[Filtering](./filtering.md)**: Filter data using WHERE clauses with predicate pushdown
-9. **[Investigating performance (EXPLAIN)](./explain_filter_pushdown.md)**: EXPLAIN / Query Profile for UDTF-backed views — Spark vs CDF pushdown
-10. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
-11. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
-12. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
-13. **[Governance](./governance.md)**: Set up Unity Catalog permissions
-14. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
+9. **[SQL functions for Power BI](./sql_functions.md)**: Turn a slow view query into a Unity Catalog SQL function
+10. **[Investigating performance (EXPLAIN)](./explain_filter_pushdown.md)**: EXPLAIN / Query Profile for UDTF-backed views — Spark vs CDF pushdown
+11. **[Joining](./joining.md)**: Join data from different Views based on `external_id` and `space`
+12. **[Time Series](./time_series.md)**: Work with template-generated time series UDTFs in Unity Catalog (same template-based generation as Data Model UDTFs)
+13. **[SQL-Native Time Series (Alpha)](./time_series_sql.md)**: SQL-native time series UDTF with pushdown hints (experimental)
+14. **[Governance](./governance.md)**: Set up Unity Catalog permissions
+15. **[Troubleshooting](./troubleshooting.md)**: Common issues and solutions
 
 ## Quick Links
 
