@@ -83,6 +83,12 @@ def then_not_contains(rewrite_ctx: dict[str, Any], fragment: str) -> None:
     assert fragment not in rewrite_ctx["rewritten"]
 
 
+@then(parsers.parse('group_by should include "{column}"'))
+def then_group_by(rewrite_ctx: dict[str, Any], column: str) -> None:
+    hints: DataModelPushdown = rewrite_ctx["hints"]
+    assert column in hints.group_by
+
+
 @then("aggregates should include count on externalId")
 def then_count_agg(rewrite_ctx: dict[str, Any]) -> None:
     hints: DataModelPushdown = rewrite_ctx["hints"]

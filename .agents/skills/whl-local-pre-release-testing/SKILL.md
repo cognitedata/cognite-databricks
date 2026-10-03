@@ -191,6 +191,25 @@ rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(
 display(spark.sql(rewritten))
 ```
 
+### 4. SQL function from the view query
+
+`create_sql_function` takes the slow view statement, checks that it can be pushed, and creates a Unity Catalog SQL function. Literals become arguments. Credentials stay `SECRET()` references. Call the function with a different argument than the sample literal.
+
+```python
+created = generator.create_sql_function(
+    "small_boats_in_fleet",
+    """
+    SELECT count(*) AS n
+    FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
+    WHERE space = 'inst_sailboat_fleet_a'
+    """,
+    secret_scope=secret_scope,
+)
+display(spark.sql(f"SELECT * FROM {created.full_name}(space => 'inst_sailboat_fleet_b')"))  # expect count 2
+```
+
+A statement that cannot be pushed raises `QueryNotPushdownCompatible` and creates nothing. User docs: `docs/catalog_based/sql_functions.md`.
+
 ## Common failures
 
 | Symptom | Cause | Fix |
@@ -217,6 +236,7 @@ display(spark.sql(rewritten))
 - [ ] Seeded cogsail instance spaces and ran live tests
 - [ ] Gave absolute wheel paths + %pip --force-reinstall snippet + kernel restart
 - [ ] Gave the cogsail validation steps (register, DESCRIBE FUNCTION, fleet queries, rewriter call)
+- [ ] Smoke-tested `create_sql_function` and called the function with a different argument than the sample literal
 ```
 
 ## Out of scope

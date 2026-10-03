@@ -51,6 +51,8 @@
 - [Views](./catalog_based/views.md)
 - [Querying](./catalog_based/querying.md)
 - [Filtering](./catalog_based/filtering.md)
+- [rewrite_query in a notebook](./catalog_based/rewrite_query.md)
+- [SQL functions for Power BI](./catalog_based/sql_functions.md)
 - [Joining](./catalog_based/joining.md)
 - [Time Series](./catalog_based/time_series.md)
 - [SQL-Native Time Series (Alpha)](./catalog_based/time_series_sql.md)

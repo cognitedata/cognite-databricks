@@ -50,6 +50,7 @@ SELECT * FROM main.sailboat_sailboat_1.smallboat_udtf(
 
 - Learn about [Querying](./querying.md) Views and UDTFs
 - See [Filtering](./filtering.md) for filtering examples
+- See [SQL functions for Power BI](./sql_functions.md) when a view query is too slow in Power BI
 - Set up [Governance](./governance.md) permissions
 
 
