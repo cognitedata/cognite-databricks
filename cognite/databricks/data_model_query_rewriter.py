@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
@@ -707,7 +708,7 @@ def _sql_type_for_value_kind(value_kind: str) -> str:
     return sql_type
 
 
-def _array_sql_type(values: list[object]) -> str:
+def _array_sql_type(values: Sequence[object]) -> str:
     if values and all(isinstance(value, bool) for value in values):
         return "ARRAY<BOOLEAN>"
     if values and all(isinstance(value, int) and not isinstance(value, bool) for value in values):
