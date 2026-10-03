@@ -11,10 +11,10 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, Literal
 
-from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 from pydantic import BaseModel, Field
 
 from cognite.databricks.utils import to_udtf_function_name
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 if TYPE_CHECKING:
     from cognite.client.data_classes.data_modeling import View

@@ -14,11 +14,11 @@ from unittest.mock import MagicMock
 import pytest
 from cognite.client import CogniteClient
 from cognite.client import data_modeling as dm
-from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 from pydantic import BaseModel, Field
 
 from cognite.databricks.data_model_query_rewriter import DataModelQueryRewriter, DataModelViewMetadata
 from cognite.databricks.generator import UDTFGenerator
+from cognite.pygen_spark.udtf_parameters import base_url_parameter, data_model_pushdown_parameters
 
 CERT = "f0connectortest.sailboat_sailboat_v1.ORCCertificate"
 SECRET_SCOPE = "cdf_sailboat_sailboat"
