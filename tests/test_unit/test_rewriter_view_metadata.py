@@ -408,12 +408,10 @@ def test_subquery_is_not_rewritten(metadata: DataModelViewMetadata) -> None:
 
 
 def test_quoted_identifier_is_not_rewritten(metadata: DataModelViewMetadata) -> None:
-    sql = f'SELECT * FROM {CERT} WHERE "name" = \'Seed ORC A 01\''
+    sql = f"SELECT * FROM {CERT} WHERE \"name\" = 'Seed ORC A 01'"
 
     with pytest.raises(QueryNotPushdownCompatible) as caught:
-        DataModelQueryRewriter.build_sql_function(
-            "quoted_name", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata
-        )
+        DataModelQueryRewriter.build_sql_function("quoted_name", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata)
 
     assert any("quoted" in reason for reason in caught.value.reasons)
 
