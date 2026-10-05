@@ -1,5 +1,17 @@
 # Troubleshooting
 
+## Upgrading views registered before query-time `base_url`
+
+Generated views and UDTFs now take `base_url` as the last argument. A view or UDTF registered by an older release does not have that argument, and calling it fails with an unexpected-keyword or argument-count error.
+
+Upgrade in this order:
+
+1. Install cognite-pygen-spark 0.4.2 or newer and this package together.
+2. Regenerate the UDTFs and re-run `register_udtfs(..., if_exists="replace")` and `register_views(..., if_exists="replace")`.
+3. Let registration backfill the `base_url` secret, or set it with `set_cdf_credentials(..., base_url=...)`.
+
+The same re-register is required after a pygen-spark upgrade that changes the UDTF row for grouped aggregates (`space` and `external_id` are copied onto the group row). Details are in [Upgrading from a release without runtime `base_url`](./deployment.md#upgrading-from-a-release-without-runtime-base_url).
+
 ## Common Issues and Solutions
 
 ### Issue: "CREATE_CATALOG permission denied"
@@ -146,7 +158,9 @@ After successfully registering UDTFs and Views in Unity Catalog:
 2. **Create Documentation**: Document your Views for your users
 3. **Monitor Usage**: Track View usage and performance in Databricks
 4. **Optimize Queries**: Use predicate pushdown and filtering to improve performance — see
-   [Investigating performance (EXPLAIN)](./explain_filter_pushdown.md)
+   [Investigating performance (EXPLAIN)](./explain_filter_pushdown.md).
+   When a view query is the right result and too slow in Power BI, create a SQL function from that query — see
+   [SQL functions for Power BI](./sql_functions.md).
 
 For more information, see:
 - [Session-Scoped UDTF Registration](../session_scoped/index.md)

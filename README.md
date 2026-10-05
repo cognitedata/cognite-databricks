@@ -5,7 +5,8 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
 **Latest Release:**
 
 - **Version 0.2.3**: Aligns Unity Catalog view registration with **cognite-pygen-spark** 0.2.3+ for reserved-word safe `UDTFField` naming.
-- **Dependencies**: Now target **cognite-pygen-spark** 0.4.1+ for:
+- **Dependencies**: Now target **cognite-pygen-spark** 0.4.2+ for:
+    - Grouped aggregate rows that copy `space` and `externalId` onto the result.
     - Shared pushdown parameter registry and a trailing `base_url` read at query time.
     - WHERE / LIMIT / COUNT / MIN / MAX pushdown in generated data-model UDTFs.
     - CDF audit headers in generated UDTFs.
@@ -15,6 +16,8 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
 - **Version 0.2.1**: Added SQL-native time series UDTF support with predicate pushdown hints and a SQL query analyzer for pushdown hints.
 
 Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases). Patch releases may update locked dependencies and minimum constraints without API changes.
+
+**Upgrade:** views and UDTFs registered before the trailing `base_url` argument must be regenerated and re-registered with `if_exists="replace"`. See [Upgrading views registered before query-time base_url](docs/catalog_based/troubleshooting.md#upgrading-views-registered-before-query-time-base_url).
 
 **Note**: This package provides Databricks-specific utilities for Unity Catalog UDTF registration and Secret Manager integration.
 
@@ -41,6 +44,7 @@ It provides high-level APIs for:
 - **Secret Manager Integration**: Automatic credential management from TOML files, including `base_url` for Private Link and dedicated clusters
 - **Scalar-Only Execution**: Compatible with SQL Warehouses and serverless execution
 - **Catalog SQL rewrite helper**: `generator.rewrite_query()` binds WHERE / LIMIT / aggregates and passes every UDTF parameter (`NULL` when unbound)
+- **SQL functions**: `generator.create_sql_function()` turns one view query into a Unity Catalog function for Power BI. Literals become arguments. Credentials stay `SECRET()` references.
 - **Type Safety**: Full type hints and IDE support
 - **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 

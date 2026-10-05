@@ -35,9 +35,11 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 | `LIMIT n` via `_row_limit` (no `ORDER BY`) | list API `limit` + early stop | Pushed |
 | `COUNT(*)` via `_query_mode='aggregate'` | `instances/aggregate` | Pushed |
 | `MIN` / `MAX` on a numeric property | `instances/aggregate` | Pushed |
+| `GROUP BY` selected columns plus `COUNT(*)` or numeric `MIN` / `MAX` | `instances/aggregate` groupBy | Pushed (at most 1000 groups) |
 | `MIN` / `MAX` on text / timestamp | — | **Spark-only** — CDF aggregates only numeric properties |
 | `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
 | `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
+| `OR`, subqueries, quoted identifiers | — | **Spark-only / not rewritten** |
 
 ### Instance space vs view space
 
@@ -64,9 +66,11 @@ rewritten = generator.rewrite_query(sql)  # binds name, _exists, _row_limit into
 df = spark.sql(rewritten if rewritten is not None else sql)
 ```
 
+The notebook guide is [Using rewrite_query in a notebook](./rewrite_query.md). It walks through each supported statement: space, external id, property equality, exists, ranges, `LIMIT`, `COUNT`, numeric `MIN` / `MAX`, and `GROUP BY`.
+
 `rewrite_query()` returns `None` when the query should run as-is in Spark:
 
-- unsupported patterns (joins, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
+- unsupported patterns (joins, `OR`, subqueries, quoted identifiers, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
 - a column the view does not have
 - `MIN` / `MAX` on a non-numeric column — CDF only aggregates numeric properties
 - a view outside the generator's data model
@@ -76,7 +80,13 @@ same; pass `view_metadata=DataModelViewMetadata.from_view(view)`. Without metada
 text columns, so `MIN(name)` is pushed and the UDTF rejects it with a clear error. Default UDTF names follow
 `to_udtf_function_name(view_name)` (`SmallBoat` → `small_boat_udtf`), matching registration.
 
-Requires cognite-pygen-spark 0.4.1 or newer, which generates the pushdown parameters and the trailing `base_url` argument.
+Requires cognite-pygen-spark 0.4.2 or newer, which generates the pushdown parameters, the trailing `base_url` argument, and grouped rows that include `space` and `externalId`.
+
+## Slow view queries in Power BI
+
+Power BI sends SQL to the view. The view does not bind pushdown arguments, so the filters run in Spark after CDF returns the rows. Pass that same statement to `generator.create_sql_function`. Power BI then calls the SQL function and passes the filter values as arguments.
+
+See [SQL functions for Power BI](./sql_functions.md).
 
 ## EXPLAIN
 
@@ -86,6 +96,8 @@ examples (Databricks EXPLAIN adapted to Cognite UDTF views).
 
 ## Related
 
+- [Using rewrite_query in a notebook](./rewrite_query.md)
 - [Investigating UDTF-backed catalog view performance](./explain_filter_pushdown.md)
+- [SQL functions for Power BI](./sql_functions.md)
 - [Querying](./querying.md)
 - [Troubleshooting](./troubleshooting.md)

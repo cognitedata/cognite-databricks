@@ -22,7 +22,7 @@ repos:
           - pydantic>=2.0.0  # Required for pydantic.mypy plugin
           - cognite-sdk>=7.90.1  # For cognite.client.* imports
           - cognite-pygen>=1.3.0  # Align with pyproject.toml
-          - cognite-pygen-spark>=0.4.1  # Align with pyproject.toml (pushdown registry and query-time base_url)
+          - cognite-pygen-spark>=0.4.2  # Align with pyproject.toml (grouped aggregate identity)
           - pytest>=8.0.0  # For pytest imports
         args: [cognite/, tests/]
         pass_filenames: false
