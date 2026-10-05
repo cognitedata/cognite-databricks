@@ -152,15 +152,32 @@ class DataModelQueryRewriter:
     def analyze(sql_query: str, view_metadata: DataModelViewMetadata | None = None) -> DataModelPushdown:
         """Extract data-model pushdown hints from a SQL query.
 
-        Unsupported patterns (ORDER BY + LIMIT, OFFSET, joins, COUNT DISTINCT,
-        HAVING, GROUP BY expressions, and a select list that is not the grouped
-        columns plus aggregates) set ``pushdown_supported=False`` and leave list-scan defaults.
+        Unsupported patterns (``OR``, subqueries, quoted identifiers, OFFSET, joins,
+        COUNT DISTINCT, HAVING, GROUP BY expressions, and a select list that is not
+        the grouped columns plus aggregates) set ``pushdown_supported=False``.
+        ``ORDER BY`` with ``LIMIT`` is recorded and the sort stays in Spark.
 
         With ``view_metadata``, columns the view does not have and MIN / MAX on non-numeric columns also
         disable pushdown, and JSON pushdown args use CDF property names.
         """
         normalized = " ".join(sql_query.strip().split())
         result = DataModelPushdown()
+        outside_literals = _sql_outside_literals(normalized)
+
+        if "`" in normalized or '"' in normalized:
+            result.pushdown_supported = False
+            result.skip_reasons.append("quoted identifiers are not rewritten")
+            return result
+
+        if re.search(r"\(\s*select\b", outside_literals, flags=re.IGNORECASE):
+            result.pushdown_supported = False
+            result.skip_reasons.append("subqueries are not rewritten")
+            return result
+
+        if re.search(r"\bor\b", outside_literals, flags=re.IGNORECASE):
+            result.pushdown_supported = False
+            result.skip_reasons.append("OR is not rewritten")
+            return result
 
         if re.search(r"\bjoin\b", normalized, flags=re.IGNORECASE):
             result.pushdown_supported = False
@@ -670,6 +687,11 @@ def _cdf_group_property(column: str, by_column: dict[str, ViewColumn]) -> str:
     return by_column[column].property
 
 
+def _sql_outside_literals(sql: str) -> str:
+    """SQL with quoted string literals removed, so keywords inside values are ignored."""
+    return re.sub(r"'(?:''|[^'])*'", "''", sql)
+
+
 def _aggregate_select_sql(hints: DataModelPushdown) -> str:
     """Render the aggregate select list, including grouped columns."""
     parts: list[str] = []
@@ -833,6 +855,7 @@ def _return_columns(hints: DataModelPushdown, metadata: DataModelViewMetadata) -
             columns.append(SqlFunctionColumn(name=item.column, sql_type=sql_type))
             continue
         if item.fn == "count" and item.property in COUNT_PROPERTIES:
+            # The UDTF writes the count into the string external_id column.
             columns.append(SqlFunctionColumn(name="count_externalId", sql_type="STRING"))
             continue
         column = hints.column_for_property.get(item.property, item.property)

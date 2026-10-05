@@ -39,6 +39,7 @@ Spark may still apply WHERE **after** the UDTF returns rows unless you:
 | `MIN` / `MAX` on text / timestamp | — | **Spark-only** — CDF aggregates only numeric properties |
 | `ORDER BY ... LIMIT n` | — | **Spark-only** (sort may differ) |
 | `OFFSET`, joins, `HAVING`, `COUNT(DISTINCT)` | — | **Spark-only / not rewritten** |
+| `OR`, subqueries, quoted identifiers | — | **Spark-only / not rewritten** |
 
 ### Instance space vs view space
 
@@ -69,7 +70,7 @@ The notebook guide is [Using rewrite_query in a notebook](./rewrite_query.md). I
 
 `rewrite_query()` returns `None` when the query should run as-is in Spark:
 
-- unsupported patterns (joins, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
+- unsupported patterns (joins, `OR`, subqueries, quoted identifiers, `OFFSET`, `HAVING`, `COUNT(DISTINCT)`; `ORDER BY ... LIMIT` keeps the limit in Spark)
 - a column the view does not have
 - `MIN` / `MAX` on a non-numeric column — CDF only aggregates numeric properties
 - a view outside the generator's data model

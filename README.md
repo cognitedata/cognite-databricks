@@ -16,6 +16,8 @@ A helper SDK for Databricks that provides Unity Catalog SQL UDTF registration ut
 
 Full release notes are published on [GitHub Releases](https://github.com/cognitedata/cognite-databricks/releases). Patch releases may update locked dependencies and minimum constraints without API changes.
 
+**Upgrade:** views and UDTFs registered before the trailing `base_url` argument must be regenerated and re-registered with `if_exists="replace"`. See [Upgrading views registered before query-time base_url](docs/catalog_based/troubleshooting.md#upgrading-views-registered-before-query-time-base_url).
+
 **Note**: This package provides Databricks-specific utilities for Unity Catalog UDTF registration and Secret Manager integration.
 
 ## Overview

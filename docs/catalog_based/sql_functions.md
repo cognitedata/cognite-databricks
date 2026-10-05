@@ -96,7 +96,9 @@ FROM f0connectortest.sailboat_sailboat_v1.boats_named(
 )
 ```
 
-The count comes back in `count_externalId`. A numeric `MIN` or `MAX` comes back in `min_<column>` or `max_<column>`. A list query comes back as the view row (`space`, `external_id`, the properties, and the CDF timestamps).
+The count comes back in `count_externalId` as `STRING`. The UDTF stores the count in the string `external_id` column, so the function keeps that type. Cast the column in Power BI or SQL when you need a number. A numeric `MIN` or `MAX` comes back in `min_<column>` or `max_<column>` with the property's numeric type. A list query comes back as the view row (`space`, `external_id`, the properties, and the CDF timestamps).
+
+Anything outside that grammar is not turned into a function. `OR`, subqueries, quoted identifiers, joins, `HAVING`, `OFFSET`, `COUNT(DISTINCT)`, and a `GROUP BY` that does not match the select list raise `QueryNotPushdownCompatible` and create nothing. The view query is unchanged, and Power BI keeps scanning it until you simplify the statement and create the function again. `rewrite_query` returns `None` for the same statements so a notebook can run the original SQL.
 
 When a slicer should change a filter, bind that slicer to the function argument with a Dynamic M query parameter. Changing the slicer changes the argument sent to CDF. The function is unchanged, and the dataset queries the function.
 
@@ -143,7 +145,7 @@ FROM f0connectortest.sailboat_sailboat_v1.boats_by_name(
 
 ## Permissions
 
-Grant the Power BI connection `EXECUTE` on the function, and `USAGE` on the catalog and schema. The function reads credentials with `SQL SECURITY DEFINER`, so the caller does not need `READ` on the secret scope.
+The function is created with `SQL SECURITY DEFINER`. Calls run as the function owner, which is the principal that ran `create_sql_function`. That owner must be allowed to read the secret scope. The Power BI connection only needs `EXECUTE` on the function and `USAGE` on the catalog and schema. Do not grant that connection `READ` on the secret scope. If a principal that cannot read the scope recreates the function, calls fail when the body evaluates `SECRET()`.
 
 ```sql
 GRANT USAGE ON CATALOG f0connectortest TO `powerbi@company.com`;

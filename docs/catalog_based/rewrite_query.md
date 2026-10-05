@@ -132,7 +132,7 @@ FROM f0connectortest.sailboat_sailboat_v1.SmallBoat
 WHERE space = 'inst_sailboat_fleet_a'
 ```
 
-The count is returned in `count_externalId`, as a string. The alias in the analyst query (`n`) is not the column name.
+The count is returned in `count_externalId` as a string. The UDTF writes that count into the string `external_id` column, so the SQL type stays `STRING`. Cast it in the notebook when you need a number. The alias in the analyst query (`n`) is not the column name.
 
 ```sql
 SELECT min(aph_tod) AS low, max(aph_tod) AS high
@@ -168,6 +168,7 @@ GROUP BY space, name
 
 Run the original statement in Spark in that case. Nothing was pushed.
 
+- The statement uses `OR`, a subquery, or a quoted identifier (backticks or double quotes).
 - The statement has a join, `HAVING`, `OFFSET`, or `COUNT(DISTINCT)`.
 - `GROUP BY` does not match the select list, groups an expression, or has no `COUNT` / `MIN` / `MAX`.
 - `MIN` or `MAX` is on a text or timestamp column.

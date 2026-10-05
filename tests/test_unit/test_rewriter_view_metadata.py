@@ -382,6 +382,42 @@ def test_group_by_expression_is_not_rewritten(metadata: DataModelViewMetadata) -
     assert any("GROUP BY" in reason for reason in hints.skip_reasons)
 
 
+def test_or_is_not_rewritten(metadata: DataModelViewMetadata) -> None:
+    sql = f"SELECT * FROM {CERT} WHERE name = 'Seed ORC A 01' OR space = 'inst_sailboat_fleet_a'"
+
+    rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql, secret_scope=SECRET_SCOPE, view_metadata=metadata)
+
+    assert rewritten is None
+
+
+def test_or_inside_a_string_literal_is_still_pushed(metadata: DataModelViewMetadata) -> None:
+    sql = f"SELECT count(*) FROM {CERT} WHERE name = 'or'"
+
+    rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql, secret_scope=SECRET_SCOPE, view_metadata=metadata)
+
+    assert rewritten is not None
+    assert "name => 'or'" in rewritten
+
+
+def test_subquery_is_not_rewritten(metadata: DataModelViewMetadata) -> None:
+    sql = f"SELECT * FROM (SELECT * FROM {CERT} WHERE name = 'Seed ORC A 01') AS nested"
+
+    rewritten = DataModelQueryRewriter.rewrite_to_udtf_sql(sql, secret_scope=SECRET_SCOPE, view_metadata=metadata)
+
+    assert rewritten is None
+
+
+def test_quoted_identifier_is_not_rewritten(metadata: DataModelViewMetadata) -> None:
+    sql = f'SELECT * FROM {CERT} WHERE "name" = \'Seed ORC A 01\''
+
+    with pytest.raises(QueryNotPushdownCompatible) as caught:
+        DataModelQueryRewriter.build_sql_function(
+            "quoted_name", sql, secret_scope=SECRET_SCOPE, view_metadata=metadata
+        )
+
+    assert any("quoted" in reason for reason in caught.value.reasons)
+
+
 def test_sql_function_lifts_where_literals_and_keeps_secrets(metadata: DataModelViewMetadata) -> None:
     sql = (
         f"SELECT count(*) AS n FROM {CERT} "
