@@ -80,7 +80,7 @@ same; pass `view_metadata=DataModelViewMetadata.from_view(view)`. Without metada
 text columns, so `MIN(name)` is pushed and the UDTF rejects it with a clear error. Default UDTF names follow
 `to_udtf_function_name(view_name)` (`SmallBoat` → `small_boat_udtf`), matching registration.
 
-Requires cognite-pygen-spark 0.4.1 or newer, which generates the pushdown parameters and the trailing `base_url` argument.
+Requires cognite-pygen-spark 0.4.2 or newer, which generates the pushdown parameters, the trailing `base_url` argument, and grouped rows that include `space` and `externalId`.
 
 ## Slow view queries in Power BI
 

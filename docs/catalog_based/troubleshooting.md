@@ -6,7 +6,7 @@ Generated views and UDTFs now take `base_url` as the last argument. A view or UD
 
 Upgrade in this order:
 
-1. Install cognite-pygen-spark 0.4.1 or newer and this package together.
+1. Install cognite-pygen-spark 0.4.2 or newer and this package together.
 2. Regenerate the UDTFs and re-run `register_udtfs(..., if_exists="replace")` and `register_views(..., if_exists="replace")`.
 3. Let registration backfill the `base_url` secret, or set it with `set_cdf_credentials(..., base_url=...)`.
 
