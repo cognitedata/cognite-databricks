@@ -43,8 +43,8 @@ It provides high-level APIs for:
 - **One-Line Registration**: Generate and register UDTFs in a single call
 - **Secret Manager Integration**: Automatic credential management from TOML files, including `base_url` for Private Link and dedicated clusters
 - **Scalar-Only Execution**: Compatible with SQL Warehouses and serverless execution
-- **Catalog SQL rewrite helper**: `generator.rewrite_query()` binds WHERE / LIMIT / aggregates and passes every UDTF parameter (`NULL` when unbound)
-- **SQL functions**: `generator.create_sql_function()` turns one view query into a Unity Catalog function for Power BI. Literals become arguments. Credentials stay `SECRET()` references.
+- **Catalog SQL rewrite helper**: `generator.rewrite_query()` binds WHERE / LIMIT / GROUP BY / aggregates and passes every UDTF parameter (`NULL` when unbound). `OR`, subqueries, and quoted identifiers are left unchanged.
+- **SQL functions**: `generator.create_sql_function()` turns one view query into a Unity Catalog function for Power BI. Literals become arguments. Credentials stay `SECRET()` references. A statement that cannot be pushed raises and creates nothing.
 - **Type Safety**: Full type hints and IDE support
 - **Generic Components**: Uses template-generated UDTFs and generic utilities (`TypeConverter`, `CDFConnectionConfig`, `to_udtf_function_name`) from `cognite-pygen-spark` for generic Spark compatibility. These components are re-exported from `cognite.databricks` for backward compatibility, but the source is `cognite.pygen_spark`.
 
